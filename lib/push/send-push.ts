@@ -1,11 +1,17 @@
 import webpush from 'web-push'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
-webpush.setVapidDetails(
-  'mailto:alkathirilawfirm@gmail.com',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+let vapidConfigured = false
+
+function ensureVapidConfigured() {
+  if (vapidConfigured) return
+  webpush.setVapidDetails(
+    'mailto:alkathirilawfirm@gmail.com',
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
+    process.env.VAPID_PRIVATE_KEY || ''
+  )
+  vapidConfigured = true
+}
 
 export async function sendPushToUser(
   admin: ReturnType<typeof createAdminClient>,
@@ -14,6 +20,8 @@ export async function sendPushToUser(
   body: string,
   url?: string
 ) {
+  ensureVapidConfigured()
+
   const { data: subscriptions } = await admin
     .from('push_subscriptions')
     .select('id, endpoint, p256dh, auth')
