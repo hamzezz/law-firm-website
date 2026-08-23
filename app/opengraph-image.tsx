@@ -1,15 +1,10 @@
 import { ImageResponse } from 'next/og'
 
-export const runtime = 'edge'
 export const alt = 'مكتب وليد الكثيري للمحاماة'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
 export default async function Image() {
-  const cairoFont = await fetch(
-    new URL('https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpQdkhzfH5lkSscQyyS4J0.woff')
-  ).then((res) => res.arrayBuffer())
-
   return new ImageResponse(
     (
       <div
@@ -52,51 +47,25 @@ export default async function Image() {
         </div>
         <div
           style={{
-            fontSize: 64,
+            fontSize: 60,
             fontWeight: 700,
             color: '#ffffff',
-            fontFamily: 'Cairo',
             marginBottom: 12,
           }}
         >
-          مكتب وليد الكثيري
+          Kathiri Law Firm
         </div>
         <div
           style={{
-            fontSize: 30,
+            fontSize: 26,
             color: '#fbbf24',
-            fontFamily: 'Cairo',
             fontWeight: 700,
           }}
         >
-          للمحاماة والاستشارات القانونية والتحكيم
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 40,
-            marginTop: 40,
-            fontSize: 20,
-            color: '#94a3b8',
-            fontFamily: 'Cairo',
-          }}
-        >
-          <span>+15 عاماً من الخبرة</span>
-          <span>•</span>
-          <span>96% نسبة كسب القضايا</span>
+          Legal Services & Consultations
         </div>
       </div>
     ),
-    {
-      ...size,
-      fonts: [
-        {
-          name: 'Cairo',
-          data: cairoFont,
-          style: 'normal',
-          weight: 700,
-        },
-      ],
-    }
+    { ...size }
   )
 }
