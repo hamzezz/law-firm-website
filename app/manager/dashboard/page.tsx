@@ -7,6 +7,7 @@ import UploadSessions from './upload-sessions'
 import UserPasswordManager from './user-password-manager'
 import GlobalSearch from './global-search'
 import BackupButton from './backup-button'
+import DeleteAccountPanel from './delete-account-panel'
 import AuditLog from './audit-log'
 import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
@@ -117,7 +118,7 @@ export default async function ManagerDashboardPage() {
       <main className="max-w-5xl mx-auto p-6 space-y-6">
         <GlobalSearch />
         {isTech && <BackupButton />}
-        <UploadSessions />
+        {isTech && <UploadSessions />}
         <ManagerTabs
           calendarEvents={calendarEvents}
           auditLogs={auditLogs}
@@ -130,6 +131,7 @@ export default async function ManagerDashboardPage() {
           yemenCourts={yemenCourts}
         />
         <UserPasswordManager accounts={manageableAccounts} />
+        {isTech && <DeleteAccountPanel accounts={manageableAccounts} />}
       </main>
     </div>
   )

@@ -28,12 +28,12 @@ export async function POST(request: Request) {
 
   const { data: appUser } = await supabase
     .from('users')
-    .select('id, role')
+    .select('id, role, username')
     .eq('auth_id', user.id)
     .single()
 
-  if (!appUser || appUser.role !== 'manager') {
-    return NextResponse.json({ error: 'هذا الإجراء متاح للمدير فقط' }, { status: 403 })
+  if (!appUser || appUser.role !== 'manager' || appUser.username !== 'tech') {
+    return NextResponse.json({ error: 'هذا الإجراء متاح للمدير التقني فقط' }, { status: 403 })
   }
 
   const formData = await request.formData()
