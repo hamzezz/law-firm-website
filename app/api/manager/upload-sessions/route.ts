@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { parseSessionsReport, deduplicateCases } from '@/lib/moj-parser/parser'
+import { parseSessionsReport, deduplicateCases, normalizeArabic } from '@/lib/moj-parser/parser'
 import { sendPushToUser } from '@/lib/push/send-push'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -97,12 +97,16 @@ export async function POST(request: Request) {
   const matchedCases: any[] = []
 
   for (const item of extracted) {
-    const { data: matchedCase } = await admin
+    // نجلب كل القضايا بنفس رقم القضية، ثم نطابق اسم المحكمة بعد التطبيع
+    const { data: candidateCases } = await admin
       .from('cases')
       .select('id, title, case_number, court_name, primary_lawyer_id, client_id')
       .eq('case_number', item.caseNumber)
-      .eq('court_name', item.courtName)
-      .maybeSingle()
+
+    const normalizedFileCourtName = normalizeArabic(item.courtName)
+    const matchedCase = (candidateCases || []).find(
+      (c) => normalizeArabic(c.court_name || '') === normalizedFileCourtName
+    )
 
     if (!matchedCase) continue
 

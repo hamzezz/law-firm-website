@@ -1,37 +1,81 @@
 /**
- * محلل ملفات جلسات وزارة العدل اليمنية (تقرير Crystal Reports اليومي)
- * منطق مطابق تماماً لما جرّبناه واختبرناه بنجاح على ملف حقيقي (551 قضية، 20 محكمة)
+ * محلل ملفات جلسات وزارة العدل اليمنية
+ * يعالج: تطبيع الحروف العربية المتشابهة + استبعاد أرقام النيابة العامة
  */
 
-// إزالة رموز التحكم الاتجاهية الخفية (Bidi) وتطبيع أشكال العرض العربية
 function cleanText(text: string): string {
   const bidiControlChars = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g
   const withoutBidi = text.replace(bidiControlChars, '')
   return withoutBidi.normalize('NFKC')
 }
 
-// تحويل الأرقام العربية-الهندية إلى إنجليزية عادية (تطبيع موحّد للمطابقة)
+// تطبيع الحروف العربية المتشابهة (الهمزات، التاء المربوطة، الألف المقصورة)
+export function normalizeArabic(text: string): string {
+  return text
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/[\u064B-\u0652]/g, '') // إزالة التشكيل
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export function normalizeDigits(text: string): string {
   const arabicDigits = '٠١٢٣٤٥٦٧٨٩'
   return text.replace(/[٠-٩]/g, (d) => String(arabicDigits.indexOf(d)))
 }
 
 export interface ExtractedCase {
-  caseNumber: string // بصيغة موحّدة بأرقام إنجليزية، مثال: "1446/102"
+  caseNumber: string
   courtName: string
   pageNumber: number
 }
 
-// نمط رقم القضية: سنة هجرية تقريبية (١٤٤٥-١٤٥٠) / رقم تسلسلي، بأرقام عربية-هندية
-const CASE_NUMBER_PATTERN = /(١٤[٤٥][٠-٩])\/([٠-٩]+)/g
+// رقم القضية: سنة هجرية (١٤٤٥-١٤٥٠ أو 1445-1450) / رقم تسلسلي
+const CASE_NUMBER_PATTERN = /([١٤٤٥-١٤٥٠\d]{4}|[١٤][٤٥][٠-٩])\s*\/\s*([٠-٩\d]+)/g
+const CASE_NUMBER_PATTERN_AR = /(١٤[٤٥][٠-٩])\/([٠-٩]+)/g
+const CASE_NUMBER_PATTERN_EN = /(14[45][0-9])\/([0-9]+)/g
 
-// اسم المحكمة: كلمة "محكمة" متبوعة بـ 1-3 كلمات عربية فقط (بدون أرقام)
 const COURT_PATTERN = /محكمة\s+([\u0621-\u064A]+(?:\s+[\u0621-\u064A]+){0,2})/
 
 const TABLE_START_MARKER = 'موضـوع'
+const PROSECUTION_MARKER = 'النيابة العامة'
+
+/**
+ * يستخرج أرقام القضايا من سطر واحد، مستبعداً أرقام النيابة العامة
+ * (المميزة بحرف "هـ" الملتصق بها، أو المسبوقة بعبارة "النيابة العامة")
+ */
+function extractCaseNumbersFromLine(line: string): string[] {
+  const results: string[] = []
+  const patterns = [CASE_NUMBER_PATTERN_AR, CASE_NUMBER_PATTERN_EN]
+
+  for (const pattern of patterns) {
+    pattern.lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(line)) !== null) {
+      const fullMatch = match[0]
+      const matchEnd = match.index + fullMatch.length
+
+      // استبعاد 1: الرقم متبوع بحرف "هـ" أو "ه" مباشرة (رقم نيابة)
+      const nextChars = line.slice(matchEnd, matchEnd + 2)
+      if (nextChars.startsWith('هـ') || nextChars.startsWith('ه')) continue
+
+      // استبعاد 2: الرقم مسبوق بعبارة "النيابة العامة" ضمن آخر 25 حرفاً قبله
+      const precedingContext = line.slice(Math.max(0, match.index - 25), match.index)
+      if (precedingContext.includes(PROSECUTION_MARKER)) continue
+
+      const caseNumber = normalizeDigits(match[1]) + '/' + normalizeDigits(match[2])
+      results.push(caseNumber)
+    }
+  }
+
+  return results
+}
 
 export function parseSessionsReport(fullText: string): ExtractedCase[] {
-  const pages = fullText.split('\f') // form feed = فاصل الصفحات
+  const pages = fullText.split('\f')
   const results: ExtractedCase[] = []
 
   pages.forEach((rawPage, index) => {
@@ -42,7 +86,6 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
     const headerArea = tableStartIndex !== -1 ? page.slice(0, tableStartIndex) : page
     const searchArea = tableStartIndex !== -1 ? page.slice(tableStartIndex) : page
 
-    // استخراج اسم المحكمة من منطقة الهيدر فقط (تفادي التقاط كلمات زائدة من الجدول)
     let courtName = 'غير محدد'
     const headerLines = headerArea.split('\n')
     for (const line of headerLines) {
@@ -55,13 +98,10 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
       }
     }
 
-    // استخراج كل أرقام القضايا من منطقة الجدول
     const lines = searchArea.split('\n')
     for (const line of lines) {
-      let match: RegExpExecArray | null
-      CASE_NUMBER_PATTERN.lastIndex = 0
-      while ((match = CASE_NUMBER_PATTERN.exec(line)) !== null) {
-        const caseNumber = normalizeDigits(match[1]) + '/' + normalizeDigits(match[2])
+      const caseNumbers = extractCaseNumbersFromLine(line)
+      for (const caseNumber of caseNumbers) {
         results.push({
           caseNumber,
           courtName,
@@ -74,12 +114,11 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
   return results
 }
 
-// إزالة التكرارات (نفس القضية بنفس المحكمة قد تظهر أكثر من مرة أحياناً)
 export function deduplicateCases(cases: ExtractedCase[]): ExtractedCase[] {
   const seen = new Set<string>()
   const unique: ExtractedCase[] = []
   for (const c of cases) {
-    const key = c.caseNumber + '|' + c.courtName
+    const key = c.caseNumber + '|' + normalizeArabic(c.courtName)
     if (!seen.has(key)) {
       seen.add(key)
       unique.push(c)
