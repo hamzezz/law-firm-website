@@ -62,22 +62,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    // حذف الملف المرتبط (clients أو lawyers) - القضايا تُحذف تلقائياً بـ cascade
     if (targetUser.role === 'client') {
-      await admin.from('clients').delete().eq('user_id', targetUser.id)
+      const r1 = await admin.from('clients').delete().eq('user_id', targetUser.id)
+      if (r1.error) return NextResponse.json({ error: 'فشل حذف بيانات الموكل: ' + r1.error.message }, { status: 500 })
     } else if (targetUser.role === 'lawyer') {
-      await admin.from('lawyers').delete().eq('user_id', targetUser.id)
+      const r2 = await admin.from('lawyers').delete().eq('user_id', targetUser.id)
+      if (r2.error) return NextResponse.json({ error: 'فشل حذف بيانات المحامي: ' + r2.error.message }, { status: 500 })
     }
 
-    // حذف الإشعارات واشتراكات Push المرتبطة
     await admin.from('notifications').delete().eq('recipient_user_id', targetUser.id)
     await admin.from('push_subscriptions').delete().eq('user_id', targetUser.id)
+    await admin.from('audit_log').delete().eq('user_id', targetUser.id)
 
-    // حذف صف users
-    await admin.from('users').delete().eq('id', targetUser.id)
+    const r3 = await admin.from('users').delete().eq('id', targetUser.id)
+    if (r3.error) return NextResponse.json({ error: 'فشل حذف الحساب: ' + r3.error.message }, { status: 500 })
 
-    // حذف حساب Auth
-    await admin.auth.admin.deleteUser(targetUser.auth_id)
+    const r4 = await admin.auth.admin.deleteUser(targetUser.auth_id)
+    if (r4.error) return NextResponse.json({ error: 'فشل حذف حساب الدخول: ' + r4.error.message }, { status: 500 })
 
     return NextResponse.json({ success: true, deletedName: targetUser.full_name })
   } catch (err) {
