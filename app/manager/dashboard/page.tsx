@@ -6,6 +6,7 @@ import ManagerTabs from './manager-tabs'
 import UploadSessions from './upload-sessions'
 import UserPasswordManager from './user-password-manager'
 import GlobalSearch from './global-search'
+import BackupButton from './backup-button'
 import AuditLog from './audit-log'
 import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
@@ -115,6 +116,7 @@ export default async function ManagerDashboardPage() {
 
       <main className="max-w-5xl mx-auto p-6 space-y-6">
         <GlobalSearch />
+        {isTech && <BackupButton />}
         <UploadSessions />
         <ManagerTabs
           calendarEvents={calendarEvents}
