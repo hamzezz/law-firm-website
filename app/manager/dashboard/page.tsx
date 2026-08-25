@@ -121,6 +121,7 @@ export default async function ManagerDashboardPage() {
         <ManagerTabs
           calendarEvents={calendarEvents}
           auditLogs={auditLogs}
+          allSessions={allSessions}
           cases={cases}
           clientsCount={clientsCount}
           lawyersCount={lawyersCount}
