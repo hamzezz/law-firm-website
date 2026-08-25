@@ -63,9 +63,33 @@ export async function POST(request: Request) {
 
   try {
     if (targetUser.role === 'client') {
+      const { data: clientRow } = await admin
+        .from('clients')
+        .select('id')
+        .eq('user_id', targetUser.id)
+        .maybeSingle()
+
+      if (clientRow) {
+        // حذف كل القضايا المرتبطة أولاً (جلساتها ومستنداتها تُحذف تلقائياً بـ cascade)
+        const rCases = await admin.from('cases').delete().eq('client_id', clientRow.id)
+        if (rCases.error) return NextResponse.json({ error: 'فشل حذف قضايا الموكل: ' + rCases.error.message }, { status: 500 })
+      }
+
       const r1 = await admin.from('clients').delete().eq('user_id', targetUser.id)
       if (r1.error) return NextResponse.json({ error: 'فشل حذف بيانات الموكل: ' + r1.error.message }, { status: 500 })
     } else if (targetUser.role === 'lawyer') {
+      const { data: lawyerRow } = await admin
+        .from('lawyers')
+        .select('id')
+        .eq('user_id', targetUser.id)
+        .maybeSingle()
+
+      if (lawyerRow) {
+        // للمحامي: لا نحذف القضايا، بل نحوّلها إلى "غير مخصصة" حفاظاً على بيانات الموكلين
+        await admin.from('cases').update({ primary_lawyer_id: null }).eq('primary_lawyer_id', lawyerRow.id)
+        await admin.from('case_lawyer_access').delete().eq('lawyer_id', lawyerRow.id)
+      }
+
       const r2 = await admin.from('lawyers').delete().eq('user_id', targetUser.id)
       if (r2.error) return NextResponse.json({ error: 'فشل حذف بيانات المحامي: ' + r2.error.message }, { status: 500 })
     }
