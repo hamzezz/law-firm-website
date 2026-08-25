@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
+function normalizeForCompare(text: string): string {
+  return (text || '')
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u0652]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export async function POST(request: Request) {
   const supabase = await createServerClient()
 
@@ -47,7 +57,7 @@ export async function POST(request: Request) {
   }
 
   // حماية: التأكد من مطابقة الاسم المكتوب يدوياً
-  if (confirmName.trim() !== targetUser.full_name.trim()) {
+  if (normalizeForCompare(confirmName) !== normalizeForCompare(targetUser.full_name)) {
     return NextResponse.json({ error: 'الاسم المكتوب لا يطابق اسم الحساب' }, { status: 400 })
   }
 

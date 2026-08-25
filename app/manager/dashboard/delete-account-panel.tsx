@@ -3,6 +3,16 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+function normalizeForCompare(text: string): string {
+  return (text || '')
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u0652]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function DeleteRow({ account }: { account: any }) {
   const [open, setOpen] = useState(false)
   const [confirmName, setConfirmName] = useState('')
@@ -143,7 +153,7 @@ function DeleteRow({ account }: { account: any }) {
           <div className="flex gap-2">
             <button
               onClick={handleDelete}
-              disabled={loading || confirmName.trim() !== account.full_name.trim()}
+              disabled={loading || normalizeForCompare(confirmName) !== normalizeForCompare(account.full_name)}
               className="flex-1 bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition text-xs disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? 'جارٍ الحذف...' : 'تأكيد الحذف النهائي'}
