@@ -4,10 +4,8 @@ import LogoutButton from '@/app/staff/logout-button'
 import ChangePassword from '@/app/components/change-password'
 import ManagerTabs from './manager-tabs'
 import UploadSessions from './upload-sessions'
-import UserPasswordManager from './user-password-manager'
 import GlobalSearch from './global-search'
 import BackupButton from './backup-button'
-import DeleteAccountPanel from './delete-account-panel'
 import AuditLog from './audit-log'
 import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
@@ -123,6 +121,8 @@ export default async function ManagerDashboardPage() {
           calendarEvents={calendarEvents}
           auditLogs={auditLogs}
           allSessions={allSessions}
+          manageableAccounts={manageableAccounts}
+          isTech={isTech}
           cases={cases}
           clientsCount={clientsCount}
           lawyersCount={lawyersCount}
@@ -130,8 +130,6 @@ export default async function ManagerDashboardPage() {
           allLawyers={allLawyers}
           yemenCourts={yemenCourts}
         />
-        <UserPasswordManager accounts={manageableAccounts} />
-        {isTech && <DeleteAccountPanel accounts={manageableAccounts} />}
       </main>
     </div>
   )

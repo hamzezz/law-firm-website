@@ -9,6 +9,7 @@ import CalendarView from './calendar-view'
 import AuditLog from './audit-log'
 import ReportsPanel from './reports-panel'
 import PredictiveAnalytics from './predictive-analytics'
+import AccountsTab from './accounts-tab'
 
 function generatePassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#'
@@ -35,6 +36,7 @@ const TABS = [
   { id: 'clients-cases', label: 'الموكلون والقضايا' },
   { id: 'team', label: 'فريق العمل' },
   { id: 'permissions', label: 'الصلاحيات' },
+  { id: 'accounts', label: 'إدارة الحسابات' },
 ]
 
 function AddClientForm({ onSuccess }: { onSuccess: () => void }) {
@@ -299,7 +301,7 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
   )
 }
 
-export default function ManagerTabs({ cases, clientsCount, lawyersCount, allClients, allLawyers, yemenCourts, calendarEvents, auditLogs, allSessions }: any) {
+export default function ManagerTabs({ cases, clientsCount, lawyersCount, allClients, allLawyers, yemenCourts, calendarEvents, auditLogs, allSessions, manageableAccounts, isTech }: any) {
   const [activeTab, setActiveTab] = useState('overview')
 
   function handleRefresh() {
@@ -343,6 +345,10 @@ export default function ManagerTabs({ cases, clientsCount, lawyersCount, allClie
           <div className="mt-6"><PredictiveAnalytics cases={cases} sessions={allSessions} /></div>
           <div className="mt-6"><AuditLog logs={auditLogs} /></div>
         </>
+      )}
+
+      {activeTab === 'accounts' && (
+        <AccountsTab accounts={manageableAccounts} isTech={isTech} />
       )}
 
       {activeTab === 'calendar' && (
