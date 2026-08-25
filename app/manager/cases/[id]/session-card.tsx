@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import VoiceInput from '@/app/components/voice-input'
 
 function sessionStatusLabel(status: string) {
   const map: Record<string, string> = { scheduled: 'مجدولة', held: 'منعقدة', postponed: 'مؤجلة' }
@@ -174,6 +175,8 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
 
         <div className="space-y-2">
           <textarea placeholder="اكتب قرار الجلسة..." value={notes} onChange={function (e) { setNotes(e.target.value) }} disabled={saving} className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500 h-20 resize-none bg-white" />
+
+          <VoiceInput onTranscript={function (text) { setNotes(text) }} />
 
           <div className="flex gap-2 items-center flex-wrap">
             <label className="text-xs text-slate-500 whitespace-nowrap">تاريخ الجلسة القادمة (اختياري):</label>
