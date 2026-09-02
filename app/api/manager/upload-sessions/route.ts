@@ -122,14 +122,22 @@ export async function POST(request: Request) {
     if (existingSession) {
       sessionId = existingSession.id
     } else {
+      // حساب رقم الجلسة من عدد الجلسات القائمة للقضية، لا بقيمة ثابتة
+      const { count: existingCount } = await admin
+        .from('sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('case_id', matchedCase.id)
+
+      const nextOrder = (existingCount || 0) + 1
+
       const { data: newSession } = await admin
         .from('sessions')
         .insert({
           case_id: matchedCase.id,
           session_date: today,
-          title: 'جلسة اليوم (من تقرير وزارة العدل)',
+          title: 'الجلسة رقم ' + nextOrder,
           status: 'scheduled',
-          session_order: 1,
+          session_order: nextOrder,
         })
         .select('id')
         .single()

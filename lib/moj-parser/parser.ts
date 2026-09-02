@@ -35,8 +35,8 @@ export interface ExtractedCase {
 
 // رقم القضية: سنة هجرية (١٤٤٥-١٤٥٠ أو 1445-1450) / رقم تسلسلي
 const CASE_NUMBER_PATTERN = /([١٤٤٥-١٤٥٠\d]{4}|[١٤][٤٥][٠-٩])\s*\/\s*([٠-٩\d]+)/g
-const CASE_NUMBER_PATTERN_AR = /(١٤[٤٥][٠-٩])\/([٠-٩]+)/g
-const CASE_NUMBER_PATTERN_EN = /(14[45][0-9])\/([0-9]+)/g
+const CASE_NUMBER_PATTERN_AR = /(١٤[٢-٥][٠-٩])\/([٠-٩]+)/g
+const CASE_NUMBER_PATTERN_EN = /(14[2-5][0-9])\/([0-9]+)/g
 
 const COURT_PATTERN = /محكمة\s+([\u0621-\u064A]+(?:\s+[\u0621-\u064A]+){0,2})/
 
@@ -66,8 +66,15 @@ function extractCaseNumbersFromLine(line: string): string[] {
       const precedingContext = line.slice(Math.max(0, match.index - 25), match.index)
       if (precedingContext.includes(PROSECUTION_MARKER)) continue
 
-      const caseNumber = normalizeDigits(match[1]) + '/' + normalizeDigits(match[2])
-      results.push(caseNumber)
+      const year = normalizeDigits(match[1])
+      const serial = normalizeDigits(match[2])
+      results.push(year + '/' + serial)
+
+      // عند دمج أعمدة الجدول في استخراج النص، يلتصق رقم التسلسل برقم القضية.
+      // مثال: "١٤٤٦/١٣٤" + تسلسل "١٠" يُقرأ "1446/13410".
+      // نضيف الاحتمالات المقتطعة كمرشحات؛ اشتراط تطابق المحكمة أيضاً يمنع أي مطابقة خاطئة.
+      if (serial.length > 1) results.push(year + '/' + serial.slice(0, -1))
+      if (serial.length > 2) results.push(year + '/' + serial.slice(0, -2))
     }
   }
 
