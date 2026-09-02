@@ -31,11 +31,10 @@ export interface ExtractedCase {
   caseNumber: string
   courtName: string
   pageNumber: number
+  rawLine: string
 }
 
-// رقم القضية: سنة هجرية (١٤٤٥-١٤٥٠ أو 1445-1450) / رقم تسلسلي
-const CASE_NUMBER_PATTERN = /([١٤٤٥-١٤٥٠\d]{4}|[١٤][٤٥][٠-٩])\s*\/\s*([٠-٩\d]+)/g
-const CASE_NUMBER_PATTERN_AR = /(١٤[٢-٥][٠-٩])\/([٠-٩]+)/g
+const CASE_NUMBER_PATTERN_AR = /(١٤[٢٣٤٥][٠١٢٣٤٥٦٧٨٩])\/([٠١٢٣٤٥٦٧٨٩]+)/g
 const CASE_NUMBER_PATTERN_EN = /(14[2-5][0-9])\/([0-9]+)/g
 
 const COURT_PATTERN = /محكمة\s+([\u0621-\u064A]+(?:\s+[\u0621-\u064A]+){0,2})/
@@ -73,8 +72,6 @@ function extractCaseNumbersFromLine(line: string): string[] {
       // عند دمج أعمدة الجدول في استخراج النص، يلتصق رقم التسلسل برقم القضية.
       // مثال: "١٤٤٦/١٣٤" + تسلسل "١٠" يُقرأ "1446/13410".
       // نضيف الاحتمالات المقتطعة كمرشحات؛ اشتراط تطابق المحكمة أيضاً يمنع أي مطابقة خاطئة.
-      if (serial.length > 1) results.push(year + '/' + serial.slice(0, -1))
-      if (serial.length > 2) results.push(year + '/' + serial.slice(0, -2))
     }
   }
 
@@ -113,6 +110,7 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
           caseNumber,
           courtName,
           pageNumber: index + 1,
+          rawLine: line.trim(),
         })
       }
     }
