@@ -134,6 +134,8 @@ export async function POST(request: Request) {
     .eq('role', 'manager')
 
   const matchedCases: any[] = []
+  // نتتبّع القضايا المعالجة لمنع تكرارها عبر المرشحات المتعددة للرقم نفسه
+  const processedCaseIds = new Set<string>()
 
   for (const item of extracted) {
     // نجلب كل القضايا بنفس رقم القضية، ثم نطابق اسم المحكمة بعد التطبيع
@@ -179,6 +181,8 @@ export async function POST(request: Request) {
     }
 
     if (!matchedCase) continue
+    if (processedCaseIds.has(matchedCase.id)) continue
+    processedCaseIds.add(matchedCase.id)
 
     const { data: existingSession } = await admin
       .from('sessions')
@@ -189,8 +193,11 @@ export async function POST(request: Request) {
 
     let sessionId: string
 
+    let isNewSession = true
+
     if (existingSession) {
       sessionId = existingSession.id
+      isNewSession = false
     } else {
       // حساب رقم الجلسة من عدد الجلسات القائمة للقضية، لا بقيمة ثابتة
       const { count: existingCount } = await admin
@@ -258,7 +265,8 @@ export async function POST(request: Request) {
 
     const caseUrl = '/lawyer/cases/' + matchedCase.id
 
-    for (const recipientId of recipientUserIds) {
+    // لا نرسل إشعارات لجلسة موجودة مسبقاً، منعاً للتكرار عند إعادة رفع الملف
+    for (const recipientId of isNewSession ? recipientUserIds : []) {
       await admin.from('notifications').insert({
         recipient_user_id: recipientId,
         case_id: matchedCase.id,
