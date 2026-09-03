@@ -61,9 +61,8 @@ function extractCaseNumbersFromLine(line: string): string[] {
       const nextChars = line.slice(matchEnd, matchEnd + 2)
       if (nextChars.startsWith('هـ') || nextChars.startsWith('ه')) continue
 
-      // استبعاد 2: الرقم مسبوق بعبارة "النيابة العامة" ضمن آخر 25 حرفاً قبله
-      const precedingContext = line.slice(Math.max(0, match.index - 25), match.index)
-      if (precedingContext.includes(PROSECUTION_MARKER)) continue
+      // ملاحظة: لا نستبعد الأرقام المسبوقة بعبارة "النيابة العامة"، لأنها قد تكون
+      // موضوع القضية أو اسم الخصم لا بادئة لرقم نيابة. حرف "هـ" أعلاه هو المميّز الوحيد.
 
       const year = normalizeDigits(match[1])
       const serial = normalizeDigits(match[2])
@@ -71,7 +70,9 @@ function extractCaseNumbersFromLine(line: string): string[] {
 
       // عند دمج أعمدة الجدول في استخراج النص، يلتصق رقم التسلسل برقم القضية.
       // مثال: "١٤٤٦/١٣٤" + تسلسل "١٠" يُقرأ "1446/13410".
-      // نضيف الاحتمالات المقتطعة كمرشحات؛ اشتراط تطابق المحكمة أيضاً يمنع أي مطابقة خاطئة.
+      // نضيف الاحتمالات المقتطعة؛ اشتراط تطابق اسم أحد الأطراف يمنع المطابقات الخاطئة.
+      if (serial.length > 1) results.push(year + '/' + serial.slice(0, -1))
+      if (serial.length > 2) results.push(year + '/' + serial.slice(0, -2))
     }
   }
 

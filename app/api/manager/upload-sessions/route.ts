@@ -51,7 +51,7 @@ function lineMatchesParties(rawLine: string, clientName: string, otherParty: str
     if (all.length === 0) return false
     const distinctHits = distinct.filter((w) => line.includes(w)).length
     const allHits = all.filter((w) => line.includes(w)).length
-    return distinctHits >= 1 && allHits >= 3
+    return distinctHits >= 1 || allHits >= 3
   }
 
   return check(clientName) || check(otherParty)
