@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CasesTable from './cases-table'
 import TeamTab from './team-tab'
@@ -304,8 +305,11 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
 export default function ManagerTabs({ cases, clientsCount, lawyersCount, allClients, allLawyers, yemenCourts, calendarEvents, auditLogs, allSessions, manageableAccounts, isTech }: any) {
   const [activeTab, setActiveTab] = useState('overview')
 
+  const router = useRouter()
+
+  // نحدّث بيانات الصفحة من الخادم دون إعادة تحميل، ليبقى التبويب النشط كما هو
   function handleRefresh() {
-    window.location.reload()
+    router.refresh()
   }
 
   return (
