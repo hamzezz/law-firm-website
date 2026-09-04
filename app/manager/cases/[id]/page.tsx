@@ -186,7 +186,11 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
             <div className="space-y-5">
               {sessions ? sessions.map((s) => {
                 const sDate = new Date(s.session_date).toISOString().slice(0, 10)
-                const isFuture = sDate > todayStr
+                // تُقفل البطاقة إن كانت مستقبلية، أو إن كانت جلسة سابقة لم يُسجَّل قرارها بعد
+                const hasUnresolvedEarlier = (sessions || []).some(
+                  (prev: any) => (prev.session_order || 0) < (s.session_order || 0) && !prev.is_locked
+                )
+                const isFuture = sDate > todayStr || hasUnresolvedEarlier
                 return (
                   <ManagerSessionCard
                     key={s.id}

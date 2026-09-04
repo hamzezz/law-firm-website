@@ -32,10 +32,14 @@ export interface ExtractedCase {
   courtName: string
   pageNumber: number
   rawLine: string
+  sessionDate: string | null
 }
 
 const CASE_NUMBER_PATTERN_AR = /(١٤[٢٣٤٥][٠١٢٣٤٥٦٧٨٩])\/([٠١٢٣٤٥٦٧٨٩]+)/g
 const CASE_NUMBER_PATTERN_EN = /(14[2-5][0-9])\/([0-9]+)/g
+
+// تاريخ الجلسة بصيغة YYYY-MM-DD بالأرقام العربية، يظهر في جدول التواريخ أعلى الصفحة
+const SESSION_DATE_PATTERN = /([٠١٢٣٤٥٦٧٨٩]{4})-([٠١٢٣٤٥٦٧٨٩]{2})-([٠١٢٣٤٥٦٧٨٩]{2})/
 
 const COURT_PATTERN = /محكمة\s+([\u0621-\u064A]+(?:\s+[\u0621-\u064A]+){0,2})/
 
@@ -103,6 +107,14 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
       }
     }
 
+    // تاريخ جلسات هذا الملف: أول تاريخ في جدول التواريخ أعلى الصفحة
+    let sessionDate: string | null = null
+    const dateMatch = SESSION_DATE_PATTERN.exec(headerArea)
+    if (dateMatch) {
+      sessionDate =
+        normalizeDigits(dateMatch[1]) + '-' + normalizeDigits(dateMatch[2]) + '-' + normalizeDigits(dateMatch[3])
+    }
+
     const lines = searchArea.split('\n')
     for (const line of lines) {
       const caseNumbers = extractCaseNumbersFromLine(line)
@@ -112,6 +124,7 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
           courtName,
           pageNumber: index + 1,
           rawLine: line.trim(),
+          sessionDate,
         })
       }
     }

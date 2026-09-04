@@ -125,7 +125,12 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
           <div className="space-y-4">
             {sessions ? sessions.map((s) => {
               const sessionDateStr = new Date(s.session_date).toISOString().slice(0, 10)
-              const isFuture = sessionDateStr > todayStr
+              // تُقفل البطاقة إن كانت مستقبلية، أو إن كانت جلسة سابقة لم يُسجَّل قرارها بعد،
+              // منعاً لتخطي الجلسات وحفظاً لتسلسل السجل
+              const hasUnresolvedEarlier = (sessions || []).some(
+                (prev: any) => (prev.session_order || 0) < (s.session_order || 0) && !prev.is_locked
+              )
+              const isFuture = sessionDateStr > todayStr || hasUnresolvedEarlier
               return (
                 <SessionCard
                   key={s.id}

@@ -191,11 +191,14 @@ export async function POST(request: Request) {
     if (processedCaseIds.has(matchedCase.id)) continue
     processedCaseIds.add(matchedCase.id)
 
+    // نعتمد تاريخ الجلسة المذكور في الملف، لا تاريخ رفعه
+    const sessionDate = item.sessionDate || today
+
     const { data: existingSession } = await admin
       .from('sessions')
       .select('id')
       .eq('case_id', matchedCase.id)
-      .eq('session_date', today)
+      .eq('session_date', sessionDate)
       .maybeSingle()
 
     let sessionId: string
@@ -218,7 +221,7 @@ export async function POST(request: Request) {
         .from('sessions')
         .insert({
           case_id: matchedCase.id,
-          session_date: today,
+          session_date: sessionDate,
           title: 'الجلسة رقم ' + nextOrder,
           status: 'scheduled',
           session_order: nextOrder,
