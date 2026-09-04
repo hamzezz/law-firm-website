@@ -133,16 +133,38 @@ export async function POST(request: Request) {
     .select('id')
     .eq('role', 'manager')
 
+  // خريطة المحامين مرة واحدة بدل استعلام لكل قضية
+  const { data: allLawyerRows } = await admin.from('lawyers').select('id, user_id')
+  const lawyerUserById = new Map((allLawyerRows || []).map((l: any) => [l.id, l.user_id]))
+  const allLawyerUserIds = (allLawyerRows || []).map((l: any) => l.user_id)
+
   const matchedCases: any[] = []
   // نتتبّع القضايا المعالجة لمنع تكرارها عبر المرشحات المتعددة للرقم نفسه
   const processedCaseIds = new Set<string>()
 
+  // نجلب كل قضايا المكتب مرة واحدة مع أسماء الموكلين، بدل استعلام لكل رقم مرشّح.
+  // هذا يقلّل مئات الاستعلامات إلى استعلامين، ويمنع تجاوز مهلة الخادم.
+  const { data: allCases } = await admin
+    .from('cases')
+    .select('id, title, case_number, court_name, primary_lawyer_id, client_id, other_party')
+
+  const { data: allClientRows } = await admin.from('clients').select('id, user_id')
+  const { data: allUserRows } = await admin.from('users').select('id, full_name')
+
+  const userNameById = new Map((allUserRows || []).map((u: any) => [u.id, u.full_name]))
+  const clientNameById = new Map(
+    (allClientRows || []).map((cl: any) => [cl.id, userNameById.get(cl.user_id) || ''])
+  )
+
+  const casesByNumber = new Map<string, any[]>()
+  for (const cs of allCases || []) {
+    const key = cs.case_number || ''
+    if (!casesByNumber.has(key)) casesByNumber.set(key, [])
+    casesByNumber.get(key)!.push(cs)
+  }
+
   for (const item of extracted) {
-    // نجلب كل القضايا بنفس رقم القضية، ثم نطابق اسم المحكمة بعد التطبيع
-    const { data: candidateCases } = await admin
-      .from('cases')
-      .select('id, title, case_number, court_name, primary_lawyer_id, client_id, other_party')
-      .eq('case_number', item.caseNumber)
+    const candidateCases = casesByNumber.get(item.caseNumber) || []
 
     const normalizedFileCourtName = normalizeArabic(item.courtName)
     const courtMatches = (candidateCases || []).filter(
@@ -157,22 +179,7 @@ export async function POST(request: Request) {
     let matchedCase: any = null
 
     for (const candidate of courtMatches) {
-      let candidateClientName = ''
-
-      const { data: candidateClientRow } = await admin
-        .from('clients')
-        .select('user_id')
-        .eq('id', candidate.client_id)
-        .maybeSingle()
-
-      if (candidateClientRow) {
-        const { data: candidateClientUser } = await admin
-          .from('users')
-          .select('full_name')
-          .eq('id', candidateClientRow.user_id)
-          .maybeSingle()
-        if (candidateClientUser) candidateClientName = candidateClientUser.full_name
-      }
+      const candidateClientName = clientNameById.get(candidate.client_id) || ''
 
       if (lineMatchesParties(item.rawLine, candidateClientName, candidate.other_party || '')) {
         matchedCase = candidate
@@ -222,20 +229,7 @@ export async function POST(request: Request) {
       sessionId = newSession ? newSession.id : ''
     }
 
-    let clientName = 'غير محدد'
-    const { data: clientRow } = await admin
-      .from('clients')
-      .select('user_id')
-      .eq('id', matchedCase.client_id)
-      .single()
-    if (clientRow) {
-      const { data: clientUser } = await admin
-        .from('users')
-        .select('full_name')
-        .eq('id', clientRow.user_id)
-        .single()
-      if (clientUser) clientName = clientUser.full_name
-    }
+    const clientName = clientNameById.get(matchedCase.client_id) || 'غير محدد'
 
     const notificationTitle = 'جلسة يوم غداً ' + dayName + ' - قضية الموكل ' + clientName
     const notificationBody =
@@ -246,17 +240,10 @@ export async function POST(request: Request) {
     const recipientUserIds: string[] = []
 
     if (matchedCase.primary_lawyer_id) {
-      const { data: lawyerRow } = await admin
-        .from('lawyers')
-        .select('user_id')
-        .eq('id', matchedCase.primary_lawyer_id)
-        .single()
-      if (lawyerRow) recipientUserIds.push(lawyerRow.user_id)
+      const lawyerUserId = lawyerUserById.get(matchedCase.primary_lawyer_id)
+      if (lawyerUserId) recipientUserIds.push(lawyerUserId)
     } else {
-      const { data: allLawyers } = await admin.from('lawyers').select('user_id')
-      if (allLawyers) {
-        for (const lawyer of allLawyers) recipientUserIds.push(lawyer.user_id)
-      }
+      for (const uid of allLawyerUserIds) recipientUserIds.push(uid)
     }
 
     if (allManagers) {
