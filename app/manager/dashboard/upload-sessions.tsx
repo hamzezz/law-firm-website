@@ -5,12 +5,19 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function UploadSessions() {
   const [uploading, setUploading] = useState(false)
+  const [sessionDate, setSessionDate] = useState('')
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files ? e.target.files[0] : null
     if (!file) return
+
+    if (!sessionDate) {
+      setError('حدد تاريخ جلسات الملف أولاً')
+      e.target.value = ''
+      return
+    }
 
     setUploading(true)
     setError('')
@@ -23,6 +30,7 @@ export default function UploadSessions() {
 
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('sessionDate', sessionDate)
 
       const res = await fetch('/api/manager/upload-sessions', {
         method: 'POST',
@@ -71,6 +79,19 @@ export default function UploadSessions() {
           )}
         </div>
       )}
+
+      <div className="mb-3">
+        <label className="text-xs text-slate-500 block mb-1">تاريخ جلسات الملف</label>
+        <input
+          type="date"
+          value={sessionDate}
+          onChange={(e) => setSessionDate(e.target.value)}
+          className="px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500"
+        />
+        <p className="text-[10px] text-slate-400 mt-1">
+          التاريخ المذكور في عنوان الملف — تُنشأ الجلسات به.
+        </p>
+      </div>
 
       <label className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-amber-600 transition cursor-pointer disabled:opacity-50">
         {uploading ? 'جارٍ التحليل...' : '📎 رفع ملف جلسات اليوم (PDF)'}

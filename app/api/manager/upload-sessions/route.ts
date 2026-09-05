@@ -77,6 +77,8 @@ export async function POST(request: Request) {
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null
+  // تاريخ الجلسات يُدخله المستخدم، لأن الملف لا يذكر التاريخ الميلادي صراحة
+  const providedDate = (formData.get('sessionDate') as string | null) || null
 
   if (!file) {
     return NextResponse.json({ error: 'لم يتم إرفاق أي ملف' }, { status: 400 })
@@ -192,7 +194,7 @@ export async function POST(request: Request) {
     processedCaseIds.add(matchedCase.id)
 
     // نعتمد تاريخ الجلسة المذكور في الملف، لا تاريخ رفعه
-    const sessionDate = item.sessionDate || today
+    const sessionDate = providedDate || item.sessionDate || today
 
     const { data: existingSession } = await admin
       .from('sessions')
