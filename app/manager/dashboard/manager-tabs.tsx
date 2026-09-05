@@ -183,7 +183,7 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
       if (extraLawyerIds.length > 0) {
         const accessRows = extraLawyerIds
           .filter((id) => id !== lawyerId)
-          .map((id) => ({ case_id: newCase.id, lawyer_id: id, access_level: 'full' }))
+          .map((id) => ({ case_id: newCase.id, lawyer_id: id, access_level: 'contributor' }))
 
         if (accessRows.length > 0) {
           const accessResult = await supabase.from('case_lawyer_access').insert(accessRows)
