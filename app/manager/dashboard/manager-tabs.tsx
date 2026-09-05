@@ -125,6 +125,7 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
   const [courtName, setCourtName] = useState('')
   const [customCourtName, setCustomCourtName] = useState('')
   const [lawyerId, setLawyerId] = useState('all')
+  const [extraLawyerIds, setExtraLawyerIds] = useState<string[]>([])
   const [firstSessionDate, setFirstSessionDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -178,6 +179,22 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
         return
       }
 
+      // منح المحامين المشاركين صلاحية الوصول للقضية
+      if (extraLawyerIds.length > 0) {
+        const accessRows = extraLawyerIds
+          .filter((id) => id !== lawyerId)
+          .map((id) => ({ case_id: newCase.id, lawyer_id: id, access_level: 'full' }))
+
+        if (accessRows.length > 0) {
+          const accessResult = await supabase.from('case_lawyer_access').insert(accessRows)
+          if (accessResult.error) {
+            setMessage({ type: 'error', text: 'تم إنشاء القضية لكن فشل منح صلاحيات المحامين: ' + accessResult.error.message })
+            setLoading(false)
+            return
+          }
+        }
+      }
+
       if (firstSessionDate) {
         const sessionResult = await supabase.from('sessions').insert({
           case_id: newCase.id,
@@ -200,6 +217,7 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
       setCustomCourtName('')
       setClientId('')
       setLawyerId('all')
+      setExtraLawyerIds([])
       setFirstSessionDate('')
       setCaseNumberInput('')
       onSuccess()
@@ -288,6 +306,43 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
             return <option key={l.id} value={l.id}>{l.users ? l.users.full_name : ''}</option>
           }) : null}
         </select>
+
+        <div className="col-span-2">
+          <label className="text-xs text-slate-500 block mb-1.5">محامون مشاركون (اختياري)</label>
+          <div className="flex flex-wrap gap-2">
+            {allLawyers ? allLawyers.map(function (l: any) {
+              const checked = extraLawyerIds.indexOf(l.id) !== -1
+              const isPrimary = lawyerId === l.id
+              return (
+                <button
+                  type="button"
+                  key={l.id}
+                  disabled={isPrimary}
+                  onClick={function () {
+                    setExtraLawyerIds(function (prev) {
+                      return prev.indexOf(l.id) !== -1
+                        ? prev.filter(function (x) { return x !== l.id })
+                        : prev.concat([l.id])
+                    })
+                  }}
+                  className={
+                    isPrimary
+                      ? 'text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : checked
+                        ? 'text-xs px-3 py-1.5 rounded-lg border border-amber-400 bg-amber-50 text-amber-800 font-bold'
+                        : 'text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }
+                >
+                  {checked ? '✓ ' : ''}{l.users ? l.users.full_name : ''}
+                  {isPrimary ? ' (مسؤول)' : ''}
+                </button>
+              )
+            }) : null}
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1.5">
+            يُمنح المحامون المختارون صلاحية الاطلاع على القضية والعمل عليها إلى جانب المحامي المسؤول.
+          </p>
+        </div>
 
         <div className="col-span-2">
           <label className="text-xs text-slate-500 block mb-1">تاريخ أول جلسة (اختياري)</label>
