@@ -40,9 +40,16 @@ export async function sendPushToUser(
         },
         payload
       )
+      console.log('[push] sent ok | user=' + userId + ' | sub=' + sub.id)
     } catch (err: any) {
+      const code = err?.statusCode ?? 'none'
+      const body = (err?.body || err?.message || '').toString().slice(0, 200)
+      console.log('[push] FAILED | user=' + userId + ' | sub=' + sub.id + ' | status=' + code + ' | ' + body)
+
+      // اشتراك منتهٍ أو محذوف من جهة المتصفح: نزيله لتفادي محاولات فاشلة لاحقاً
       if (err.statusCode === 410 || err.statusCode === 404) {
         await admin.from('push_subscriptions').delete().eq('id', sub.id)
+        console.log('[push] removed expired subscription ' + sub.id)
       }
     }
   }
