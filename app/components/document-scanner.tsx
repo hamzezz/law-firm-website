@@ -212,19 +212,66 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
 
   function endDrag() { dragRef.current.corner = null }
 
+  /**
+   * تحسين وضوح المستند بعتبة محلية تكيّفية.
+   * نقارن كل بكسل بمتوسط سطوع محيطه لا بمتوسط الصورة كلها، فلا تُحرق
+   * المناطق المضيئة ولا تُطمس المظلمة عند الإضاءة غير المتساوية.
+   */
   function applyEnhance(ctx: CanvasRenderingContext2D, w: number, h: number) {
     const data = ctx.getImageData(0, 0, w, h)
     const px = data.data
-    let sum = 0
-    for (let i = 0; i < px.length; i += 4) sum += px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114
-    const threshold = (sum / (px.length / 4)) * 0.82
+    const n = w * h
 
-    for (let i = 0; i < px.length; i += 4) {
-      const gray = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114
-      let v = gray < threshold ? gray * 0.55 : 255 - (255 - gray) * 0.25
-      v = Math.max(0, Math.min(255, v))
-      px[i] = px[i + 1] = px[i + 2] = v
+    // 1) تحويل رمادي
+    const gray = new Float32Array(n)
+    for (let i = 0; i < n; i++) {
+      const j = i * 4
+      gray[i] = px[j] * 0.299 + px[j + 1] * 0.587 + px[j + 2] * 0.114
     }
+
+    // 2) صورة تكاملية لحساب متوسط أي نافذة بسرعة ثابتة
+    const integral = new Float64Array((w + 1) * (h + 1))
+    for (let y = 0; y < h; y++) {
+      let rowSum = 0
+      for (let x = 0; x < w; x++) {
+        rowSum += gray[y * w + x]
+        integral[(y + 1) * (w + 1) + (x + 1)] = integral[y * (w + 1) + (x + 1)] + rowSum
+      }
+    }
+
+    // 3) عتبة محلية: نافذة بنحو 12% من عرض الصورة
+    const radius = Math.max(8, Math.floor(w * 0.06))
+    const T = 0.86 // كلما قلّ، زاد احتفاظ الصورة بالتفاصيل الرمادية
+
+    for (let y = 0; y < h; y++) {
+      const y1 = Math.max(0, y - radius)
+      const y2 = Math.min(h - 1, y + radius)
+      for (let x = 0; x < w; x++) {
+        const x1 = Math.max(0, x - radius)
+        const x2 = Math.min(w - 1, x + radius)
+        const area = (x2 - x1 + 1) * (y2 - y1 + 1)
+
+        const sum =
+          integral[(y2 + 1) * (w + 1) + (x2 + 1)] -
+          integral[y1 * (w + 1) + (x2 + 1)] -
+          integral[(y2 + 1) * (w + 1) + x1] +
+          integral[y1 * (w + 1) + x1]
+
+        const localMean = sum / area
+        const v = gray[y * w + x]
+        const j = (y * w + x) * 4
+
+        // نص داكن نسبة لمحيطه: نثبّته أسود. غير ذلك: نبيّض الورق مع تدرّج خفيف
+        let out: number
+        if (v < localMean * T) {
+          out = Math.max(0, v * 0.5)
+        } else {
+          out = Math.min(255, 255 - (255 - v) * 0.35)
+        }
+        px[j] = px[j + 1] = px[j + 2] = out
+      }
+    }
+
     ctx.putImageData(data, 0, 0)
   }
 
