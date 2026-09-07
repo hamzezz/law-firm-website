@@ -8,6 +8,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   const [error, setError] = useState('')
   const [enhance, setEnhance] = useState(true)
   const [autoDetected, setAutoDetected] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -144,7 +145,9 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
         }
       }
 
-      return tryDetect(26, 0.35) || tryDetect(15, 0.25) || tryDetect(9, 0.18)
+      const r = tryDetect(26, 0.35) || tryDetect(15, 0.25) || tryDetect(9, 0.18)
+      setDebugInfo('خلفية=' + Math.round(bg) + (r ? ' | نجح' : ' | فشل'))
+      return r
     } catch {
       return null
     }
@@ -236,7 +239,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     const sh = (crop.h / 100) * img.height
 
     // نحدّ العرض بـ 1400 بكسل: كافٍ لقراءة النص والأختام، ويقلّص الحجم كثيراً
-    const MAX_WIDTH = 1400
+    const MAX_WIDTH = 2200
     const scale = sw > MAX_WIDTH ? MAX_WIDTH / sw : 1
 
     canvas.width = Math.round(sw * scale)
@@ -252,7 +255,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
       if (!blob) return
       onCapture(new File([blob], 'محضر-' + new Date().toISOString().slice(0, 10) + '.jpg', { type: 'image/jpeg' }))
       closeScanner()
-    }, 'image/jpeg', 0.75)
+    }, 'image/jpeg', 0.92)
   }
 
   return (
@@ -299,7 +302,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
           <div className="p-4 space-y-3">
             {stage === 'crop' && (
               <p className="text-center text-[11px] text-white/60">
-                {autoDetected ? '✓ حُدّدت الحواف تلقائياً — عدّلها إن لزم' : 'اسحب الزوايا لتحديد حواف الورقة'}
+                {(autoDetected ? '✓ حُدّدت الحواف تلقائياً' : 'اسحب الزوايا لتحديد حواف الورقة') + (debugInfo ? ' · ' + debugInfo : '')}
               </p>
             )}
 
