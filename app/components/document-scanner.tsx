@@ -7,6 +7,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   const [stage, setStage] = useState<'camera' | 'crop'>('camera')
   const [error, setError] = useState('')
   const [enhance, setEnhance] = useState(true)
+  const [autoDetected, setAutoDetected] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -75,11 +76,79 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     img.onload = () => {
       shotRef.current = img
       stopCamera()
-      setCrop({ x: 5, y: 5, w: 90, h: 90 })
+      const detected = detectEdges(img)
+      setCrop(detected || { x: 5, y: 5, w: 90, h: 90 })
+      setAutoDetected(!!detected)
       setStage('crop')
       setTimeout(drawPreview, 50)
     }
     img.src = canvas.toDataURL('image/jpeg', 0.95)
+  }
+
+  /**
+   * كشف حواف الورقة على الخلفية بمسح خفيف للسطوع.
+   * نصغّر الصورة أولاً للسرعة، ثم نبحث عن أول وآخر صف/عمود يختلف سطوعه
+   * بوضوح عن حواف الإطار (الخلفية). يعمل خلال أجزاء من الثانية بلا مكتبات.
+   */
+  function detectEdges(img: HTMLImageElement) {
+    try {
+      const W = 160
+      const H = Math.max(1, Math.round((img.height / img.width) * W))
+      const c = document.createElement('canvas')
+      c.width = W; c.height = H
+      const ctx = c.getContext('2d')
+      if (!ctx) return null
+      ctx.drawImage(img, 0, 0, W, H)
+      const px = ctx.getImageData(0, 0, W, H).data
+
+      const gray = (x: number, y: number) => {
+        const i = (y * W + x) * 4
+        return px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114
+      }
+
+      // سطوع الخلفية: متوسط الإطار الخارجي
+      let bg = 0, n = 0
+      for (let x = 0; x < W; x++) { bg += gray(x, 0) + gray(x, H - 1); n += 2 }
+      for (let y = 0; y < H; y++) { bg += gray(0, y) + gray(W - 1, y); n += 2 }
+      bg /= n
+
+      const DIFF = 26
+      const isPaper = (v: number) => Math.abs(v - bg) > DIFF
+
+      const colHit = (x: number) => {
+        let hits = 0
+        for (let y = 0; y < H; y++) if (isPaper(gray(x, y))) hits++
+        return hits / H
+      }
+      const rowHit = (y: number) => {
+        let hits = 0
+        for (let x = 0; x < W; x++) if (isPaper(gray(x, y))) hits++
+        return hits / W
+      }
+
+      const RATIO = 0.35
+      let left = 0, right = W - 1, top = 0, bottom = H - 1
+      while (left < W - 1 && colHit(left) < RATIO) left++
+      while (right > left && colHit(right) < RATIO) right--
+      while (top < H - 1 && rowHit(top) < RATIO) top++
+      while (bottom > top && rowHit(bottom) < RATIO) bottom--
+
+      const w = ((right - left) / W) * 100
+      const h = ((bottom - top) / H) * 100
+
+      // نرفض النتائج غير المنطقية (صغيرة جداً أو تغطي كل الصورة)
+      if (w < 20 || h < 20 || (w > 97 && h > 97)) return null
+
+      const pad = 1
+      return {
+        x: Math.max(0, (left / W) * 100 - pad),
+        y: Math.max(0, (top / H) * 100 - pad),
+        w: Math.min(100, w + pad * 2),
+        h: Math.min(100, h + pad * 2),
+      }
+    } catch {
+      return null
+    }
   }
 
   function drawPreview() {
@@ -167,18 +236,24 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     const sw = (crop.w / 100) * img.width
     const sh = (crop.h / 100) * img.height
 
-    canvas.width = Math.round(sw)
-    canvas.height = Math.round(sh)
+    // نحدّ العرض بـ 1400 بكسل: كافٍ لقراءة النص والأختام، ويقلّص الحجم كثيراً
+    const MAX_WIDTH = 1400
+    const scale = sw > MAX_WIDTH ? MAX_WIDTH / sw : 1
+
+    canvas.width = Math.round(sw * scale)
+    canvas.height = Math.round(sh * scale)
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+    ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
     if (enhance) applyEnhance(ctx, canvas.width, canvas.height)
 
+    // جودة 0.75 كافية لصورة عالية التباين، وتوفّر نحو 60% من الحجم
     canvas.toBlob((blob) => {
       if (!blob) return
       onCapture(new File([blob], 'محضر-' + new Date().toISOString().slice(0, 10) + '.jpg', { type: 'image/jpeg' }))
       closeScanner()
-    }, 'image/jpeg', 0.9)
+    }, 'image/jpeg', 0.75)
   }
 
   return (
@@ -223,6 +298,12 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
           </div>
 
           <div className="p-4 space-y-3">
+            {stage === 'crop' && (
+              <p className="text-center text-[11px] text-white/60">
+                {autoDetected ? '✓ حُدّدت الحواف تلقائياً — عدّلها إن لزم' : 'اسحب الزوايا لتحديد حواف الورقة'}
+              </p>
+            )}
+
             {stage === 'crop' && (
               <label className="flex items-center justify-center gap-2 text-white/80 text-xs">
                 <input type="checkbox" checked={enhance} onChange={(e) => setEnhance(e.target.checked)} className="w-4 h-4" />
