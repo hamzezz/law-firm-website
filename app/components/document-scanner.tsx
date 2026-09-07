@@ -112,40 +112,39 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
       for (let y = 0; y < H; y++) { bg += gray(0, y) + gray(W - 1, y); n += 2 }
       bg /= n
 
-      const DIFF = 26
-      const isPaper = (v: number) => Math.abs(v - bg) > DIFF
+      // نجرّب عتبات متدرّجة: الصارمة أدق، والمتساهلة تنقذ الخلفيات الفاتحة
+      const tryDetect = (DIFF: number, RATIO: number) => {
+        const isPaper = (v: number) => Math.abs(v - bg) > DIFF
+        const colHit = (x: number) => {
+          let hits = 0
+          for (let y = 0; y < H; y++) if (isPaper(gray(x, y))) hits++
+          return hits / H
+        }
+        const rowHit = (y: number) => {
+          let hits = 0
+          for (let x = 0; x < W; x++) if (isPaper(gray(x, y))) hits++
+          return hits / W
+        }
+        let left = 0, right = W - 1, top = 0, bottom = H - 1
+        while (left < W - 1 && colHit(left) < RATIO) left++
+        while (right > left && colHit(right) < RATIO) right--
+        while (top < H - 1 && rowHit(top) < RATIO) top++
+        while (bottom > top && rowHit(bottom) < RATIO) bottom--
 
-      const colHit = (x: number) => {
-        let hits = 0
-        for (let y = 0; y < H; y++) if (isPaper(gray(x, y))) hits++
-        return hits / H
+        const w = ((right - left) / W) * 100
+        const h = ((bottom - top) / H) * 100
+        if (w < 20 || h < 20 || (w > 98 && h > 98)) return null
+
+        const pad = 1
+        return {
+          x: Math.max(0, (left / W) * 100 - pad),
+          y: Math.max(0, (top / H) * 100 - pad),
+          w: Math.min(100, w + pad * 2),
+          h: Math.min(100, h + pad * 2),
+        }
       }
-      const rowHit = (y: number) => {
-        let hits = 0
-        for (let x = 0; x < W; x++) if (isPaper(gray(x, y))) hits++
-        return hits / W
-      }
 
-      const RATIO = 0.35
-      let left = 0, right = W - 1, top = 0, bottom = H - 1
-      while (left < W - 1 && colHit(left) < RATIO) left++
-      while (right > left && colHit(right) < RATIO) right--
-      while (top < H - 1 && rowHit(top) < RATIO) top++
-      while (bottom > top && rowHit(bottom) < RATIO) bottom--
-
-      const w = ((right - left) / W) * 100
-      const h = ((bottom - top) / H) * 100
-
-      // نرفض النتائج غير المنطقية (صغيرة جداً أو تغطي كل الصورة)
-      if (w < 20 || h < 20 || (w > 97 && h > 97)) return null
-
-      const pad = 1
-      return {
-        x: Math.max(0, (left / W) * 100 - pad),
-        y: Math.max(0, (top / H) * 100 - pad),
-        w: Math.min(100, w + pad * 2),
-        h: Math.min(100, h + pad * 2),
-      }
+      return tryDetect(26, 0.35) || tryDetect(15, 0.25) || tryDetect(9, 0.18)
     } catch {
       return null
     }
