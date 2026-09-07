@@ -13,10 +13,18 @@ export function loadOpenCV(): Promise<any> {
   if (w.cv && w.cv.Mat) return Promise.resolve(w.cv)
   if (loadPromise) return loadPromise
 
+  // شبكات توزيع بديلة: نجرّب الثانية إن فشلت الأولى
+  const SOURCES = [
+    'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/dist/opencv.js',
+    'https://docs.opencv.org/4.10.0/opencv.js',
+  ]
+
   loadPromise = new Promise((resolve, reject) => {
+    let sourceIndex = 0
     const script = document.createElement('script')
-    script.src = 'https://docs.opencv.org/4.10.0/opencv.js'
+    script.src = SOURCES[sourceIndex]
     script.async = true
+    script.crossOrigin = 'anonymous'
 
     const timeout = setTimeout(() => {
       reject(new Error('انتهت مهلة التحميل — تحقق من الاتصال'))
@@ -42,9 +50,14 @@ export function loadOpenCV(): Promise<any> {
     }
 
     script.onerror = () => {
+      sourceIndex++
+      if (sourceIndex < SOURCES.length) {
+        script.src = SOURCES[sourceIndex]
+        return
+      }
       clearTimeout(timeout)
       loadPromise = null
-      reject(new Error('تعذّر تحميل مكتبة المعالجة'))
+      reject(new Error('تعذّر تحميل مكتبة المعالجة — تحقق من الاتصال'))
     }
 
     document.body.appendChild(script)
