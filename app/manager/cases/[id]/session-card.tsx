@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import VoiceInput from '@/app/components/voice-input'
+import DocumentScanner from '@/app/components/document-scanner'
 
 function sessionStatusLabel(status: string) {
   const map: Record<string, string> = { scheduled: 'مجدولة', held: 'منعقدة', postponed: 'مؤجلة' }
@@ -186,6 +187,10 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
           <div>
             <label className="text-xs text-slate-500 block mb-1">محضر الجلسة (اختياري):</label>
             <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={function (e) { setFile(e.target.files ? e.target.files[0] : null) }} disabled={saving} className="text-xs w-full" />
+          <div className="mt-2">
+            <DocumentScanner onCapture={function (f) { setFile(f) }} />
+          </div>
+          {file && <p className="text-[10px] text-emerald-700 mt-1">✓ {file.name}</p>}
           </div>
 
           <button onClick={handleFinalSave} disabled={saving} className="text-xs bg-amber-600 text-white px-4 py-2.5 rounded-lg hover:bg-amber-700 transition font-bold disabled:opacity-50 w-full">
