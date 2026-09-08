@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { detectCorners, warpToRect, type Corner } from './scan-perspective'
 
 export default function DocumentScanner({ onCapture }: { onCapture: (file: File) => void }) {
   const [open, setOpen] = useState(false)
@@ -10,9 +9,6 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   const [enhance, setEnhance] = useState(true)
   const [autoDetected, setAutoDetected] = useState(false)
   const [debugInfo, setDebugInfo] = useState('')
-  const [cvBusy, setCvBusy] = useState(false)
-  const [cvMsg, setCvMsg] = useState('')
-  const warpRef = useRef<HTMLCanvasElement | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -280,67 +276,6 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   }
 
   /** كشف حواف الورقة وتصحيح ميلانها عبر OpenCV، ثم اعتماد النتيجة كصورة جديدة */
-  async function autoStraighten() {
-    const img = shotRef.current
-    if (!img) return
-
-    setCvBusy(true)
-    setCvMsg('جارٍ تحميل أدوات المعالجة... قد يستغرق دقيقة في المرة الأولى')
-
-    try {
-      const work = document.createElement('canvas')
-      const MAX = 600  // الكشف لا يحتاج دقة عالية؛ التصغير يمنع تعليق المعالج
-      const scale = Math.min(1, MAX / img.width)
-      work.width = Math.round(img.width * scale)
-      work.height = Math.round(img.height * scale)
-      const wctx = work.getContext('2d')
-      if (!wctx) throw new Error('تعذّر تجهيز الصورة')
-      wctx.drawImage(img, 0, 0, work.width, work.height)
-
-      setCvMsg('جارٍ البحث عن حواف الورقة...')
-      const corners = await Promise.race([
-        detectCorners(work),
-        new Promise<null>((res) => setTimeout(() => res(null), 20000)),
-      ])
-
-      if (!corners) {
-        setCvMsg('لم يُعثر على حواف واضحة — حدّدها يدوياً')
-        setCvBusy(false)
-        return
-      }
-
-      // نعيد الزوايا إلى مقياس الصورة الأصلية
-      const full: Corner[] = corners.map((p) => ({ x: p.x / scale, y: p.y / scale }))
-
-      const srcFull = document.createElement('canvas')
-      srcFull.width = img.width
-      srcFull.height = img.height
-      const sctx = srcFull.getContext('2d')
-      if (!sctx) throw new Error('تعذّر تجهيز الصورة')
-      sctx.drawImage(img, 0, 0)
-
-      const out = warpRef.current || document.createElement('canvas')
-      warpRef.current = out
-      await warpToRect(srcFull, full, out)
-
-      // نعتمد الصورة المصحّحة كأصل جديد، فيصبح الاقتصاص كامل الإطار
-      const straightened = new Image()
-      straightened.onload = () => {
-        shotRef.current = straightened
-        setCrop({ x: 0, y: 0, w: 100, h: 100 })
-        setAutoDetected(true)
-        setDebugInfo('')
-        drawPreview()
-        setCvMsg('✓ صُحّحت الحواف والميلان')
-        setCvBusy(false)
-      }
-      straightened.src = out.toDataURL('image/jpeg', 0.95)
-    } catch (err: any) {
-      setCvMsg(err?.message || 'تعذّر التصحيح التلقائي — استخدم التحديد اليدوي')
-      setCvBusy(false)
-    }
-  }
-
   function confirmShot() {
     const img = shotRef.current
     const canvas = canvasRef.current
@@ -417,20 +352,6 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
               <p className="text-center text-[11px] text-white/60">
                 {(autoDetected ? '✓ حُدّدت الحواف تلقائياً' : 'اسحب الزوايا لتحديد حواف الورقة') + (debugInfo ? ' · ' + debugInfo : '')}
               </p>
-            )}
-
-            {stage === 'crop' && (
-              <>
-                <button
-                  type="button"
-                  onClick={autoStraighten}
-                  disabled={cvBusy}
-                  className="w-full bg-white/10 border border-white/25 text-white text-xs font-bold py-2.5 rounded-xl hover:bg-white/20 transition disabled:opacity-50"
-                >
-                  {cvBusy ? 'جارٍ المعالجة...' : '✨ تصحيح الحواف والميلان تلقائياً'}
-                </button>
-                {cvMsg && <p className="text-center text-[11px] text-white/70">{cvMsg}</p>}
-              </>
             )}
 
             {stage === 'crop' && (
