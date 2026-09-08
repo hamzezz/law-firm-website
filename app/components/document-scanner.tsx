@@ -289,7 +289,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
 
     try {
       const work = document.createElement('canvas')
-      const MAX = 1400
+      const MAX = 600  // الكشف لا يحتاج دقة عالية؛ التصغير يمنع تعليق المعالج
       const scale = Math.min(1, MAX / img.width)
       work.width = Math.round(img.width * scale)
       work.height = Math.round(img.height * scale)
@@ -298,7 +298,10 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
       wctx.drawImage(img, 0, 0, work.width, work.height)
 
       setCvMsg('جارٍ البحث عن حواف الورقة...')
-      const corners = await detectCorners(work)
+      const corners = await Promise.race([
+        detectCorners(work),
+        new Promise<null>((res) => setTimeout(() => res(null), 20000)),
+      ])
 
       if (!corners) {
         setCvMsg('لم يُعثر على حواف واضحة — حدّدها يدوياً')
