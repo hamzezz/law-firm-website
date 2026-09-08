@@ -287,7 +287,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     const sh = (crop.h / 100) * img.height
 
     // نحدّ العرض بـ 1400 بكسل: كافٍ لقراءة النص والأختام، ويقلّص الحجم كثيراً
-    const MAX_WIDTH = 2200
+    const MAX_WIDTH = 1800
     const scale = sw > MAX_WIDTH ? MAX_WIDTH / sw : 1
 
     canvas.width = Math.round(sw * scale)
@@ -303,7 +303,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
       if (!blob) return
       onCapture(new File([blob], 'محضر-' + new Date().toISOString().slice(0, 10) + '.jpg', { type: 'image/jpeg' }))
       closeScanner()
-    }, 'image/jpeg', 0.92)
+    }, 'image/jpeg', 0.85)
   }
 
   return (
