@@ -62,6 +62,7 @@ export default async function HomePage() {
 
           <nav className="hidden md:flex items-center gap-8 text-sm text-slate-300 font-bold">
             <a href="#home" className="hover:text-white transition">الرئيسية</a>
+            <Link href="/about" className="hover:text-white transition">عن المكتب</Link>
             <a href="#specialties" className="hover:text-white transition">التخصصات</a>
             <a href="#media" className="hover:text-white transition">المكتبة القانونية</a>
             <a href="#contact" className="hover:text-white transition">تواصل معنا</a>
