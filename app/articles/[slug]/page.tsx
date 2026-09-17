@@ -2,6 +2,48 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+/** بيانات المشاركة لكل مقال على حدة: عنوانه ومقتطفه وصورته */
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const decodedSlug = decodeURIComponent(slug)
+  const supabase = await createClient()
+
+  const { data: article } = await supabase
+    .from('articles')
+    .select('title, excerpt, cover_image')
+    .eq('slug', decodedSlug)
+    .eq('status', 'published')
+    .single()
+
+  if (!article) return { title: 'مقال غير موجود' }
+
+  const description =
+    article.excerpt || 'مقال قانوني من مكتب وليد الكثيري للمحاماة والاستشارات القانونية'
+  const url = 'https://kathirilaw.com/articles/' + encodeURIComponent(decodedSlug)
+  const image = article.cover_image || '/og-image.png'
+
+  return {
+    title: article.title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: article.title,
+      description,
+      url,
+      type: 'article',
+      siteName: 'مكتب وليد الكثيري للمحاماة',
+      locale: 'ar_YE',
+      images: [{ url: image, width: 1200, height: 630, alt: article.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description,
+      images: [image],
+    },
+  }
+}
+
 export default async function ArticleDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const decodedSlug = decodeURIComponent(slug)
