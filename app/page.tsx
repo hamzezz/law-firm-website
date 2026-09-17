@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { Scale, Building2, Users, FileText, Landmark, Handshake } from 'lucide-react'
+import MobileNav from './components/mobile-nav'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function HomePage() {
@@ -17,32 +19,32 @@ export default async function HomePage() {
 
   const specialties = [
     {
-      icon: '⚖︎',
+      icon: Scale,
       title: 'القضاء الجنائي',
       desc: 'تمثيل المتهمين والمجني عليهم أمام النيابة العامة ومحاكم الدرجة الأولى والاستئناف، وحضور مراحل التحقيق، وإعداد المذكرات الدفاعية، والطعن في الأحكام.',
     },
     {
-      icon: '▤',
+      icon: Building2,
       title: 'الشركات والقضايا التجارية',
       desc: 'تأسيس الشركات وصياغة عقودها وأنظمتها الأساسية، وصياغة العقود التجارية ومراجعتها، والترافع في المنازعات التجارية ودعاوى الشيكات وتحصيل المديونيات والإفلاس.',
     },
     {
-      icon: '❦',
+      icon: Users,
       title: 'الأحوال الشخصية والمواريث',
       desc: 'قضايا التركات والقسمة والفرز، وإثبات الوصايا والأوقاف، وقضايا النفقة والحضانة، ومتابعة الشؤون القانونية للمغتربين داخل اليمن بموجب وكالات شرعية.',
     },
     {
-      icon: '◈',
+      icon: FileText,
       title: 'القضاء المدني',
       desc: 'المنازعات المتعلقة بالعقود والالتزامات، وإثبات الملكية والحيازة، ودعاوى العقارات والأراضي والإيجارات، والمطالبة بالتعويض عن الأضرار، وإجراءات التنفيذ.',
     },
     {
-      icon: '▣',
+      icon: Landmark,
       title: 'القضاء الإداري',
       desc: 'الطعن في القرارات الإدارية، ومنازعات الوظيفة العامة، ومراجعة العقود الإدارية والتقاضي بشأنها.',
     },
     {
-      icon: '◇',
+      icon: Handshake,
       title: 'التحكيم والوسائل البديلة لتسوية النزاعات',
       desc: 'تمثيل الأطراف في إجراءات التحكيم التجاري والمدني، وصياغة شروط التحكيم في العقود، والسعي إلى تسوية النزاعات ودياً بما يحفظ مصالح الموكلين ويختصر الوقت والتكلفة.',
     },
@@ -69,6 +71,7 @@ export default async function HomePage() {
           </nav>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <MobileNav />
             <Link href="/client/login" className="inline-flex items-center bg-blue-600 text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-4 py-2 rounded-full hover:bg-blue-700 transition whitespace-nowrap">بوابة الموكلين</Link>
           </div>
         </div>
@@ -127,7 +130,9 @@ export default async function HomePage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {specialties.map((item) => (
               <div key={item.title} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-7 hover:shadow-md hover:border-amber-200 transition">
-                <div className="text-4xl mb-4">{item.icon}</div>
+                <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4">
+                  <item.icon size={22} strokeWidth={1.6} />
+                </div>
                 <h3 className="font-display font-bold text-lg text-slate-900 mb-3">{item.title}</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
               </div>
