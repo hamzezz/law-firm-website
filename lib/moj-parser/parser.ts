@@ -43,7 +43,17 @@ const SESSION_DATE_PATTERN = /([٠١٢٣٤٥٦٧٨٩]{4})-([٠١٢٣٤٥٦٧٨٩
 
 const COURT_PATTERN = /محكمة\s+([\u0621-\u064A]+(?:\s+[\u0621-\u064A]+){0,2})/
 
-const TABLE_START_MARKER = 'موضـوع'
+// علامات بداية الجدول: تختلف بين صفحات القضايا العادية وصفحات التنفيذ
+const TABLE_START_MARKERS = ['موضـوع', 'طالب التنفيذ', 'المنفذ ضده', 'قرار الجلسة']
+
+/** يجد بداية جدول القضايا في الصفحة مهما اختلف نوعها */
+function findTableStart(page: string): number {
+  for (const marker of TABLE_START_MARKERS) {
+    const i = page.indexOf(marker)
+    if (i !== -1) return i
+  }
+  return -1
+}
 const PROSECUTION_MARKER = 'النيابة العامة'
 
 /**
@@ -91,7 +101,7 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
     if (!rawPage.trim()) return
 
     const page = cleanText(rawPage)
-    const tableStartIndex = page.indexOf(TABLE_START_MARKER)
+    const tableStartIndex = findTableStart(page)
     const headerArea = tableStartIndex !== -1 ? page.slice(0, tableStartIndex) : page
     const searchArea = tableStartIndex !== -1 ? page.slice(tableStartIndex) : page
 
