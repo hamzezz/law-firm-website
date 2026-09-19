@@ -41,20 +41,39 @@ function nameTokens(name: string) {
  * يتحقق من أن سطر الملف يخص القضية فعلاً، لا قضية أخرى تحمل الرقم نفسه.
  * الشرط: كلمة مميزة واحدة على الأقل من اسم أحد الطرفين، مع ثلاث كلمات إجمالاً.
  */
+/**
+ * يتحقق من أن سطر الملف يخص القضية فعلاً.
+ * رقم القضية والمحكمة لا يميّزان قضية بشكل فريد، فنشترط ورود اسم أحد الطرفين.
+ *
+ * القاعدة: كلمتان متجاورتان على الأقل من اسم شخص واحد.
+ * كلمة مفردة لا تكفي — الأسماء العربية تتشارك كلمات كثيرة، وبعض القضايا
+ * تضم عدة أطراف فيرتفع احتمال المصادفة.
+ */
 function lineMatchesParties(rawLine: string, clientName: string, otherParty: string): boolean {
   const line = normalizeArabic(rawLine || '')
   if (!line) return false
 
-  const check = (name: string) => {
-    if (!name) return false
-    const { all, distinct } = nameTokens(name)
-    if (all.length === 0) return false
-    const distinctHits = distinct.filter((w) => line.includes(w)).length
-    const allHits = all.filter((w) => line.includes(w)).length
-    return distinctHits >= 1 || allHits >= 3
+  /** يفصل الأسماء المتعددة (المفصولة بشَرطة أو فاصلة) إلى أشخاص */
+  const splitPersons = (raw: string) =>
+    normalizeArabic(raw || '')
+      .split(/[-،,/]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 4)
+
+  const checkPerson = (person: string) => {
+    const words = person.split(' ').filter((w) => w.length > 2 && !STOP_WORDS.has(w))
+    if (words.length < 2) return false
+
+    // كلمتان متجاورتان في اسم الشخص، موجودتان متجاورتين في السطر
+    for (let i = 0; i < words.length - 1; i++) {
+      const pair = words[i] + ' ' + words[i + 1]
+      if (line.includes(pair)) return true
+    }
+    return false
   }
 
-  return check(clientName) || check(otherParty)
+  const persons = [...splitPersons(clientName), ...splitPersons(otherParty)]
+  return persons.some(checkPerson)
 }
 
 export async function POST(request: Request) {
