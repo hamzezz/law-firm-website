@@ -102,7 +102,12 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
 
     const page = cleanText(rawPage)
     const tableStartIndex = findTableStart(page)
-    const headerArea = tableStartIndex !== -1 ? page.slice(0, tableStartIndex) : page
+    // اسم المحكمة يقع دائماً في رأس الصفحة؛ نحصر البحث في أول 12 سطراً
+    // حتى لا يُلتقط اسم خاطئ من متن الجدول حين تتعذّر معرفة بدايته
+    const headerArea =
+      tableStartIndex !== -1
+        ? page.slice(0, tableStartIndex)
+        : page.split('\n').slice(0, 12).join('\n')
     const searchArea = tableStartIndex !== -1 ? page.slice(tableStartIndex) : page
 
     let courtName = 'غير محدد'
