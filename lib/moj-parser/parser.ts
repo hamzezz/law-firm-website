@@ -152,7 +152,9 @@ export function deduplicateCases(cases: ExtractedCase[]): ExtractedCase[] {
   const seen = new Set<string>()
   const unique: ExtractedCase[] = []
   for (const c of cases) {
-    const key = c.caseNumber + '|' + normalizeArabic(c.courtName)
+    // نضمّ السطر إلى المفتاح: الرقم نفسه قد يرد في صفحتين مختلفتين لقضيتين
+    // مختلفتين داخل المحكمة الواحدة، وإسقاط أحدهما يُفقد القضية الصحيحة
+    const key = c.caseNumber + '|' + normalizeArabic(c.courtName) + '|' + normalizeArabic(c.rawLine || '')
     if (!seen.has(key)) {
       seen.add(key)
       unique.push(c)
