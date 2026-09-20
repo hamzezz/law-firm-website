@@ -64,10 +64,21 @@ function lineMatchesParties(rawLine: string, clientName: string, otherParty: str
     const words = person.split(' ').filter((w) => w.length > 2 && !STOP_WORDS.has(w))
     if (words.length < 2) return false
 
-    // كلمتان متجاورتان في اسم الشخص، موجودتان متجاورتين في السطر
+    // مسار أول: كلمتان متجاورتان في الاسم، متجاورتان في السطر
     for (let i = 0; i < words.length - 1; i++) {
       const pair = words[i] + ' ' + words[i + 1]
       if (line.includes(pair)) return true
+    }
+
+    // مسار ثانٍ: ثلاث كلمات مميزة من الاسم موجودة في السطر ولو متفرقة.
+    // يلزم لأن استخراج النص من ملفات المحاكم يشوّه بعض الكلمات ويبعثر
+    // ترتيبها عند دمج أعمدة الجدول، فيتعذّر التجاور رغم أن القضية صحيحة.
+    const distinct = words.filter((w) => !COMMON_NAMES.has(w))
+    const distinctHits = distinct.filter((w) => line.includes(w)).length
+    const allHits = words.filter((w) => line.includes(w)).length
+    if (distinctHits >= 1 && allHits >= 3) return true
+
+    {
     }
     return false
   }
