@@ -203,6 +203,10 @@ export async function POST(request: Request) {
       (c) => normalizeArabic(c.court_name || '') === normalizedFileCourtName
     )
 
+    if (candidateCases.length > 0) {
+      console.log('[match] رقم=' + item.caseNumber + ' | محكمة الملف=[' + item.courtName + '] | مرشحات=' + candidateCases.length + ' | بعد المحكمة=' + courtMatches.length)
+    }
+
     if (courtMatches.length === 0) continue
 
     // رقم القضية والمحكمة معاً لا يميّزان قضية بشكل فريد: قضايا مختلفة قد تحمل
@@ -213,7 +217,10 @@ export async function POST(request: Request) {
     for (const candidate of courtMatches) {
       const candidateClientName = clientNameById.get(candidate.client_id) || ''
 
-      if (lineMatchesParties(item.rawLine, candidateClientName, candidate.other_party || '')) {
+      const nameOk = lineMatchesParties(item.rawLine, candidateClientName, candidate.other_party || '')
+      console.log('[match] اسم=[' + candidateClientName + '] | نتيجة=' + nameOk + ' | سطر=' + (item.rawLine || '').slice(0, 90))
+
+      if (nameOk) {
         matchedCase = candidate
         break
       }
