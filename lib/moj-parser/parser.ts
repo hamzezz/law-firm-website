@@ -41,7 +41,8 @@ const CASE_NUMBER_PATTERN_EN = /(14[2-5][0-9])\/([0-9]+)/g
 // تاريخ الجلسة بصيغة YYYY-MM-DD بالأرقام العربية، يظهر في جدول التواريخ أعلى الصفحة
 const SESSION_DATE_PATTERN = /([٠١٢٣٤٥٦٧٨٩]{4})-([٠١٢٣٤٥٦٧٨٩]{2})-([٠١٢٣٤٥٦٧٨٩]{2})/
 
-const COURT_PATTERN = /محكمة\s+([\u0621-\u064A]+(?:\s+[\u0621-\u064A]+){0,2})/
+// المحاكم الابتدائية تُسمّى "محكمة"، ومحاكم الاستئناف تُسمّى "الشعبة"
+const COURT_PATTERN = /(محكمة|الشعبة)\s+([\u0621-\u064A]+(?:\s+[\u0621-\u064A]+){0,2})/
 
 // علامات بداية الجدول: تختلف بين صفحات القضايا العادية وصفحات التنفيذ
 const TABLE_START_MARKERS = ['موضـوع', 'طالب التنفيذ', 'المنفذ ضده', 'قرار الجلسة']
@@ -113,10 +114,10 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
     let courtName = 'غير محدد'
     const headerLines = headerArea.split('\n')
     for (const line of headerLines) {
-      if (line.includes('محكمة') && !line.includes('عدد الجلسات')) {
+      if ((line.includes('محكمة') || line.includes('الشعبة')) && !line.includes('عدد الجلسات')) {
         const match = COURT_PATTERN.exec(line)
         if (match) {
-          courtName = 'محكمة ' + match[1].trim()
+          courtName = match[1] + ' ' + match[2].trim()
           break
         }
       }
