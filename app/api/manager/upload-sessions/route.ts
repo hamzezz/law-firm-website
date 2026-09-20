@@ -218,7 +218,7 @@ export async function POST(request: Request) {
       const candidateClientName = clientNameById.get(candidate.client_id) || ''
 
       const nameOk = lineMatchesParties(item.rawLine, candidateClientName, candidate.other_party || '')
-      console.log('[match] اسم=[' + candidateClientName + '] | نتيجة=' + nameOk + ' | سطر=' + (item.rawLine || '').slice(0, 90))
+      console.log('[match] اسم=[' + candidateClientName + '] | نتيجة=' + nameOk + ' | ص' + item.pageNumber + ' | سطر=' + (item.rawLine || '').slice(0, 110))
 
       if (nameOk) {
         matchedCase = candidate
