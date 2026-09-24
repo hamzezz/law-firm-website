@@ -1,5 +1,20 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { Breadcrumbs } from '../components/page-schema'
+
+export const metadata = {
+  title: 'المكتبة القانونية — مكتب وليد الكثيري للمحاماة',
+  description:
+    'مقالات وقراءات قانونية يعدّها فريق مكتب وليد الكثيري للمحاماة في محافظة إب، للإسهام في نشر الوعي بالحقوق والإجراءات في التشريع اليمني.',
+  alternates: { canonical: 'https://kathirilaw.com/articles' },
+  openGraph: {
+    title: 'المكتبة القانونية — مكتب وليد الكثيري للمحاماة',
+    description:
+      'مقالات وقراءات قانونية يعدّها فريق مكتب وليد الكثيري للمحاماة في محافظة إب.',
+    url: 'https://kathirilaw.com/articles',
+    type: 'website',
+  },
+}
 
 export default async function ArticlesListPage() {
   const supabase = await createClient()
@@ -11,6 +26,7 @@ export default async function ArticlesListPage() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
+      <Breadcrumbs items={[{ name: 'الرئيسية', path: '/' }, { name: 'المكتبة القانونية', path: '/articles' }]} />
       <header className="bg-slate-900 border-b-4 border-amber-500 px-6 py-6">
         <div className="max-w-4xl mx-auto">
           <Link href="/" className="text-amber-200 text-sm hover:text-white transition">رجوع للرئيسية</Link>

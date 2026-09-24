@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://kathirilaw.com"),
   title: "مكتب وليد الكثيري للمحاماة",
   description: "مكتب وليد الكثيري للمحاماة والاستشارات القانونية في محافظة إب، يقدّم خدماته للأفراد والشركات في القضايا التجارية والمدنية والجنائية والإدارية والأحوال الشخصية، بدقة ومهنية وسرية تامة.",
+  alternates: { canonical: "https://kathirilaw.com" },
   manifest: "/manifest.json",
   icons: {
     icon: "/icons/icon-192.png",

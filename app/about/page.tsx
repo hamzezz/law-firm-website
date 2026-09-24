@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { Breadcrumbs } from '../components/page-schema'
 import MobileNav from '../components/mobile-nav'
 
 export const metadata = {
   title: 'عن المكتب — مكتب وليد الكثيري للمحاماة',
   description:
     'نبذة عن مكتب وليد الكثيري للمحاماة والاستشارات القانونية في محافظة إب، وقيمه المهنية، والتعريف بالمحامي وليد الكثيري.',
+  alternates: { canonical: 'https://kathirilaw.com/about' },
 }
 
 const VALUES = [
@@ -18,6 +20,7 @@ const VALUES = [
 export default function AboutPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-white">
+      <Breadcrumbs items={[{ name: 'الرئيسية', path: '/' }, { name: 'عن المكتب', path: '/about' }]} />
       <header className="bg-slate-900 border-b-4 border-amber-500 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 sm:gap-3">

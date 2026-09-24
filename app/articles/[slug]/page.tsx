@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { ArticleSchema, Breadcrumbs } from '@/app/components/page-schema'
 
 /** بيانات المشاركة لكل مقال على حدة: عنوانه ومقتطفه وصورته */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -51,7 +52,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
   const { data: article } = await supabase
     .from('articles')
-    .select('title, excerpt, content, published_at, status, cover_image')
+    .select('title, excerpt, content, published_at, updated_at, status, cover_image')
     .eq('slug', decodedSlug)
     .eq('status', 'published')
     .single()
@@ -60,6 +61,21 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div dir="rtl" className="min-h-screen bg-white">
+      <ArticleSchema
+        title={article.title}
+        description={article.excerpt || ''}
+        slug={decodedSlug}
+        image={article.cover_image}
+        publishedAt={article.published_at}
+        updatedAt={(article as any).updated_at}
+      />
+      <Breadcrumbs
+        items={[
+          { name: 'الرئيسية', path: '/' },
+          { name: 'المكتبة القانونية', path: '/articles' },
+          { name: article.title, path: '/articles/' + encodeURIComponent(decodedSlug) },
+        ]}
+      />
       <header className="bg-slate-900 border-b-4 border-amber-500 px-6 py-6">
         <div className="max-w-3xl mx-auto">
           <Link href="/articles" className="text-amber-200 text-sm hover:text-white transition">رجوع لكل المقالات</Link>
