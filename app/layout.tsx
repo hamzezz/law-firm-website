@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import StructuredData from "./components/structured-data";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://kathirilaw.com"),
@@ -34,6 +35,9 @@ export const viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ar" dir="rtl" className="h-full antialiased">
+      <head>
+        <StructuredData />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
