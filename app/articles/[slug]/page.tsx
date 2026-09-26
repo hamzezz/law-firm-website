@@ -90,9 +90,26 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
       <main className="max-w-3xl mx-auto p-6 py-12">
         <h1 className="font-display text-3xl font-bold text-slate-900 mb-3 leading-snug">{article.title}</h1>
-        {article.published_at && (
-          <p className="text-slate-400 text-sm mb-8">{new Date(article.published_at).toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-        )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-400 text-[13px] mb-8 pb-6 border-b border-slate-100">
+          <span className="text-slate-600">
+            بقلم <span className="font-bold text-slate-800">فريق مكتب وليد الكثيري للمحاماة</span>
+          </span>
+
+          {article.published_at && (
+            <time dateTime={new Date(article.published_at).toISOString()}>
+              نُشر في {new Date(article.published_at).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </time>
+          )}
+
+          {(article as any).updated_at &&
+            article.published_at &&
+            new Date((article as any).updated_at).toDateString() !==
+              new Date(article.published_at).toDateString() && (
+              <time dateTime={new Date((article as any).updated_at).toISOString()}>
+                آخر تحديث {new Date((article as any).updated_at).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </time>
+            )}
+        </div>
         <div className="prose prose-slate max-w-none">
           <p className="text-slate-700 leading-loose whitespace-pre-line">{article.content}</p>
         </div>
