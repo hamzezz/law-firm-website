@@ -72,6 +72,7 @@ export default async function HomePage() {
             <a href="#home" className="hover:text-white transition">الرئيسية</a>
             <Link href="/about" className="hover:text-white transition">عن المكتب</Link>
             <Link href="/expats" className="hover:text-white transition">خدمة المغتربين</Link>
+            <Link href="/faq" className="hover:text-white transition">أسئلة شائعة</Link>
             <a href="#specialties" className="hover:text-white transition">التخصصات</a>
             <a href="#media" className="hover:text-white transition">المكتبة القانونية</a>
             <a href="#contact" className="hover:text-white transition">تواصل معنا</a>

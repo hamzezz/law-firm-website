@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/', label: 'الرئيسية' },
   { href: '/about', label: 'عن المكتب' },
   { href: '/expats', label: 'خدمة المغتربين' },
+  { href: '/faq', label: 'أسئلة شائعة' },
   { href: '/#specialties', label: 'التخصصات' },
   { href: '/#media', label: 'المكتبة القانونية' },
   { href: '/#contact', label: 'تواصل معنا' },
