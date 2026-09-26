@@ -7,6 +7,7 @@ import { Menu, X } from 'lucide-react'
 const LINKS = [
   { href: '/', label: 'الرئيسية' },
   { href: '/about', label: 'عن المكتب' },
+  { href: '/expats', label: 'خدمة المغتربين' },
   { href: '/#specialties', label: 'التخصصات' },
   { href: '/#media', label: 'المكتبة القانونية' },
   { href: '/#contact', label: 'تواصل معنا' },
