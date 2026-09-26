@@ -137,13 +137,14 @@ export default async function HomePage() {
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 text-center mb-12">مجالات الممارسة</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {specialties.map((item) => (
-              <div key={item.title} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-7 hover:shadow-md hover:border-amber-200 transition">
+              <Link key={item.title} href={"/specialties/" + item.slug} className="block bg-white rounded-2xl shadow-sm border border-slate-100 p-7 hover:shadow-md hover:border-amber-200 transition">
                 <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4">
                   <item.icon size={22} strokeWidth={1.6} />
                 </div>
                 <h3 className="font-display font-bold text-lg text-slate-900 mb-3">{item.title}</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
-              </div>
+                <span className="inline-block mt-4 text-amber-600 text-sm font-bold">التفاصيل ←</span>
+              </Link>
             ))}
           </div>
         </div>
