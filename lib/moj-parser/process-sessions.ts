@@ -8,6 +8,7 @@ const STOP_WORDS = new Set([
 ])
 const COMMON_NAMES = new Set([
   'محمد','احمد','علي','عبده','صالح','يحيي','حسن','حسين','سعيد','عبدالله','ناصر','قاسم','مصلح',
+  'عبدالرحمن','عبدالكريم','عبدالملك','فاطمه','امين','جميل','مرشد','خالد','طاهر','عبدالعزيز',
 ])
 
 function nameTokens(name: string) {
@@ -22,15 +23,22 @@ function nameTokens(name: string) {
 
 /**
  * يتحقق من أن سطر الملف يخص القضية فعلاً، لا قضية أخرى تحمل الرقم نفسه.
- * الشرط: كلمة مميزة واحدة على الأقل من اسم أحد الطرفين، مع ثلاث كلمات إجمالاً.
- */
-/**
- * يتحقق من أن سطر الملف يخص القضية فعلاً.
- * رقم القضية والمحكمة لا يميّزان قضية بشكل فريد، فنشترط ورود اسم أحد الطرفين.
  *
- * القاعدة: كلمتان متجاورتان على الأقل من اسم شخص واحد.
- * كلمة مفردة لا تكفي — الأسماء العربية تتشارك كلمات كثيرة، وبعض القضايا
- * تضم عدة أطراف فيرتفع احتمال المصادفة.
+ * رقم القضية والمحكمة لا يميّزان قضية بشكل فريد: وقع عملياً أن حملت قضيتان
+ * في محكمة الظهار الرقم نفسه (1448/14) والموضوع نفسه (الاعتداء على ملك الغير)
+ * ولم يختلفا إلا في أسماء الأطراف. ولذلك يكون اسم الطرف هو الفيصل.
+ *
+ * والقاعدة هنا متشددة عمداً، لأن إشعاراً خاطئاً عن جلسة غير موجودة أشد ضرراً
+ * من جلسة تحتاج مراجعة يدوية:
+ *
+ *   1) يجب أن ترد في السطر كلمة "مميّزة" من اسم أحد الطرفين — أي كلمة لا يشترك
+ *      فيها عامة الناس (كاللقب)، طولها أربعة أحرف فأكثر. فأسماء مثل محمد وأحمد
+ *      وعلي وعبده تتكرر في كل سطر من مستندات المحاكم، ولا تدل على شيء.
+ *   2) ثم إمّا كلمتان مميزتان، أو كلمتان متجاورتان إحداهما مميزة.
+ *
+ * القاعدة القديمة كانت تقبل "ثلاث كلمات متفرقة إحداها مميزة"، وهي التي أنتجت
+ * مطابقات خاطئة: سطر فيه (عبدالكريم … أحمد … محمد) لأشخاص لا علاقة لهم بالقضية
+ * كان يُقبل. أُلغيت تلك القاعدة نهائياً.
  */
 function lineMatchesParties(rawLine: string, clientName: string, otherParty: string): boolean {
   const line = normalizeArabic(rawLine || '')
@@ -39,7 +47,7 @@ function lineMatchesParties(rawLine: string, clientName: string, otherParty: str
   /** يفصل الأسماء المتعددة (المفصولة بشَرطة أو فاصلة) إلى أشخاص */
   const splitPersons = (raw: string) =>
     normalizeArabic(raw || '')
-      .split(/[-،,/]/)
+      .split(/[-،,/–]/)
       .map((s) => s.trim())
       .filter((s) => s.length > 4)
 
@@ -47,22 +55,25 @@ function lineMatchesParties(rawLine: string, clientName: string, otherParty: str
     const words = person.split(' ').filter((w) => w.length > 2 && !STOP_WORDS.has(w))
     if (words.length < 2) return false
 
-    // مسار أول: كلمتان متجاورتان في الاسم، متجاورتان في السطر
+    // الكلمات المميّزة: ليست من الأسماء الشائعة، وطولها 4 أحرف فأكثر
+    const distinct = words.filter((w) => !COMMON_NAMES.has(w) && w.length >= 4)
+    if (distinct.length === 0) return false
+
+    const present = distinct.filter((w) => line.includes(w))
+    if (present.length === 0) return false // لا مطابقة بغير كلمة مميّزة
+
+    // كلمتان مميزتان من الاسم نفسه: دليل كافٍ
+    if (present.length >= 2) return true
+
+    // أو تجاور كلمتين في السطر، إحداهما الكلمة المميّزة
     for (let i = 0; i < words.length - 1; i++) {
-      const pair = words[i] + ' ' + words[i + 1]
-      if (line.includes(pair)) return true
+      const a = words[i]
+      const b = words[i + 1]
+      if (line.includes(a + ' ' + b) && (present.includes(a) || present.includes(b))) {
+        return true
+      }
     }
 
-    // مسار ثانٍ: ثلاث كلمات مميزة من الاسم موجودة في السطر ولو متفرقة.
-    // يلزم لأن استخراج النص من ملفات المحاكم يشوّه بعض الكلمات ويبعثر
-    // ترتيبها عند دمج أعمدة الجدول، فيتعذّر التجاور رغم أن القضية صحيحة.
-    const distinct = words.filter((w) => !COMMON_NAMES.has(w))
-    const distinctHits = distinct.filter((w) => line.includes(w)).length
-    const allHits = words.filter((w) => line.includes(w)).length
-    if (distinctHits >= 1 && allHits >= 3) return true
-
-    {
-    }
     return false
   }
 
@@ -77,12 +88,20 @@ function getArabicDayName(dateStr: string): string {
   return ARABIC_DAYS[date.getDay()]
 }
 
+/** حالة تطابق فيها الرقم والمحكمة ولم يتطابق الاسم: تُعرض للمراجعة ولا يُرسل عنها إشعار */
+export type ReviewItem = {
+  caseNumber: string
+  courtName: string
+  rawLine: string
+  candidates: { title: string; clientName: string }[]
+}
 
 export type ProcessResult = {
   success: boolean
   totalExtracted: number
   totalMatched: number
   matchedCases: any[]
+  needsReview: ReviewItem[]
 }
 
 /**
@@ -97,7 +116,6 @@ export async function processSessionsText(
 ): Promise<ProcessResult> {
   const extractedRaw = parseSessionsReport(fullText)
   const extracted = deduplicateCases(extractedRaw)
-
 
   const uniqueCourts = Array.from(new Set(extracted.map((c) => c.courtName)))
   for (const courtName of uniqueCourts) {
@@ -123,8 +141,11 @@ export async function processSessionsText(
   const allLawyerUserIds = (allLawyerRows || []).map((l: any) => l.user_id)
 
   const matchedCases: any[] = []
+  const needsReview: ReviewItem[] = []
   // نتتبّع القضايا المعالجة لمنع تكرارها عبر المرشحات المتعددة للرقم نفسه
   const processedCaseIds = new Set<string>()
+  // نمنع تكرار عنصر المراجعة نفسه
+  const reviewKeys = new Set<string>()
 
   // نجلب كل قضايا المكتب مرة واحدة مع أسماء الموكلين، بدل استعلام لكل رقم مرشّح.
   // هذا يقلّل مئات الاستعلامات إلى استعلامين، ويمنع تجاوز مهلة الخادم.
@@ -171,7 +192,25 @@ export async function processSessionsText(
       }
     }
 
-    if (!matchedCase) continue
+    // تطابق الرقم والمحكمة ولم يتطابق الاسم: لا نُرسل إشعاراً، ولا نتجاهل الأمر
+    // بصمت أيضاً، بل نعرضه على المدير التقني ليحسمه بنفسه.
+    if (!matchedCase) {
+      const key = item.caseNumber + '|' + item.courtName + '|' + (item.rawLine || '')
+      if (!reviewKeys.has(key)) {
+        reviewKeys.add(key)
+        needsReview.push({
+          caseNumber: item.caseNumber,
+          courtName: item.courtName,
+          rawLine: (item.rawLine || '').slice(0, 400),
+          candidates: courtMatches.map((c: any) => ({
+            title: c.title,
+            clientName: clientNameById.get(c.client_id) || 'غير محدد',
+          })),
+        })
+      }
+      continue
+    }
+
     if (processedCaseIds.has(matchedCase.id)) continue
     processedCaseIds.add(matchedCase.id)
 
@@ -267,5 +306,6 @@ export async function processSessionsText(
     totalExtracted: extracted.length,
     totalMatched: matchedCases.length,
     matchedCases,
+    needsReview,
   }
 }
