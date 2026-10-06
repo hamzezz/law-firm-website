@@ -39,6 +39,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ar" dir="rtl" className="h-full antialiased">
       <head>
         <StructuredData />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-7GSB9XKT43"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-7GSB9XKT43');`,
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col">{children}<DevFooter /></body>
     </html>
