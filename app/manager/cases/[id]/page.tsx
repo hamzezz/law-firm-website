@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import ManagerSessionCard from './session-card'
 import CriticalDeadlines from './critical-deadlines'
 import CloseCase from './close-case'
+import CaseAdmin from './case-admin'
 
 function statusBadge(status: string) {
   const s = status ? status.toLowerCase() : ''
@@ -26,7 +27,7 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
 
   const { data: appUser } = await supabase
     .from('users')
-    .select('id, role')
+    .select('id, role, username')
     .eq('auth_id', user.id)
     .single()
 
@@ -166,6 +167,20 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
 <CriticalDeadlines caseId={id} deadlines={deadlines || []} />
 
         <CloseCase caseId={id} currentStatus={caseRow.status} />
+        {appUser.username === 'tech' && (
+          <CaseAdmin
+            caseId={id}
+            caseNumber={caseRow.case_number || ''}
+            initial={{
+              title: caseRow.title || '',
+              case_number: caseRow.case_number || '',
+              court_name: caseRow.court_name || '',
+              case_type: caseRow.case_type || '',
+              stage: caseRow.stage || '',
+              other_party: caseRow.other_party || '',
+            }}
+          />
+        )}
         <div>
           <h2 className="font-bold text-slate-900 mb-4 text-lg flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
