@@ -86,8 +86,8 @@ export default function AboutPage() {
           </h2>
 
           <div className="grid sm:grid-cols-[200px_1fr] gap-8 items-start">
-            <div className="aspect-[3/4] rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center">
-              <span className="text-slate-300 text-xs text-center px-4">مكان الصورة الرسمية</span>
+            <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
+              <img src="/walid.jpg" alt="المحامي وليد الكثيري" className="w-full h-full object-cover" />
             </div>
 
             <div>
