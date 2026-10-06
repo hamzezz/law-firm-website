@@ -115,6 +115,15 @@ export async function POST(request: Request) {
 
     let reply = `✅ <b>تم التحليل</b>\nالتاريخ: ${sessionDate}\nالمستخرج: ${result.totalExtracted} قضية\nتخص المكتب: <b>${result.totalMatched}</b>`
 
+    if (result.needsReview && result.needsReview.length > 0) {
+      reply += `\n\n⚠️ <b>تحتاج مراجعتك: ${result.needsReview.length}</b>`
+      reply += '\n(تطابق الرقم والمحكمة ولم يتطابق الاسم — لم تُرسل إشعارات)'
+      reply += '\n' + result.needsReview
+        .map((r: any) => `• ${r.caseNumber} — ${r.courtName}`)
+        .join('\n')
+      reply += '\n\nافتح لوحة المدير التقني في الموقع لتأكيدها.'
+    }
+
     if (result.matchedCases.length > 0) {
       reply += '\n\n' + result.matchedCases
         .map((c: any) => `• ${c.title} — ${c.caseNumber}\n  ${c.clientName}`)
