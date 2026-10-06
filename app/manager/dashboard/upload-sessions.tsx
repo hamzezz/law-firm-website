@@ -8,6 +8,28 @@ export default function UploadSessions() {
   const [sessionDate, setSessionDate] = useState('')
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
+  const [confirming, setConfirming] = useState<string>('')
+  const [confirmed, setConfirmed] = useState<Record<string, string>>({})
+
+  async function confirmCase(caseId: string, sessionDate: string) {
+    setConfirming(caseId)
+    try {
+      const res = await fetch('/api/manager/confirm-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId, sessionDate }),
+      })
+      const data = await res.json()
+      setConfirmed((prev) => ({
+        ...prev,
+        [caseId]: data.success ? data.message : (data.error || 'تعذّر التنفيذ'),
+      }))
+    } catch {
+      setConfirmed((prev) => ({ ...prev, [caseId]: 'خطأ في الاتصال بالخادم' }))
+    } finally {
+      setConfirming('')
+    }
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files ? e.target.files[0] : null
@@ -91,9 +113,29 @@ export default function UploadSessions() {
                   <li key={i} className="text-xs bg-white rounded-lg p-2">
                     <span className="font-bold">{r.caseNumber}</span> — {r.courtName}
                     <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{r.rawLine}</p>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      المرشحة: {r.candidates.map((c: any) => c.title + " / " + c.clientName).join(" ، ")}
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      {r.candidates.map((c: any) => (
+                        <div key={c.id} className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg p-2">
+                          <span className="text-[11px] text-slate-600 leading-relaxed">
+                            {c.title} — {c.clientName}
+                          </span>
+                          {confirmed[c.id] ? (
+                            <span className="text-[11px] text-emerald-700 font-bold shrink-0">
+                              {confirmed[c.id]}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => confirmCase(c.id, r.sessionDate)}
+                              disabled={confirming === c.id}
+                              className="shrink-0 text-[11px] font-bold bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                            >
+                              {confirming === c.id ? 'جارٍ…' : 'إنشاء الجلسة وإرسال الإشعارات'}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,7 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { parseSessionsReport, deduplicateCases, normalizeArabic } from '@/lib/moj-parser/parser'
 import { sendPushToUser } from '@/lib/push/send-push'
-
+ 
 const STOP_WORDS = new Set([
   'ورثه','واخرين','واخر','وهم','زوجته','زوجه','شركه','بن','بنت','عبد','ابو','السيد','الاستاذ',
   'مؤسسه','مركز','مكتب','وشركاه','النيابه','العامه','مستعجل','دعوى','غير','مبين',
@@ -10,7 +10,7 @@ const COMMON_NAMES = new Set([
   'محمد','احمد','علي','عبده','صالح','يحيي','حسن','حسين','سعيد','عبدالله','ناصر','قاسم','مصلح',
   'عبدالرحمن','عبدالكريم','عبدالملك','فاطمه','امين','جميل','مرشد','خالد','طاهر','عبدالعزيز',
 ])
-
+ 
 function nameTokens(name: string) {
   const words = normalizeArabic(name || '')
     .split(' ')
@@ -20,7 +20,7 @@ function nameTokens(name: string) {
     distinct: words.filter((w) => !COMMON_NAMES.has(w)),
   }
 }
-
+ 
 /**
  * يتحقق من أن سطر الملف يخص القضية فعلاً، لا قضية أخرى تحمل الرقم نفسه.
  *
@@ -32,40 +32,34 @@ function nameTokens(name: string) {
  * من جلسة تحتاج مراجعة يدوية:
  *
  *   1) يجب أن ترد في السطر كلمة "مميّزة" من اسم أحد الطرفين — أي كلمة لا يشترك
- *      فيها عامة الناس (كاللقب)، طولها أربعة أحرف فأكثر. فأسماء مثل محمد وأحمد
- *      وعلي وعبده تتكرر في كل سطر من مستندات المحاكم، ولا تدل على شيء.
+ *      فيها عامة الناس (كاللقب)، طولها أربعة أحرف فأكثر.
  *   2) ثم إمّا كلمتان مميزتان، أو كلمتان متجاورتان إحداهما مميزة.
  *
  * القاعدة القديمة كانت تقبل "ثلاث كلمات متفرقة إحداها مميزة"، وهي التي أنتجت
- * مطابقات خاطئة: سطر فيه (عبدالكريم … أحمد … محمد) لأشخاص لا علاقة لهم بالقضية
- * كان يُقبل. أُلغيت تلك القاعدة نهائياً.
+ * مطابقات خاطئة. أُلغيت نهائياً.
  */
 function lineMatchesParties(rawLine: string, clientName: string, otherParty: string): boolean {
   const line = normalizeArabic(rawLine || '')
   if (!line) return false
-
-  /** يفصل الأسماء المتعددة (المفصولة بشَرطة أو فاصلة) إلى أشخاص */
+ 
   const splitPersons = (raw: string) =>
     normalizeArabic(raw || '')
       .split(/[-،,/–]/)
       .map((s) => s.trim())
       .filter((s) => s.length > 4)
-
+ 
   const checkPerson = (person: string) => {
     const words = person.split(' ').filter((w) => w.length > 2 && !STOP_WORDS.has(w))
     if (words.length < 2) return false
-
-    // الكلمات المميّزة: ليست من الأسماء الشائعة، وطولها 4 أحرف فأكثر
+ 
     const distinct = words.filter((w) => !COMMON_NAMES.has(w) && w.length >= 4)
     if (distinct.length === 0) return false
-
+ 
     const present = distinct.filter((w) => line.includes(w))
-    if (present.length === 0) return false // لا مطابقة بغير كلمة مميّزة
-
-    // كلمتان مميزتان من الاسم نفسه: دليل كافٍ
+    if (present.length === 0) return false
+ 
     if (present.length >= 2) return true
-
-    // أو تجاور كلمتين في السطر، إحداهما الكلمة المميّزة
+ 
     for (let i = 0; i < words.length - 1; i++) {
       const a = words[i]
       const b = words[i + 1]
@@ -73,29 +67,147 @@ function lineMatchesParties(rawLine: string, clientName: string, otherParty: str
         return true
       }
     }
-
+ 
     return false
   }
-
+ 
   const persons = [...splitPersons(clientName), ...splitPersons(otherParty)]
   return persons.some(checkPerson)
 }
-
+ 
 const ARABIC_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
-
+ 
 function getArabicDayName(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00')
   return ARABIC_DAYS[date.getDay()]
 }
-
+ 
+/**
+ * ينشئ جلسة لقضية ويُرسل الإشعارات.
+ *
+ * مسار واحد يستعمله الطريقان: المطابقة الآلية عند رفع الملف، والتأكيد اليدوي
+ * من قائمة المراجعة. توحيدهما مقصود حتى لا يختلف سلوكهما مع الوقت.
+ *
+ * لا تُرسل إشعارات لجلسة موجودة مسبقاً، منعاً للتكرار عند إعادة الرفع.
+ */
+export async function createSessionAndNotify(
+  admin: ReturnType<typeof createAdminClient>,
+  caseId: string,
+  sessionDate: string
+): Promise<{ ok: boolean; isNew: boolean; title: string; sessionId: string }> {
+  const { data: caseRow } = await admin
+    .from('cases')
+    .select('id, title, case_number, court_name, primary_lawyer_id, client_id')
+    .eq('id', caseId)
+    .maybeSingle()
+ 
+  if (!caseRow) return { ok: false, isNew: false, title: '', sessionId: '' }
+ 
+  let clientName = 'غير محدد'
+  if (caseRow.client_id) {
+    const { data: clientRow } = await admin
+      .from('clients')
+      .select('user_id')
+      .eq('id', caseRow.client_id)
+      .maybeSingle()
+    if (clientRow?.user_id) {
+      const { data: userRow } = await admin
+        .from('users')
+        .select('full_name')
+        .eq('id', clientRow.user_id)
+        .maybeSingle()
+      if (userRow?.full_name) clientName = userRow.full_name
+    }
+  }
+ 
+  const { data: existingSession } = await admin
+    .from('sessions')
+    .select('id')
+    .eq('case_id', caseRow.id)
+    .eq('session_date', sessionDate)
+    .maybeSingle()
+ 
+  let sessionId = ''
+  let isNewSession = true
+ 
+  if (existingSession) {
+    sessionId = existingSession.id
+    isNewSession = false
+  } else {
+    const { count: existingCount } = await admin
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('case_id', caseRow.id)
+ 
+    const nextOrder = (existingCount || 0) + 1
+ 
+    const { data: newSession } = await admin
+      .from('sessions')
+      .insert({
+        case_id: caseRow.id,
+        session_date: sessionDate,
+        title: 'الجلسة رقم ' + nextOrder,
+        status: 'scheduled',
+        session_order: nextOrder,
+      })
+      .select('id')
+      .single()
+ 
+    sessionId = newSession ? newSession.id : ''
+  }
+ 
+  if (!isNewSession) {
+    return { ok: true, isNew: false, title: caseRow.title, sessionId }
+  }
+ 
+  const tomorrowDate = new Date()
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const dayName = getArabicDayName(tomorrowDate.toISOString().slice(0, 10))
+ 
+  const notificationTitle = 'جلسة يوم غداً ' + dayName + ' - قضية الموكل ' + clientName
+  const notificationBody =
+    caseRow.title +
+    '\nقضية رقم ' + caseRow.case_number +
+    ' في محكمة ' + caseRow.court_name
+ 
+  const recipientUserIds: string[] = []
+ 
+  const { data: allLawyerRows } = await admin.from('lawyers').select('id, user_id')
+  if (caseRow.primary_lawyer_id) {
+    const row = (allLawyerRows || []).find((l: any) => l.id === caseRow.primary_lawyer_id)
+    if (row?.user_id) recipientUserIds.push(row.user_id)
+  } else {
+    for (const l of allLawyerRows || []) recipientUserIds.push(l.user_id)
+  }
+ 
+  const { data: allManagers } = await admin.from('users').select('id').eq('role', 'manager')
+  for (const m of allManagers || []) recipientUserIds.push(m.id)
+ 
+  const caseUrl = '/lawyer/cases/' + caseRow.id
+ 
+  for (const recipientId of recipientUserIds) {
+    await admin.from('notifications').insert({
+      recipient_user_id: recipientId,
+      case_id: caseRow.id,
+      type: 'session_today',
+      title: notificationTitle,
+      body: notificationBody,
+    })
+    await sendPushToUser(admin, recipientId, notificationTitle, notificationBody, caseUrl)
+  }
+ 
+  return { ok: true, isNew: true, title: caseRow.title, sessionId }
+}
+ 
 /** حالة تطابق فيها الرقم والمحكمة ولم يتطابق الاسم: تُعرض للمراجعة ولا يُرسل عنها إشعار */
 export type ReviewItem = {
   caseNumber: string
   courtName: string
   rawLine: string
-  candidates: { title: string; clientName: string }[]
+  sessionDate: string
+  candidates: { id: string; title: string; clientName: string }[]
 }
-
+ 
 export type ProcessResult = {
   success: boolean
   totalExtracted: number
@@ -103,12 +215,7 @@ export type ProcessResult = {
   matchedCases: any[]
   needsReview: ReviewItem[]
 }
-
-/**
- * يعالج نص قائمة جلسات مستخرجة من ملف وزارة العدل:
- * يستخرج القضايا، يطابقها بقضايا المكتب، ينشئ الجلسات ويرسل الإشعارات.
- * تستعمله واجهة الرفع اليدوي وبوت تلغرام معاً.
- */
+ 
 export async function processSessionsText(
   admin: ReturnType<typeof createAdminClient>,
   fullText: string,
@@ -116,84 +223,64 @@ export async function processSessionsText(
 ): Promise<ProcessResult> {
   const extractedRaw = parseSessionsReport(fullText)
   const extracted = deduplicateCases(extractedRaw)
-
+ 
   const uniqueCourts = Array.from(new Set(extracted.map((c) => c.courtName)))
   for (const courtName of uniqueCourts) {
     if (courtName !== 'غير محدد') {
       await admin.from('yemen_courts').insert({ name: courtName }).select().maybeSingle()
     }
   }
-
+ 
   const today = new Date().toISOString().slice(0, 10)
-  const tomorrowDate = new Date()
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
-  const tomorrowStr = tomorrowDate.toISOString().slice(0, 10)
-  const dayName = getArabicDayName(tomorrowStr)
-
-  const { data: allManagers } = await admin
-    .from('users')
-    .select('id')
-    .eq('role', 'manager')
-
-  // خريطة المحامين مرة واحدة بدل استعلام لكل قضية
-  const { data: allLawyerRows } = await admin.from('lawyers').select('id, user_id')
-  const lawyerUserById = new Map((allLawyerRows || []).map((l: any) => [l.id, l.user_id]))
-  const allLawyerUserIds = (allLawyerRows || []).map((l: any) => l.user_id)
-
+ 
   const matchedCases: any[] = []
   const needsReview: ReviewItem[] = []
-  // نتتبّع القضايا المعالجة لمنع تكرارها عبر المرشحات المتعددة للرقم نفسه
   const processedCaseIds = new Set<string>()
-  // نمنع تكرار عنصر المراجعة نفسه
   const reviewKeys = new Set<string>()
-
-  // نجلب كل قضايا المكتب مرة واحدة مع أسماء الموكلين، بدل استعلام لكل رقم مرشّح.
-  // هذا يقلّل مئات الاستعلامات إلى استعلامين، ويمنع تجاوز مهلة الخادم.
+ 
   const { data: allCases } = await admin
     .from('cases')
     .select('id, title, case_number, court_name, primary_lawyer_id, client_id, other_party')
-
+ 
   const { data: allClientRows } = await admin.from('clients').select('id, user_id')
   const { data: allUserRows } = await admin.from('users').select('id, full_name')
-
+ 
   const userNameById = new Map((allUserRows || []).map((u: any) => [u.id, u.full_name]))
   const clientNameById = new Map(
     (allClientRows || []).map((cl: any) => [cl.id, userNameById.get(cl.user_id) || ''])
   )
-
+ 
   const casesByNumber = new Map<string, any[]>()
   for (const cs of allCases || []) {
     const key = cs.case_number || ''
     if (!casesByNumber.has(key)) casesByNumber.set(key, [])
     casesByNumber.get(key)!.push(cs)
   }
-
+ 
   for (const item of extracted) {
     const candidateCases = casesByNumber.get(item.caseNumber) || []
-
+ 
     const normalizedFileCourtName = normalizeArabic(item.courtName)
     const courtMatches = (candidateCases || []).filter(
       (c) => normalizeArabic(c.court_name || '') === normalizedFileCourtName
     )
-
+ 
     if (courtMatches.length === 0) continue
-
-    // رقم القضية والمحكمة معاً لا يميّزان قضية بشكل فريد: قضايا مختلفة قد تحمل
-    // الرقم نفسه في المحكمة نفسها. لذلك نشترط أيضاً ورود اسم الموكل أو الطرف
-    // الآخر في سطر الملف قبل قبول المطابقة.
+ 
+    const sessionDate = providedDate || item.sessionDate || today
+ 
     let matchedCase: any = null
-
+ 
     for (const candidate of courtMatches) {
       const candidateClientName = clientNameById.get(candidate.client_id) || ''
-
       if (lineMatchesParties(item.rawLine, candidateClientName, candidate.other_party || '')) {
         matchedCase = candidate
         break
       }
     }
-
-    // تطابق الرقم والمحكمة ولم يتطابق الاسم: لا نُرسل إشعاراً، ولا نتجاهل الأمر
-    // بصمت أيضاً، بل نعرضه على المدير التقني ليحسمه بنفسه.
+ 
+    // تطابق الرقم والمحكمة ولم يتطابق الاسم: لا إشعار، ولا تجاهل صامت.
+    // تُعرض على المدير التقني ومعها زرّ تأكيد لكل قضية مرشّحة.
     if (!matchedCase) {
       const key = item.caseNumber + '|' + item.courtName + '|' + (item.rawLine || '')
       if (!reviewKeys.has(key)) {
@@ -202,7 +289,9 @@ export async function processSessionsText(
           caseNumber: item.caseNumber,
           courtName: item.courtName,
           rawLine: (item.rawLine || '').slice(0, 400),
+          sessionDate,
           candidates: courtMatches.map((c: any) => ({
+            id: c.id,
             title: c.title,
             clientName: clientNameById.get(c.client_id) || 'غير محدد',
           })),
@@ -210,97 +299,21 @@ export async function processSessionsText(
       }
       continue
     }
-
+ 
     if (processedCaseIds.has(matchedCase.id)) continue
     processedCaseIds.add(matchedCase.id)
-
-    // نعتمد تاريخ الجلسة المذكور في الملف، لا تاريخ رفعه
-    const sessionDate = providedDate || item.sessionDate || today
-
-    const { data: existingSession } = await admin
-      .from('sessions')
-      .select('id')
-      .eq('case_id', matchedCase.id)
-      .eq('session_date', sessionDate)
-      .maybeSingle()
-
-    let sessionId: string
-
-    let isNewSession = true
-
-    if (existingSession) {
-      sessionId = existingSession.id
-      isNewSession = false
-    } else {
-      // حساب رقم الجلسة من عدد الجلسات القائمة للقضية، لا بقيمة ثابتة
-      const { count: existingCount } = await admin
-        .from('sessions')
-        .select('id', { count: 'exact', head: true })
-        .eq('case_id', matchedCase.id)
-
-      const nextOrder = (existingCount || 0) + 1
-
-      const { data: newSession } = await admin
-        .from('sessions')
-        .insert({
-          case_id: matchedCase.id,
-          session_date: sessionDate,
-          title: 'الجلسة رقم ' + nextOrder,
-          status: 'scheduled',
-          session_order: nextOrder,
-        })
-        .select('id')
-        .single()
-
-      sessionId = newSession ? newSession.id : ''
-    }
-
-    const clientName = clientNameById.get(matchedCase.client_id) || 'غير محدد'
-
-    const notificationTitle = 'جلسة يوم غداً ' + dayName + ' - قضية الموكل ' + clientName
-    const notificationBody =
-      matchedCase.title +
-      '\nقضية رقم ' + matchedCase.case_number +
-      ' في محكمة ' + matchedCase.court_name
-
-    const recipientUserIds: string[] = []
-
-    if (matchedCase.primary_lawyer_id) {
-      const lawyerUserId = lawyerUserById.get(matchedCase.primary_lawyer_id)
-      if (lawyerUserId) recipientUserIds.push(lawyerUserId)
-    } else {
-      for (const uid of allLawyerUserIds) recipientUserIds.push(uid)
-    }
-
-    if (allManagers) {
-      for (const manager of allManagers) recipientUserIds.push(manager.id)
-    }
-
-    const caseUrl = '/lawyer/cases/' + matchedCase.id
-
-    // لا نرسل إشعارات لجلسة موجودة مسبقاً، منعاً للتكرار عند إعادة رفع الملف
-    for (const recipientId of isNewSession ? recipientUserIds : []) {
-      await admin.from('notifications').insert({
-        recipient_user_id: recipientId,
-        case_id: matchedCase.id,
-        type: 'session_today',
-        title: notificationTitle,
-        body: notificationBody,
-      })
-
-      // إرسال Push Notification فعلي (بالخلفية، حتى لو الموقع مغلق)
-      await sendPushToUser(admin, recipientId, notificationTitle, notificationBody, caseUrl)
-    }
-
+ 
+    const res = await createSessionAndNotify(admin, matchedCase.id, sessionDate)
+ 
     matchedCases.push({
       caseNumber: matchedCase.case_number,
       courtName: matchedCase.court_name,
       title: matchedCase.title,
-      clientName,
-      sessionId,
+      clientName: clientNameById.get(matchedCase.client_id) || 'غير محدد',
+      sessionId: res.sessionId,
     })
   }
-
+ 
   return {
     success: true,
     totalExtracted: extracted.length,
@@ -309,3 +322,4 @@ export async function processSessionsText(
     needsReview,
   }
 }
+ 
