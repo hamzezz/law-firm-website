@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import DevFooter from './components/dev-footer'
 import "./globals.css";
 import StructuredData from "./components/structured-data";
 
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <StructuredData />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">{children}<DevFooter /></body>
     </html>
   );
 }
