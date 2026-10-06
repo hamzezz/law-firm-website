@@ -157,6 +157,27 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
         await supabase.from('yemen_courts').insert({ name: finalCourtName }).select().maybeSingle()
       }
 
+      // رقم القضية قد يتكرر بين المحاكم وداخل المحكمة الواحدة، فلا نمنعه.
+      // نكتفي بتنبيه المستخدم ليقرّر بنفسه.
+      const dupCheck = await supabase
+        .from('cases')
+        .select('case_number, court_name, title')
+        .eq('case_number', caseNumberInput.trim())
+
+      if (dupCheck.data && dupCheck.data.length > 0) {
+        const list = dupCheck.data
+          .map((c: any) => c.title + ' — ' + c.court_name)
+          .join('\n')
+        const go = window.confirm(
+          'يوجد في النظام ' + dupCheck.data.length + ' قضية بنفس الرقم:\n\n' + list +
+          '\n\nهل تريد إضافة القضية الجديدة رغم ذلك؟'
+        )
+        if (!go) {
+          setLoading(false)
+          return
+        }
+      }
+
       const { data: newCase, error } = await supabase
         .from('cases')
         .insert({
