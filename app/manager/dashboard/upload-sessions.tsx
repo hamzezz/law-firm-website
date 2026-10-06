@@ -77,6 +77,28 @@ export default function UploadSessions() {
               ))}
             </ul>
           )}
+          {result.needsReview && result.needsReview.length > 0 && (
+            <div className="mt-4 bg-amber-50 border border-amber-300 rounded-xl p-3">
+              <p className="font-bold text-amber-800 text-sm">
+                تحتاج مراجعتك: {result.needsReview.length}
+              </p>
+              <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
+                تطابق رقم القضية والمحكمة ولم يتطابق اسم أي من الأطراف، فلم يُرسل إشعار.
+                راجع السطر كما ورد في الملف واحسم بنفسك.
+              </p>
+              <ul className="mt-2 space-y-2">
+                {result.needsReview.map((r: any, i: number) => (
+                  <li key={i} className="text-xs bg-white rounded-lg p-2">
+                    <span className="font-bold">{r.caseNumber}</span> — {r.courtName}
+                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{r.rawLine}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      المرشحة: {r.candidates.map((c: any) => c.title + " / " + c.clientName).join(" ، ")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
