@@ -83,7 +83,7 @@ const attorney = {
     },
   ],
   memberOf: { '@type': 'Organization', name: 'اتحاد المحامين العرب' },
-  sameAs: ['https://www.facebook.com/share/1FV4CanHeU/'],
+  sameAs: ['https://www.facebook.com/share/1KA2mCKTGG/'],
   knowsAbout: [
     'القضاء الجنائي',
     'القضايا التجارية',

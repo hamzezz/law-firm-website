@@ -186,6 +186,7 @@ export default async function HomePage() {
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-white mb-3">التواصل مع المكتب</h2>
           <p className="text-slate-400 text-sm mb-8">يمكنكم التواصل مع المكتب عبر واتساب أو الهاتف أو البريد الإلكتروني، وسيتولى المختص الرد على استفساركم خلال ساعات العمل. تُعامَل جميع المعلومات بسرية تامة.</p>
           <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-gradient-to-l from-amber-500 to-amber-400 text-slate-900 font-bold px-10 py-4 rounded-full hover:shadow-lg hover:shadow-amber-500/20 transition text-base">مراسلة المكتب عبر واتساب</a>
+          <a href="https://www.facebook.com/share/1KA2mCKTGG/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 border border-slate-600 text-slate-200 font-bold px-10 py-4 rounded-full hover:border-amber-400 hover:text-amber-300 transition text-base mr-3">صفحة المكتب على فيسبوك</a>
           <p className="text-slate-400 text-xs mt-6">ساعات العمل: من السبت إلى الخميس، من الساعة 1 ظهراً حتى الساعة 10 مساءً.</p>
         </div>
       </section>
