@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PwaInit from './components/pwa-init'
 import DevFooter from './components/dev-footer'
 import "./globals.css";
 import StructuredData from "./components/structured-data";
@@ -9,6 +10,11 @@ export const metadata: Metadata = {
   description: "مكتب وليد الكثيري للمحاماة والاستشارات القانونية في محافظة إب، يقدّم خدماته للأفراد والشركات في القضايا التجارية والمدنية والجنائية والإدارية والأحوال الشخصية، بدقة ومهنية وسرية تامة.",
   alternates: { canonical: "https://kathirilaw.com" },
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "الكثيري",
+    statusBarStyle: "black-translucent",
+  },
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
@@ -49,7 +55,7 @@ gtag('config', 'G-7GSB9XKT43');`,
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}<DevFooter /></body>
+      <body className="min-h-full flex flex-col">{children}<DevFooter /><PwaInit /></body>
     </html>
   );
 }

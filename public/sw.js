@@ -39,3 +39,38 @@ self.addEventListener('notificationclick', function (event) {
     })
   )
 })
+
+// ── تمكين تثبيت الموقع كتطبيق ──
+// المتصفح لا يعرض خيار "تثبيت التطبيق" إلا إذا كان لعامل الخدمة معالج fetch
+// يستطيع الردّ عند انقطاع الشبكة. لا علاقة لهذا بالإشعارات أعلاه.
+
+const SHELL = 'kathiri-shell-v1'
+
+self.addEventListener('install', function (event) {
+  event.waitUntil(
+    caches.open(SHELL).then(function (cache) {
+      return cache.addAll(['/offline.html'])
+    })
+  )
+  self.skipWaiting()
+})
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(
+    caches.keys().then(function (keys) {
+      return Promise.all(
+        keys.filter(function (k) { return k !== SHELL }).map(function (k) { return caches.delete(k) })
+      )
+    })
+  )
+  self.clients.claim()
+})
+
+self.addEventListener('fetch', function (event) {
+  if (event.request.mode !== 'navigate') return
+  event.respondWith(
+    fetch(event.request).catch(function () {
+      return caches.match('/offline.html')
+    })
+  )
+})
