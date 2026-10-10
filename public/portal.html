@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0807">
+<title>بوابة مكتب الكثيري</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Unbounded:wght@300;700&display=swap">
+<style>
+/* Layout: one full-screen stage. A spark bursts into gold atoms that assemble the logo, two orbits keep circling it,
+   then the staff / client portals (or only the remembered one) rise from the bottom; a portal opens a sign-in sheet. */
+:root{
+  --bg:#0A0807; --glow:#21180F; --gold:#C9A45C; --gold-lt:#E9D3A4; --cream:#F1E3C4; --mute:#A89C88; --faint:#8F8472;
+  --display:'Amiri',Georgia,serif; --body:'IBM Plex Sans Arabic',Tahoma,sans-serif;
+  --lmask:url(/logo-mask.png);
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--cream);font-family:var(--body);overflow:hidden}
+button{font-family:var(--body)}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--gold-lt);outline-offset:3px}
+.stage{position:relative;height:100%;max-width:480px;margin:0 auto;overflow:hidden;touch-action:manipulation;
+  background:radial-gradient(ellipse 90% 50% at 50% 27%,var(--glow) 0,var(--bg) 68%)}
+#pc{position:absolute;inset:0;width:100%;height:100%}
+
+.mark{position:absolute;left:50%;top:13%;width:216px;height:199px;margin-left:-108px;opacity:0;pointer-events:none;
+  background:linear-gradient(115deg,#8A672E 0%,#E9D3A4 35%,#FFF4D6 45%,#E9D3A4 55%,#B8914A 100%);background-size:250% 100%;
+  -webkit-mask:var(--lmask) center/contain no-repeat;mask:var(--lmask) center/contain no-repeat}
+.mark.in{opacity:1;transition:opacity 1s ease;animation:shimmer 6s linear infinite}
+.ring{position:absolute;left:50%;top:calc(14% + 84px);width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;border:1px solid rgba(233,211,164,.8);opacity:0;pointer-events:none}
+.ring.go{animation:ringOut 1.6s cubic-bezier(.2,.7,.2,1)}
+
+.name{position:absolute;left:0;right:0;top:calc(13% + 214px);text-align:center;padding-inline:16px;pointer-events:none}
+.name h1{margin:0;font-family:var(--display);font-weight:700;font-size:36px;line-height:1.15;color:var(--cream);text-wrap:balance;clip-path:inset(0 0 0 100%)}
+.name.in h1{animation:wipe 1.2s cubic-bezier(.6,0,.2,1) forwards}
+.name p{margin:8px 0 0;font-size:14px;color:var(--mute);opacity:0}
+.name.in p{animation:rise .7s ease .55s forwards}
+.name i{display:block;margin:16px auto 0;width:120px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);transform:scaleX(0)}
+.name.in i{animation:grow .9s ease .75s forwards}
+
+.roles{position:absolute;left:16px;right:16px;bottom:calc(60px + env(safe-area-inset-bottom,0px));opacity:0;transform:translateY(16px);pointer-events:none}
+.roles.in{opacity:1;transform:none;pointer-events:auto;transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+.q{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;color:var(--mute)}
+.q::before,.q::after{content:"";flex:1;height:1px;background:currentColor;opacity:.25}
+.rl{display:grid;gap:10px;max-width:420px;margin:0 auto}
+.rc{display:flex;align-items:center;gap:12px;min-height:68px;padding:10px 14px;border-radius:16px;border:1px solid rgba(201,164,92,.28);background:rgba(255,240,210,.035);
+  color:var(--cream);text-align:right;cursor:pointer;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);transition:border-color .25s,background .25s,transform .25s}
+.rc:hover{border-color:var(--gold);background:rgba(201,164,92,.09);transform:translateX(-3px)}
+.ri{width:44px;height:44px;border-radius:50%;border:1px solid rgba(201,164,92,.6);color:var(--gold-lt);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.rt b{font-size:16px;font-weight:600}
+.rt small{font-size:12px;line-height:1.5;color:var(--mute)}
+.ra{display:flex;flex-shrink:0;color:var(--gold)}
+
+.ctl{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:16px;z-index:20;height:44px;min-width:44px;padding:0 14px;border-radius:22px;
+  border:1px solid rgba(201,164,92,.4);background:rgba(10,8,7,.5);color:var(--gold-lt);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#replay{padding:0;display:none}
+.done #replay{display:flex}
+.done #skip{display:none}
+
+.credit{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font-size:11.5px;text-align:center;color:var(--faint)}
+.stage > .credit{position:absolute;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));opacity:0;transition:opacity .8s}
+.done > .credit{opacity:1}
+a.dev{display:inline-flex;align-items:center;gap:7px;direction:ltr;min-height:36px;box-sizing:border-box;padding:4px 11px 4px 6px;border-radius:999px;border:1px solid rgba(126,82,219,.5);background:#130E26;box-shadow:0 0 14px rgba(117,52,143,.35);position:relative;overflow:hidden;text-decoration:none;transition:box-shadow .25s,border-color .25s,transform .25s}
+a.dev:hover{box-shadow:0 0 22px rgba(155,63,168,.6);border-color:rgba(194,69,126,.8);transform:translateY(-1px)}
+a.dev:focus-visible{outline:2px solid #9B3FA8}
+a.dev::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(233,221,255,.22) 50%,transparent 65%);transform:translateX(-120%);animation:glint 4.5s ease-in-out 1s infinite}
+.dm{display:flex;filter:drop-shadow(0 0 5px rgba(155,63,168,.6))}
+.dm svg{animation:hexspin 9s linear infinite}
+.dt{font-family:'Unbounded','IBM Plex Sans Arabic',sans-serif;font-size:13px;line-height:1;letter-spacing:.04em;
+  background:linear-gradient(100deg,#7E52DB 0%,#9B3FA8 20%,#E9DDFF 30%,#9B3FA8 40%,#C2457E 60%,#7E52DB 100%);background-size:260% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:shimmer 4s linear infinite}
+.dt i{font-style:normal;font-weight:300}
+.dt b{font-weight:700}
+
+/* ---------- the folder that opens into the sign-in ---------- */
+.dossier{position:absolute;left:12px;right:12px;top:calc(18px + env(safe-area-inset-top,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:40;
+  perspective:1800px;opacity:0;transform:scale(.97);pointer-events:none;transition:opacity .45s ease,transform .45s ease}
+.dossier.on{opacity:1;transform:none;pointer-events:auto}
+.dback{position:absolute;inset:0;border-radius:6px 6px 14px 14px;background:#15120F;border:1px solid rgba(201,164,92,.4);box-shadow:0 30px 60px -20px rgba(0,0,0,.85)}
+.dtab{position:absolute;top:-15px;right:18px;width:44%;height:22px;border-radius:9px 9px 0 0;background:#15120F;border:1px solid rgba(201,164,92,.4);border-bottom:0;
+  display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;color:var(--gold-lt)}
+.sheet{position:absolute;inset:12px 10px 10px;background:#FBF6EA;color:#2A1A14;border-radius:4px;overflow-y:auto;box-sizing:border-box;padding:20px 18px 14px;
+  display:flex;flex-direction:column;gap:13px;box-shadow:0 2px 0 #E8DEC9,0 4px 0 #DCCFB4}
+.sheet > *{opacity:0}
+.dossier.ready .sheet > *{animation:rise .5s cubic-bezier(.2,.7,.2,1) forwards}
+.dossier.ready .sheet > :nth-child(2){animation-delay:.06s}
+.dossier.ready .sheet > :nth-child(3){animation-delay:.12s}
+.dossier.ready .sheet > :nth-child(n+4){animation-delay:.18s}
+.dcover{position:absolute;inset:0;transform-origin:right center;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.6,0,.25,1)}
+.dossier.flip .dcover{transform:rotateY(172deg)}
+.face{position:absolute;inset:0;border-radius:6px 6px 14px 14px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.front{background:#1A1612;border:1px solid rgba(201,164,92,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;box-sizing:border-box;
+  background-image:repeating-linear-gradient(35deg,rgba(255,255,255,.012) 0 2px,transparent 2px 6px)}
+.face.front::before{content:"";position:absolute;inset:14px;border:1px solid rgba(201,164,92,.3);border-radius:4px 4px 10px 10px}
+.face.front .big{width:120px;height:110px;background:linear-gradient(115deg,#8A672E,#E9D3A4 45%,#B8914A);-webkit-mask:var(--lmask) center/contain no-repeat;mask:var(--lmask) center/contain no-repeat}
+.face.front b{font-family:var(--display);font-size:28px;color:var(--cream)}
+.face.front small{font-size:13px;color:var(--mute)}
+.face.back{background:#100D0A;transform:rotateY(180deg)}
+.lhr{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.badge{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:15px;font-size:13px;background:#F1E8D6;color:#6B5B4B}
+.x{width:44px;height:44px;border-radius:50%;border:1px solid #D9CCB2;background:transparent;color:#2A1A14;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.lhd{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.lm{width:72px;height:66px;background:linear-gradient(115deg,#6E5022,#B8914A 45%,#8A672E);-webkit-mask:var(--lmask) center/contain no-repeat;mask:var(--lmask) center/contain no-repeat}
+.lhd b{font-size:14px;font-weight:600;color:#1E1C19}
+.sheet h2{margin:0;font-family:var(--display);font-size:32px;line-height:1.2}
+.sheet p{margin:4px 0 0;font-size:14px;line-height:1.7;color:#6B5B4B}
+.sheet form{display:flex;flex-direction:column;gap:12px;margin:0}
+.fld{display:flex;flex-direction:column;gap:7px}
+.fld label{font-size:14px;font-weight:500}
+.inp{width:100%;height:50px;box-sizing:border-box;padding:0 14px;border-radius:12px;border:1px solid #D9CCB2;background:#FFFFFF;color:#2A1A14;font:15px var(--body);color-scheme:light}
+.inp::placeholder{color:#9A8D7C}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.row label{display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;color:#6B5B4B}
+.row input{width:18px;height:18px;margin:0;accent-color:#1E1C19}
+.lnk{background:none;border:0;padding:0;min-height:44px;color:#7A1E22;font:500 14px var(--body);cursor:pointer;display:flex;align-items:center}
+.go{height:52px;border:0;border-radius:14px;background:#1E1C19;color:#E9D3A4;font:600 16px var(--body);cursor:pointer}
+.msg{min-height:20px;font-size:13px;color:#7A1E22;text-align:center}
+.note{font-size:12.5px;line-height:1.7;color:#6B5B4B;text-align:center}
+.swl{align-self:center;text-align:center}
+.sheet .credit{color:#6B5B4B;padding-top:12px;border-top:1px solid #E6DCC8}
+.rc.gone{opacity:0;transform:scale(.97);transition:opacity .35s ease,transform .35s ease}
+
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes grow{to{transform:scaleX(1)}}
+@keyframes wipe{to{clip-path:inset(0 0 0 0)}}
+@keyframes ringOut{0%{opacity:.9;transform:scale(.6)}100%{opacity:0;transform:scale(5)}}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-160% 0}}
+@keyframes glint{0%,60%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+@keyframes hexspin{0%,85%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.instant .mark,.instant .name *,.instant .roles,.instant > .credit{animation-duration:1ms!important;animation-delay:0s!important;transition:none!important}
+.instant .mark.in{animation:shimmer 6s linear infinite!important}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0s!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7E52DB"/><stop offset=".5" stop-color="#9B3FA8"/><stop offset="1" stop-color="#C2457E"/></linearGradient></defs></svg>
+<img id="maskSrc" src="/logo-mask.png" alt="" hidden>
+
+<div class="stage" id="stage" dir="rtl" lang="ar">
+  <canvas id="pc" aria-hidden="true"></canvas>
+  <div class="mark" id="mark" role="img" aria-label="شعار مكتب وليد الكثيري"></div>
+  <div class="name" id="name"><h1>مكتب وليد الكثيري</h1><p>للمحاماة والاستشارات القانونية</p><i></i></div>
+  <div class="roles" id="roles"></div>
+  <button class="ctl" id="skip" type="button">تخطي</button>
+  <button class="ctl" id="replay" type="button" aria-label="إعادة عرض الحركة"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+  <div class="credit"><span>تم التطوير والهندسة بواسطة</span><a class="dev" dir="ltr" href="https://devosos.com" target="_blank" rel="noopener" aria-label="DevOsos، يفتح موقع devosos.com"><span class="dm" aria-hidden="true"><svg width="22" height="24" viewBox="0 0 22 24" fill="none"><path d="M11 1.5l8.7 5v11L11 22.5l-8.7-5v-11z" stroke="url(#dg)" stroke-width="1.4"/><path d="M8.2 9.2L5.6 12l2.6 2.8M13.8 9.2l2.6 2.8-2.6 2.8M12 8.4l-2 7.2" stroke="url(#dg)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="dt"><i>Dev</i><b>Osos</b></span></a></div>
+</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage'), cv=document.getElementById('pc'), ctx=cv.getContext('2d');
+  var mark=document.getElementById('mark'), nameEl=document.getElementById('name'), roles=document.getElementById('roles');
+  var MASKIMG=document.getElementById('maskSrc'), CREDIT=stage.querySelector('.credit').outerHTML;
+  var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var T=[], raf=0, solo=null;
+  function at(ms,fn){T.push(setTimeout(fn,ms));}
+
+  var KEY='kathiri.portal';
+  function getRole(){try{var v=localStorage.getItem(KEY);return (v==='staff'||v==='client')?v:null;}catch(e){return null;}}
+  function setRole(v){try{if(v)localStorage.setItem(KEY,v);else localStorage.removeItem(KEY);}catch(e){}}
+
+  var IC={
+    staff:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>',
+    client:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+    arrow:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M11 18l-6-6 6-6"/></svg>',
+    close:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>'
+  };
+  var ROLE={staff:{t:'موظف المكتب',s:'القضايا والجلسات والمهام'},client:{t:'عميل (موكّل)',s:'تابع قضيتك ومواعيدك ومستنداتك'}};
+
+  /* ================= the atoms ================= */
+  var W=0,H=0,cx=0,cy=0,mx=0,my=0,mw=0,mh=0,P=[],dust=[],bursts=[],t0=0,last=0,ptr={x:-999,y:-999};
+  var EXP, G, DUR, DMAX, FADE0, FD, ORB0, RING, flow=[], flowFade=0;
+  var SEEN='kathiri.seen';
+  function seen(){try{return localStorage.getItem(SEEN)==='1';}catch(e){return false;}}
+  function markSeen(){try{localStorage.setItem(SEEN,'1');}catch(e){}}
+  function timing(short){
+    if(short){EXP=120;G=260;DUR=950;DMAX=300;FADE0=1350;FD=600;ORB0=1400;RING=1250;}
+    else{EXP=500;G=1500;DUR=1500;DMAX=800;FADE0=3700;FD=800;ORB0=3900;RING=3550;}
+  }
+  var COL=['#E9D3A4','#C9A45C','#F6E7C1','#B8914A'];
+  var RINGS=[{tilt:-.42,rx:1.0,ry:.2,sp:.00055},{tilt:.42,rx:1.0,ry:.2,sp:-.00045}];
+  function fit(){
+    var r=stage.getBoundingClientRect(), d=Math.min(window.devicePixelRatio||1,2);
+    W=r.width; H=r.height; cv.width=W*d; cv.height=H*d; ctx.setTransform(d,0,0,d,0,0);
+    var m=mark.getBoundingClientRect(); mx=m.left-r.left; my=m.top-r.top; mw=Math.round(m.width); mh=Math.round(m.height);
+    cx=mx+mw/2; cy=my+mh/2;
+  }
+  function build(){
+    var SC=2, ow=mw*SC, oh=mh*SC, oc=document.createElement('canvas'); oc.width=ow; oc.height=oh;
+    var o=oc.getContext('2d'); o.drawImage(MASKIMG,0,0,ow,oh);
+    var d=o.getImageData(0,0,ow,oh).data, pts=[];
+    for(var y=0;y<oh;y+=3)for(var x=0;x<ow;x+=3)if(d[(y*ow+x)*4+3]>110)pts.push([x/SC,y/SC]);
+    for(var j=pts.length-1;j>0;j--){var r=Math.floor(Math.random()*(j+1)),tmp=pts[j];pts[j]=pts[r];pts[r]=tmp;}
+    pts=pts.slice(0,2600);
+    P=pts.map(function(p,n){
+      var a=Math.random()*6.283, sp=.22+Math.random()*.7;
+      var orb=n<260?{ring:RINGS[n%2],a:Math.random()*6.283,od:Math.random()*600}:null;
+      return {x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,sw:(Math.random()-.5)*.0016,tx:mx+p[0],ty:my+p[1],bx:0,by:0,rec:false,
+              d:Math.random()*DMAX,s:.8+Math.random()*.9,c:COL[n%4],ph:Math.random()*6.3,cv:(Math.random()-.5)*120,orb:orb};
+    });
+    dust=[]; for(var i=0;i<80;i++)dust.push({x:Math.random()*W,y:Math.random()*H,ox:0,oy:0,r:.5+Math.random()*1.3,v:.012+Math.random()*.03,ph:Math.random()*6.3});
+  }
+  function ease(k){return k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;}
+  function orbitPos(o,t){
+    var a=o.a+(t-ORB0)*o.ring.sp, ox=mw*.62*o.ring.rx*Math.cos(a), oy=mw*.62*o.ring.ry*Math.sin(a);
+    var c=Math.cos(o.ring.tilt), s=Math.sin(o.ring.tilt);
+    return {x:cx+ox*c-oy*s, y:cy+ox*s+oy*c, z:Math.sin(a)};
+  }
+  function frame(now){
+    if(!t0){t0=now;last=now;}
+    var t=now-t0, dt=Math.min(now-last,50); last=now;
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation='lighter';
+
+    /* spark, then the flash of the burst */
+    if(t<EXP+700){
+      var g, rad;
+      if(t<EXP){rad=4+t/EXP*16; g=ctx.createRadialGradient(cx,cy,0,cx,cy,rad*3);
+        g.addColorStop(0,'rgba(255,246,222,'+(.4+t/EXP*.6)+')'); g.addColorStop(.3,'rgba(233,211,164,.5)'); g.addColorStop(1,'rgba(233,211,164,0)');
+        ctx.globalAlpha=1; ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,rad*3,0,6.283); ctx.fill();}
+      else{var k=(t-EXP)/700; ctx.globalAlpha=(1-k)*.8; ctx.strokeStyle='#F6E7C1'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.arc(cx,cy,20+k*260,0,6.283); ctx.stroke();
+        g=ctx.createRadialGradient(cx,cy,0,cx,cy,120); g.addColorStop(0,'rgba(255,246,222,'+(.9*(1-k))+')'); g.addColorStop(1,'rgba(255,246,222,0)');
+        ctx.globalAlpha=1; ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,120,0,6.283); ctx.fill();}
+    }
+
+    /* atoms */
+    if(t>=EXP){
+      var fa=t<FADE0?1:Math.max(0,1-(t-FADE0)/FD);
+      for(var i=0;i<P.length;i++){var p=P[i], x, y, al=1, sz=p.s;
+        var start=G+p.d;
+        if(t<start){
+          var drag=Math.exp(-dt/380);
+          var tx=-(p.y-cy)*p.sw, ty=(p.x-cx)*p.sw;
+          p.x+=(p.vx+tx)*dt; p.y+=(p.vy+ty)*dt; p.vx*=drag; p.vy*=drag;
+          x=p.x; y=p.y; al=.55+.45*Math.sin(t*.004+p.ph);
+        } else {
+          if(!p.rec){p.bx=p.x;p.by=p.y;p.rec=true;}
+          var k2=Math.min(1,(t-start)/DUR), e=ease(k2);
+          x=p.bx+(p.tx-p.bx)*e+Math.sin(e*Math.PI)*p.cv*.45; y=p.by+(p.ty-p.by)*e;
+          al=.45+.55*e;
+          if(p.orb&&t>ORB0){
+            var m=ease(Math.min(1,Math.max(0,(t-ORB0-p.orb.od)/1100))), o=orbitPos(p.orb,t);
+            x=x+(o.x-x)*m; y=y+(o.y-y)*m; al=1-(m*(o.z<0?.55:0)); sz=p.s*(1+m*(o.z>0?.5:-.1));
+          } else al*=fa;
+        }
+        if(al<=0.01)continue;
+        ctx.globalAlpha=al; ctx.fillStyle=p.c; ctx.fillRect(x,y,sz,sz);
+      }
+    }
+
+    /* shock ring as the logo settles */
+    if(t>RING&&t<RING+1600){var kr=(t-RING)/1600, er=1-Math.pow(1-kr,3);
+      ctx.globalAlpha=(1-kr)*.7; ctx.strokeStyle='#E9D3A4'; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.arc(cx,cy,30+er*170,0,6.283); ctx.stroke();}
+
+    /* floating dust that moves away from a finger */
+    var da=Math.min(1,t/1500);
+    for(var j=0;j<dust.length;j++){var q=dust[j];
+      q.y-=q.v*dt; if(q.y<-6){q.y=H+6;q.x=Math.random()*W;}
+      var dx=q.x+q.ox-ptr.x, dy=q.y+q.oy-ptr.y, dd=dx*dx+dy*dy;
+      if(dd<9000){var f=(1-dd/9000)*1.6, l=Math.sqrt(dd)||1; q.ox+=dx/l*f; q.oy+=dy/l*f;}
+      q.ox*=.96; q.oy*=.96;
+      ctx.globalAlpha=da*(.2+.25*Math.sin(t*.002+q.ph)); ctx.fillStyle='#E9D3A4';
+      ctx.beginPath(); ctx.arc(q.x+q.ox+Math.sin(t*.0005+q.ph)*6,q.y+q.oy,q.r,0,6.283); ctx.fill();}
+
+    /* atoms that carry a chosen portal into the folder */
+    if(flow.length){
+      var ff=flowFade?Math.max(0,1-(now-flowFade)/500):1;
+      if(ff<=0)flow=[];
+      for(var f=0;f<flow.length;f++){var u=flow[f], kk=Math.min(1,Math.max(0,(now-u.st)/u.du)), ee=ease(kk);
+        var fx=u.bx+(u.tx-u.bx)*ee+Math.sin(ee*Math.PI)*u.cv, fy=u.by+(u.ty-u.by)*ee;
+        ctx.globalAlpha=u.a*ff*(.6+.4*Math.sin(now*.006+u.ph)); ctx.fillStyle=u.c; ctx.fillRect(fx,fy,u.s,u.s);}
+    }
+
+    ctx.globalAlpha=1;
+    raf=requestAnimationFrame(frame);
+  }
+  stage.addEventListener('pointermove',function(e){var r=stage.getBoundingClientRect();ptr.x=e.clientX-r.left;ptr.y=e.clientY-r.top;});
+  stage.addEventListener('pointerdown',function(e){var r=stage.getBoundingClientRect();ptr.x=e.clientX-r.left;ptr.y=e.clientY-r.top;});
+  stage.addEventListener('pointerleave',function(){ptr.x=ptr.y=-999;});
+
+  /* ================= portals ================= */
+  function renderRoles(){
+    var ks=solo?[solo]:['staff','client'];
+    roles.innerHTML='<div class="q">'+(solo?'مرحباً بعودتك':'اختر بوابة الدخول')+'</div><div class="rl">'+
+      ks.map(function(k){return '<button class="rc" type="button" data-k="'+k+'"><span class="ri">'+IC[k]+'</span><span class="rt"><b>'+ROLE[k].t+'</b><small>'+ROLE[k].s+'</small></span><span class="ra">'+IC.arrow+'</span></button>';}).join('')+'</div>';
+    roles.classList.remove('in'); void roles.offsetWidth; roles.classList.add('in');
+    [].forEach.call(roles.querySelectorAll('.rc'),function(b){b.onclick=function(){choose(b);};});
+    stage.classList.add('done');
+    if(solo){var k=solo;at(900,function(){choose(roles.querySelector('.rc'),k);});}
+  }
+  var dos=null, openBtn=null, DT=[];
+  function dt(ms,fn){DT.push(setTimeout(fn,reduce?0:ms));}
+  function choose(btn,k){
+    if(dos)return;
+    k=k||btn.dataset.k; openBtn=btn; setRole(k);
+    var staff=k==='staff';
+    dos=document.createElement('section');
+    dos.className='dossier'; dos.setAttribute('role','dialog'); dos.setAttribute('aria-modal','true'); dos.setAttribute('aria-label',staff?'دخول الموظفين':'دخول الموكّلين');
+    dos.innerHTML='<div class="dback"></div><div class="dtab">'+(staff?'ملف الموظفين':'ملف الموكّلين')+'</div>'+
+      '<div class="sheet">'+
+      '<div class="lhr"><span class="badge">'+IC[k].replace(/22/g,'16')+(staff?' بوابة الموظفين':' بوابة الموكّلين')+'</span><button class="x" type="button" aria-label="إغلاق الملف">'+IC.close+'</button></div>'+
+      '<div class="lhd"><span class="lm" aria-hidden="true"></span><b>مكتب وليد الكثيري للمحاماة</b></div>'+
+      '<div><h2>'+(staff?'دخول فريق المكتب':'دخول الموكّلين')+'</h2><p>'+(staff?'للمحامين والإداريين المسجّلين في المكتب.':'تابع قضيتك وجلساتك ومستنداتك.')+'</p></div>'+
+      '<form novalidate><div class="fld"><label for="user">اسم المستخدم</label><input class="inp" id="user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="اسم المستخدم"></div>'+
+      '<div class="fld"><label for="pw">كلمة المرور</label><input class="inp" id="pw" type="password" autocomplete="current-password" placeholder="••••••••"></div>'+
+      '<div class="row"><label><input id="rem" type="checkbox"> تذكّرني</label><button class="lnk" type="button" data-a="forgot">نسيت كلمة المرور؟</button></div>'+
+      '<button class="go" type="submit">تسجيل الدخول</button><div class="msg" role="status"></div></form>'+
+      '<div class="note">'+(staff?'تُحدَّد الصلاحيات حسب الدور: محامٍ، سكرتارية، محاسبة، إدارة.':'يسلّمك المكتب اسم المستخدم وكلمة المرور عند توكيله في قضيتك.')+'</div>'+
+      '<button class="lnk swl" type="button" data-a="switch">'+(staff?'لست موظفاً؟ الدخول من بوابة الموكّلين':'لست موكّلاً؟ الدخول من بوابة الموظفين')+'</button>'+
+      CREDIT+'</div>'+
+      '<div class="dcover"><div class="face front"><span class="big"></span><b>'+ROLE[k].t+'</b><small>مكتب وليد الكثيري للمحاماة</small></div><div class="face back"></div></div>';
+    stage.appendChild(dos);
+    bindSheet(k);
+
+    /* the card dissolves into atoms that draw the folder */
+    var s=stage.getBoundingClientRect(), r=btn.getBoundingClientRect(), d=dos.getBoundingClientRect();
+    var L=d.left-s.left, Tp=d.top-s.top, Wd=d.width, Hd=d.height, now=performance.now();
+    flow=[]; flowFade=0;
+    if(!reduce){
+      for(var i=0;i<900;i++){
+        var tx, ty, edge=i<560;
+        if(edge){var per=2*(Wd+Hd), q=Math.random()*per;
+          if(q<Wd){tx=L+q;ty=Tp;} else if(q<Wd+Hd){tx=L+Wd;ty=Tp+q-Wd;} else if(q<2*Wd+Hd){tx=L+(q-Wd-Hd);ty=Tp+Hd;} else {tx=L;ty=Tp+(q-2*Wd-Hd);}
+        } else {tx=L+Math.random()*Wd;ty=Tp+Math.random()*Hd;}
+        flow.push({bx:r.left-s.left+Math.random()*r.width,by:r.top-s.top+Math.random()*r.height,tx:tx,ty:ty,st:now+Math.random()*260,du:700+Math.random()*250,
+          cv:(Math.random()-.5)*60,c:COL[i%4],s:edge?1.3:1,a:edge?1:.35,ph:Math.random()*6.3});
+      }
+      [].forEach.call(roles.querySelectorAll('.rc'),function(c){c.classList.add('gone');});
+    }
+    dt(1000,function(){dos.classList.add('on');flowFade=performance.now();});
+    dt(1450,function(){dos.classList.add('flip');});
+    dt(2150,function(){dos.classList.add('ready');var i=dos.querySelector('#user');if(i)i.focus({preventScroll:true});});
+  }
+  function bindSheet(k){
+    var staff=k==='staff', msg=dos.querySelector('.msg');
+    dos.querySelector('.x').onclick=function(){closeLogin();};
+    dos.querySelector('[data-a=forgot]').onclick=function(){msg.textContent='تواصل مع إدارة المكتب لإعادة تعيين كلمة المرور.';};
+    dos.querySelector('[data-a=switch]').onclick=function(){setRole(null);solo=null;closeLogin(renderRoles);};
+    dos.querySelector('form').addEventListener('submit',function(e){e.preventDefault();
+      var u=dos.querySelector('#user'), p=dos.querySelector('#pw'), btn=dos.querySelector('.go');
+      if(!u.value.trim()||!p.value){msg.textContent='أدخل اسم المستخدم وكلمة المرور.';return;}
+      if(btn.disabled)return;
+      var label=btn.textContent; btn.disabled=true; btn.textContent='جارٍ التحقق…'; msg.textContent='';
+      fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username:u.value,password:p.value,portal:k})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d&&d.redirect){msg.textContent='تم التحقق — جارٍ الفتح…';location.href=d.redirect;return;}
+        msg.textContent=(d&&d.error)||'تعذّر الدخول.';btn.disabled=false;btn.textContent=label;
+      })
+      .catch(function(){msg.textContent='تعذّر الاتصال بالخادم.';btn.disabled=false;btn.textContent=label;});
+    });
+  }
+  function closeLogin(cb){
+    if(!dos)return;
+    var el=dos; DT.forEach(clearTimeout); DT=[];
+    el.classList.remove('ready'); el.classList.remove('flip');
+    dt(950,function(){el.classList.remove('on');[].forEach.call(roles.querySelectorAll('.rc'),function(c){c.classList.remove('gone');});});
+    dt(1400,function(){el.remove();if(dos===el)dos=null;if(cb)cb();else if(openBtn&&document.body.contains(openBtn))openBtn.focus({preventScroll:true});});
+  }
+  function dropDossier(){DT.forEach(clearTimeout);DT=[];if(dos){dos.remove();dos=null;}flow=[];}
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLogin();});
+
+  /* ================= timeline ================= */
+  function play(skip,full){
+    T.forEach(clearTimeout); T=[]; cancelAnimationFrame(raf);
+    dropDossier();
+    stage.className='stage'+(skip?' instant':''); mark.className='mark'; nameEl.className='name';
+    roles.className='roles'; roles.innerHTML=''; bursts=[]; solo=getRole();
+    var short=!full&&seen(); timing(short);
+    fit(); build(); t0=0;
+    if(reduce||skip){
+      t0=performance.now()-(ORB0+2500);
+      P.forEach(function(p){p.x=p.bx=p.tx;p.y=p.by=p.ty;p.rec=true;});
+      mark.classList.add('in'); nameEl.classList.add('in'); renderRoles();
+      if(!reduce)raf=requestAnimationFrame(frame); else {frame(performance.now());cancelAnimationFrame(raf);}
+      return;
+    }
+    raf=requestAnimationFrame(frame);
+    at(RING,function(){mark.classList.add('in');});
+    at(RING+400,function(){nameEl.classList.add('in');});
+    at(short?RING+1050:4950,function(){renderRoles();markSeen();});
+  }
+  function start(){play(false);}
+  document.getElementById('skip').onclick=function(){play(true);};
+  document.getElementById('replay').onclick=function(){play(false,true);};
+  var rz; window.addEventListener('resize',function(){clearTimeout(rz);rz=setTimeout(function(){if(stage.classList.contains('done')&&!dos)play(true);},200);});
+  if(MASKIMG.complete&&MASKIMG.naturalWidth)start(); else MASKIMG.onload=start;
+})();
+</script>
+</body>
+</html>
