@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 function normalizeForCompare(text: string): string {
@@ -13,7 +14,7 @@ function normalizeForCompare(text: string): string {
     .trim()
 }
 
-function DeleteRow({ account }: { account: any }) {
+function DeleteRow({ account, onDeleted }: { account: any; onDeleted: (id: string) => void }) {
   const [open, setOpen] = useState(false)
   const [confirmName, setConfirmName] = useState('')
   const [loading, setLoading] = useState(false)
@@ -90,7 +91,7 @@ function DeleteRow({ account }: { account: any }) {
         return
       }
 
-      window.location.reload()
+      onDeleted(account.id)
     } catch (err) {
       setMessage('حدث خطأ أثناء الحذف')
       setLoading(false)
@@ -172,7 +173,20 @@ function DeleteRow({ account }: { account: any }) {
 }
 
 export default function DeleteAccountPanel({ accounts }: { accounts: any[] }) {
-  const deletable = (accounts || []).filter((a: any) => a.role !== 'manager')
+  const router = useRouter()
+  const [removedIds, setRemovedIds] = useState<string[]>([])
+  const [doneNames, setDoneNames] = useState<string[]>([])
+
+  const deletable = (accounts || [])
+    .filter((a: any) => a.role !== 'manager')
+    .filter((a: any) => !removedIds.includes(a.id))
+
+  function handleDeleted(id: string) {
+    const gone = (accounts || []).find((a: any) => a.id === id)
+    setRemovedIds((prev) => [...prev, id])
+    if (gone) setDoneNames((prev) => [...prev, gone.full_name])
+    router.refresh()
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow p-5 border border-slate-100">
@@ -181,13 +195,23 @@ export default function DeleteAccountPanel({ accounts }: { accounts: any[] }) {
         حذف نهائي للموكلين والمحامين. حسابات المدراء محمية ولا تظهر هنا.
       </p>
 
+      {doneNames.length > 0 && (
+        <div className="mb-3 bg-green-50 border border-green-200 rounded-xl p-3 space-y-1">
+          {doneNames.map((n, i) => (
+            <p key={i} className="text-[11px] text-green-800">
+              ✓ تم حذف <strong>{n}</strong> نهائياً.
+            </p>
+          ))}
+        </div>
+      )}
+
       {deletable.length === 0 && (
         <p className="text-xs text-slate-400 text-center py-4">لا توجد حسابات قابلة للحذف.</p>
       )}
 
       <div>
         {deletable.map((a: any) => (
-          <DeleteRow key={a.id} account={a} />
+          <DeleteRow key={a.id} account={a} onDeleted={handleDeleted} />
         ))}
       </div>
     </div>
