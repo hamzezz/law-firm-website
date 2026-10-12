@@ -52,7 +52,7 @@ export default function PwaInit() {
   if (!show) return null
 
   return (
-    <div className="fixed bottom-3 inset-x-3 z-50 bg-slate-900 text-slate-100 rounded-2xl shadow-xl p-4 flex items-center gap-3">
+    <div className="fixed bottom-24 md:bottom-3 inset-x-3 z-50 bg-slate-900 text-slate-100 rounded-2xl shadow-xl p-4 flex items-center gap-3">
       <div className="flex-1">
         <p className="font-bold text-sm">ثبّت التطبيق على جهازك</p>
         <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">

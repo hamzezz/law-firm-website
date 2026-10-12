@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export default function ChangePassword() {
+export default function ChangePassword({ className }: { className?: string } = {}) {
   const [open, setOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -46,7 +46,10 @@ export default function ChangePassword() {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-sm text-slate-300 hover:text-white transition">
+      <button
+        onClick={() => setOpen(true)}
+        className={className || 'text-sm text-slate-300 hover:text-white transition'}
+      >
         تغيير كلمة المرور
       </button>
     )

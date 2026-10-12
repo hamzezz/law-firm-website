@@ -103,84 +103,159 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
     setSaving(false)
   }
 
+  /* ——— رقم الجلسة في دائرة، يتلوّن بحالتها ——— */
+  function Num({ tone }: { tone: 'muted' | 'open' | 'done' }) {
+    const cls =
+      tone === 'done'
+        ? 'bg-emerald-50 text-emerald-700'
+        : tone === 'open'
+          ? 'bg-amber-100 text-amber-700'
+          : 'bg-slate-100 text-slate-400'
+    return (
+      <span className={'w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-display font-bold text-xs ' + cls}>
+        {session.session_order}
+      </span>
+    )
+  }
+
+  /* ═══ 1) جلسة لم يحن وقتها، أو سابقتها لم تُسجَّل بعد ═══ */
   if (isFuture) {
     return (
-      <div className="border-r-4 border-slate-300 bg-slate-100 rounded-lg p-4 opacity-70">
-        <div className="flex justify-between items-start">
-          <h3 className="font-bold text-sm text-slate-500">الجلسة رقم {session.session_order} - {caseNumber}</h3>
-          <span className="text-xs text-slate-400">{sessionStatusLabel(session.status)}</span>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-start gap-3">
+        <Num tone="muted" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-bold text-sm text-slate-500 leading-snug">الجلسة رقم {session.session_order}</p>
+            <span className="text-[11px] text-slate-400 shrink-0">{sessionStatusLabel(session.status)}</span>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+            لا يمكن إضافة أي معلومات حول هذه الجلسة إلا في يوم انعقادها ({sessionDateFormatted}) أو بعده
+          </p>
         </div>
-        <p className="text-xs text-slate-500 mt-1">الموكل: {clientName}</p>
-        <p className="text-xs text-slate-400 mt-2">لا يمكن إضافة أي معلومات حول هذه الجلسة إلا في يوم انعقادها ({sessionDateFormatted}) أو بعده</p>
       </div>
     )
   }
 
+  /* ═══ 2) جلسة سُجّلت نهائياً — لا تُعدَّل ═══ */
   if (locked) {
     return (
-      <div className="border-r-4 border-emerald-500 bg-slate-50 rounded-lg p-4">
-        <div className="flex justify-between items-start mb-1">
-          <h3 className="font-bold text-sm text-slate-900">الجلسة رقم {session.session_order} - {caseNumber}</h3>
-          <span className="text-xs text-slate-500">{sessionStatusLabel(session.status)}</span>
-        </div>
-        <p className="text-xs text-slate-500 mb-2">الموكل: {clientName} - {sessionDateFormatted}</p>
-        <p className="text-sm text-slate-700 mb-2">{session.notes}</p>
-        {session.next_session_date && (
-          <p className="text-xs text-emerald-700 font-bold mb-3">تاريخ الجلسة القادمة: {new Date(session.next_session_date).toLocaleDateString('ar-SA')}</p>
-        )}
-        {sessionDocs.length > 0 && (
-          <div className="space-y-1.5 pt-2 border-t border-slate-100">
-            <p className="text-xs text-slate-400 font-bold mb-1">المحاضر المرفقة</p>
-            {sessionDocs.map(function (d: any) {
-              const docUrl = d.url ? d.url : '#'
-              return (
-                <a key={d.id} href={docUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-emerald-700 hover:text-emerald-900 hover:underline transition">
-                  <span>📄</span>
-                  <span>{d.file_name}</span>
-                </a>
-              )
-            })}
+      <div className="rounded-xl border border-slate-200 border-r-[3px] border-r-emerald-500 bg-white p-4 flex items-start gap-3">
+        <Num tone="done" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.session_order}</p>
+            <span className="text-[11px] text-slate-500 shrink-0">{sessionStatusLabel(session.status)}</span>
           </div>
-        )}
-        <p className="text-[10px] text-slate-400 mt-2">بيانات هذه الجلسة نهائية ولا يمكن تعديلها</p>
+          <p className="text-[11px] text-slate-400 mt-1">{sessionDateFormatted}</p>
+
+          <p className="text-sm text-slate-700 mt-3 leading-relaxed">{session.notes}</p>
+
+          {session.next_session_date && (
+            <p className="text-xs text-emerald-700 font-bold mt-3">
+              الجلسة القادمة: {new Date(session.next_session_date).toLocaleDateString('ar-SA')}
+            </p>
+          )}
+
+          {sessionDocs.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+              <p className="text-[11px] text-slate-400 font-bold">المحاضر المرفقة</p>
+              {sessionDocs.map(function (d: any) {
+                const docUrl = d.url ? d.url : '#'
+                return (
+                  <a
+                    key={d.id}
+                    href={docUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 text-xs text-emerald-700 hover:text-emerald-900 py-1.5 transition"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="w-4 h-4 shrink-0">
+                      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                      <path d="M14 3v5h5" />
+                    </svg>
+                    <span className="truncate">{d.file_name}</span>
+                  </a>
+                )
+              })}
+            </div>
+          )}
+
+          <p className="text-[10px] text-slate-400 mt-3">بيانات هذه الجلسة نهائية ولا يمكن تعديلها</p>
+        </div>
       </div>
     )
   }
 
+  /* ═══ 3) جلسة اليوم — تُسجَّل مرة واحدة ═══ */
   return (
-    <div className="border-r-4 border-amber-500 bg-amber-50/40 rounded-lg p-4">
-      <div className="flex justify-between items-start mb-1">
-        <h3 className="font-bold text-sm text-slate-900">الجلسة رقم {session.session_order} - {caseNumber}</h3>
-        <span className="text-xs text-slate-500">{sessionStatusLabel(session.status)}</span>
+    <div className="rounded-xl border border-amber-200 border-r-[3px] border-r-amber-500 bg-amber-50/40 p-4">
+      <div className="flex items-start gap-3">
+        <Num tone="open" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.session_order}</p>
+            <span className="text-[11px] text-slate-500 shrink-0">{sessionStatusLabel(session.status)}</span>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">{sessionDateFormatted}</p>
+        </div>
       </div>
-      <p className="text-xs text-slate-500 mb-3">الموكل: {clientName} - {sessionDateFormatted}</p>
 
       {message && (
-        <div className={message.type === 'success' ? 'text-xs p-2 rounded-lg mb-3 bg-emerald-50 text-emerald-700' : 'text-xs p-2 rounded-lg mb-3 bg-red-50 text-red-700'}>
+        <div className={
+          'text-xs p-2.5 rounded-lg mt-3 ' +
+          (message.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')
+        }>
           {message.text}
         </div>
       )}
 
-      <div className="space-y-2">
-        <textarea placeholder="اكتب قرار الجلسة..." value={notes} onChange={function (e) { setNotes(e.target.value) }} disabled={saving} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500 h-20 resize-none bg-white" />
-
-        <VoiceInput onTranscript={function (text) { setNotes(text) }} />
-
-        <div className="flex gap-2 items-center flex-wrap">
-          <label className="text-xs text-slate-500 whitespace-nowrap">تاريخ الجلسة القادمة (اختياري):</label>
-          <input type="date" value={nextDate} onChange={function (e) { setNextDate(e.target.value) }} disabled={saving} className="px-3 py-1 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500 bg-white" />
+      <div className="mt-3 space-y-3">
+        <div>
+          <label className="text-[11px] text-slate-500 block mb-1.5">قرار الجلسة</label>
+          <textarea
+            placeholder="اكتب قرار الجلسة..."
+            value={notes}
+            onChange={function (e) { setNotes(e.target.value) }}
+            disabled={saving}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 h-24 resize-none bg-white"
+          />
+          <div className="mt-2">
+            <VoiceInput onTranscript={function (text) { setNotes(text) }} />
+          </div>
         </div>
 
         <div>
-          <label className="text-xs text-slate-500 block mb-1">محضر الجلسة (اختياري):</label>
-          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={function (e) { setFile(e.target.files ? e.target.files[0] : null) }} disabled={saving} className="text-xs w-full" />
-          <div className="mt-2">
-            <DocumentScanner onCapture={function (f) { setFile(f) }} />
-          </div>
-          {file && <p className="text-[10px] text-emerald-700 mt-1">✓ {file.name}</p>}
+          <label className="text-[11px] text-slate-500 block mb-1.5">تاريخ الجلسة القادمة (اختياري)</label>
+          <input
+            type="date"
+            value={nextDate}
+            onChange={function (e) { setNextDate(e.target.value) }}
+            disabled={saving}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+          />
         </div>
 
-        <button onClick={handleFinalSave} disabled={saving} className="text-xs bg-amber-600 text-white px-4 py-2.5 rounded-lg hover:bg-amber-700 transition font-bold disabled:opacity-50 w-full">
+        <div>
+          <label className="text-[11px] text-slate-500 block mb-1.5">محضر الجلسة (اختياري)</label>
+          <DocumentScanner onCapture={function (f) { setFile(f) }} />
+          <label className="mt-2 flex items-center justify-center gap-2 text-xs font-bold px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 cursor-pointer hover:bg-slate-50 transition">
+            اختيار ملف من الجهاز
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={function (e) { setFile(e.target.files ? e.target.files[0] : null) }}
+              disabled={saving}
+              className="hidden"
+            />
+          </label>
+          {file && <p className="text-[11px] text-emerald-700 mt-2 truncate">✓ {file.name}</p>}
+        </div>
+
+        <button
+          onClick={handleFinalSave}
+          disabled={saving}
+          className="w-full text-sm bg-amber-600 text-white px-4 py-3.5 rounded-xl hover:bg-amber-700 transition font-bold disabled:opacity-50"
+        >
           {saving ? 'جارٍ الحفظ...' : 'حفظ الجلسة نهائياً (القرار + المحضر)'}
         </button>
         <p className="text-[10px] text-slate-400 text-center">لا يمكن تعديل هذه البيانات بعد الحفظ</p>
