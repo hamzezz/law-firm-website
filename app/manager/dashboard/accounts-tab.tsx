@@ -25,7 +25,15 @@ function roleBadge(role: string) {
   return 'bg-blue-50 text-blue-700'
 }
 
-function AccountRow({ account, isTech }: { account: any; isTech: boolean }) {
+function AccountRow({
+  account,
+  isTech,
+  onDeleted,
+}: {
+  account: any
+  isTech: boolean
+  onDeleted: (id: string) => void
+}) {
   const [mode, setMode] = useState<'idle' | 'password' | 'delete'>('idle')
   const [newPassword, setNewPassword] = useState('')
   const [confirmName, setConfirmName] = useState('')
@@ -107,7 +115,7 @@ function AccountRow({ account, isTech }: { account: any; isTech: boolean }) {
         return
       }
 
-      window.location.reload()
+      onDeleted(account.id)
     } catch (err) {
       setMessage({ type: 'error', text: 'حدث خطأ أثناء الحذف' })
       setLoading(false)
@@ -247,8 +255,18 @@ function AccountRow({ account, isTech }: { account: any; isTech: boolean }) {
 export default function AccountsTab({ accounts, isTech }: { accounts: any[]; isTech: boolean }) {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
+  const [removedIds, setRemovedIds] = useState<string[]>([])
+  const [doneNames, setDoneNames] = useState<string[]>([])
 
-  const filtered = (accounts || []).filter((a: any) => {
+  function handleDeleted(id: string) {
+    const gone = (accounts || []).find((a: any) => a.id === id)
+    setRemovedIds((prev) => [...prev, id])
+    if (gone) setDoneNames((prev) => [...prev, gone.full_name])
+  }
+
+  const live = (accounts || []).filter((a: any) => !removedIds.includes(a.id))
+
+  const filtered = live.filter((a: any) => {
     if (roleFilter !== 'all' && a.role !== roleFilter) return false
     if (search.trim()) {
       const q = normalizeForCompare(search)
@@ -261,9 +279,9 @@ export default function AccountsTab({ accounts, isTech }: { accounts: any[]; isT
   })
 
   const counts = {
-    all: (accounts || []).length,
-    lawyer: (accounts || []).filter((a: any) => a.role === 'lawyer').length,
-    client: (accounts || []).filter((a: any) => a.role === 'client').length,
+    all: live.length,
+    lawyer: live.filter((a: any) => a.role === 'lawyer').length,
+    client: live.filter((a: any) => a.role === 'client').length,
   }
 
   return (
@@ -275,6 +293,16 @@ export default function AccountsTab({ accounts, isTech }: { accounts: any[]; isT
             ? 'تغيير كلمات المرور وحذف الحسابات. حسابات المدراء لا يمكن حذفها.'
             : 'تغيير كلمات مرور المحامين والموكلين.'}
         </p>
+
+        {doneNames.length > 0 && (
+          <div className="mb-4 bg-green-50 border border-green-200 rounded-xl p-3 space-y-1">
+            {doneNames.map((n, i) => (
+              <p key={i} className="text-[11px] text-green-800">
+                ✓ تم حذف <strong>{n}</strong> نهائياً.
+              </p>
+            ))}
+          </div>
+        )}
 
         <div className="flex gap-2 flex-wrap">
           <input
@@ -301,7 +329,7 @@ export default function AccountsTab({ accounts, isTech }: { accounts: any[]; isT
           <p className="text-xs text-slate-400 text-center py-8">لا توجد حسابات مطابقة.</p>
         )}
         {filtered.map((a: any) => (
-          <AccountRow key={a.id} account={a} isTech={isTech} />
+          <AccountRow key={a.id} account={a} isTech={isTech} onDeleted={handleDeleted} />
         ))}
       </div>
     </div>
