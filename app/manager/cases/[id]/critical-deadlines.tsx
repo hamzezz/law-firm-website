@@ -5,6 +5,15 @@ import { createClient } from '@/lib/supabase/client'
 
 const DEADLINE_TYPES = ['مهلة استئناف', 'مهلة نقض', 'مهلة تظلم', 'أخرى']
 
+/** الميلادي بأرقام إنجليزية */
+function gregorian(value: string) {
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return ''
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  return day + '/' + month + '/' + d.getFullYear()
+}
+
 function daysRemaining(dateStr: string) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -85,7 +94,7 @@ function AddDeadlineForm({ caseId, onSuccess }: { caseId: string; onSuccess: () 
 
       <input type="text" placeholder="وصف مختصر (اختياري)" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-400" />
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">تاريخ بداية المهلة</label>
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-400" />
@@ -137,7 +146,7 @@ export default function CriticalDeadlines({ caseId, deadlines }: { caseId: strin
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-xs text-slate-800">{d.deadline_type}</p>
-                  <p className="text-[10px] text-slate-400">تنتهي في {new Date(d.deadline_date).toLocaleDateString('ar-SA')}</p>
+                  <p className="text-[10px] text-slate-400">تنتهي في {gregorian(d.deadline_date)}</p>
                   {d.description && <p className="text-[10px] text-slate-500 mt-0.5">{d.description}</p>}
                 </div>
               </div>

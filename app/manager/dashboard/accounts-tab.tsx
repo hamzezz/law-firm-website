@@ -310,7 +310,7 @@ export default function AccountsTab({ accounts, isTech }: { accounts: any[]; isT
             placeholder="ابحث بالاسم أو اسم المستخدم..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 min-w-[180px] px-3 py-2 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-400"
+            className="flex-1 min-w-0 basis-full sm:basis-auto px-3 py-2.5 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400"
           />
           <select
             value={roleFilter}

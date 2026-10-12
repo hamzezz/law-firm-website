@@ -5,6 +5,34 @@ import { createClient } from '@/lib/supabase/client'
 import VoiceInput from '@/app/components/voice-input'
 import DocumentScanner from '@/app/components/document-scanner'
 
+/** الميلادي بأرقام إنجليزية: 25/10/2026 */
+function gregorian(value: string | Date) {
+  const d = value instanceof Date ? value : new Date(value)
+  if (isNaN(d.getTime())) return ''
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  return day + '/' + month + '/' + d.getFullYear()
+}
+
+/** الهجري بتقويم أم القرى صراحةً — لئلّا يختلف الخادم عن المتصفّح */
+function hijriLong(d: Date) {
+  try {
+    return d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    })
+  } catch {
+    return ''
+  }
+}
+
+/** الهجري الطويل كما تستعمله المحاكم، ثم الميلادي بجانبه */
+function bothCalendars(value: string) {
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return ''
+  const hijri = hijriLong(d)
+  return hijri ? hijri + ' — ' + gregorian(d) : gregorian(d)
+}
+
 function sessionStatusLabel(status: string) {
   const map: Record<string, string> = { scheduled: 'مجدولة', held: 'منعقدة', postponed: 'مؤجلة' }
   return map[status?.toLowerCase()] || status
@@ -18,9 +46,7 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [locked, setLocked] = useState(session.is_locked)
 
-  const sessionDateFormatted = new Date(session.session_date).toLocaleDateString('ar-SA', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  })
+  const sessionDateFormatted = bothCalendars(session.session_date)
 
   async function handleFinalSave() {
     if (!notes.trim()) {
@@ -135,7 +161,7 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
           </div>
 
           {session.next_session_date && (
-            <p className="text-xs text-amber-700 font-bold mb-3">الجلسة القادمة: {new Date(session.next_session_date).toLocaleDateString('ar-SA')}</p>
+            <p className="text-xs text-amber-700 font-bold mb-3">الجلسة القادمة: {gregorian(session.next_session_date)}</p>
           )}
 
           {sessionDocs.length > 0 && (
