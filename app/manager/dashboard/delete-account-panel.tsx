@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 function normalizeForCompare(text: string): string {
@@ -173,7 +172,6 @@ function DeleteRow({ account, onDeleted }: { account: any; onDeleted: (id: strin
 }
 
 export default function DeleteAccountPanel({ accounts }: { accounts: any[] }) {
-  const router = useRouter()
   const [removedIds, setRemovedIds] = useState<string[]>([])
   const [doneNames, setDoneNames] = useState<string[]>([])
 
@@ -185,7 +183,6 @@ export default function DeleteAccountPanel({ accounts }: { accounts: any[] }) {
     const gone = (accounts || []).find((a: any) => a.id === id)
     setRemovedIds((prev) => [...prev, id])
     if (gone) setDoneNames((prev) => [...prev, gone.full_name])
-    router.refresh()
   }
 
   return (
