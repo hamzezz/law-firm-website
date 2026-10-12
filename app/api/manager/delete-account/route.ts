@@ -15,22 +15,17 @@ function normalizeForCompare(text: string): string {
 export async function POST(request: Request) {
   const supabase = await createServerClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const [authResult, body] = await Promise.all([
+    supabase.auth.getUser(),
+    request.json(),
+  ])
+
+  const user = authResult.data.user
   if (!user) {
     return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
   }
 
-  const { data: requester } = await supabase
-    .from('users')
-    .select('id, role, username')
-    .eq('auth_id', user.id)
-    .single()
-
-  if (!requester || requester.role !== 'manager' || requester.username !== 'tech') {
-    return NextResponse.json({ error: 'هذا الإجراء متاح للمدير التقني فقط' }, { status: 403 })
-  }
-
-  const { targetUserId, confirmName } = await request.json()
+  const { targetUserId, confirmName } = body || {}
 
   if (!targetUserId || !confirmName) {
     return NextResponse.json({ error: 'بيانات ناقصة' }, { status: 400 })
@@ -41,11 +36,18 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: targetUser } = await admin
-    .from('users')
-    .select('id, auth_id, role, full_name, username')
-    .eq('id', targetUserId)
-    .single()
+  const [requesterRes, targetRes] = await Promise.all([
+    supabase.from('users').select('id, role, username').eq('auth_id', user.id).single(),
+    admin.from('users').select('id, auth_id, role, full_name, username').eq('id', targetUserId).single(),
+  ])
+
+  const requester = requesterRes.data
+
+  if (!requester || requester.role !== 'manager' || requester.username !== 'tech') {
+    return NextResponse.json({ error: 'هذا الإجراء متاح للمدير التقني فقط' }, { status: 403 })
+  }
+
+  const targetUser = targetRes.data
 
   if (!targetUser) {
     return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 404 })
@@ -86,17 +88,21 @@ export async function POST(request: Request) {
 
       if (lawyerRow) {
         // للمحامي: لا نحذف القضايا، بل نحوّلها إلى "غير مخصصة" حفاظاً على بيانات الموكلين
-        await admin.from('cases').update({ primary_lawyer_id: null }).eq('primary_lawyer_id', lawyerRow.id)
-        await admin.from('case_lawyer_access').delete().eq('lawyer_id', lawyerRow.id)
+        await Promise.all([
+          admin.from('cases').update({ primary_lawyer_id: null }).eq('primary_lawyer_id', lawyerRow.id),
+          admin.from('case_lawyer_access').delete().eq('lawyer_id', lawyerRow.id),
+        ])
       }
 
       const r2 = await admin.from('lawyers').delete().eq('user_id', targetUser.id)
       if (r2.error) return NextResponse.json({ error: 'فشل حذف بيانات المحامي: ' + r2.error.message }, { status: 500 })
     }
 
-    await admin.from('notifications').delete().eq('recipient_user_id', targetUser.id)
-    await admin.from('push_subscriptions').delete().eq('user_id', targetUser.id)
-    await admin.from('audit_log').delete().eq('user_id', targetUser.id)
+    await Promise.all([
+      admin.from('notifications').delete().eq('recipient_user_id', targetUser.id),
+      admin.from('push_subscriptions').delete().eq('user_id', targetUser.id),
+      admin.from('audit_log').delete().eq('user_id', targetUser.id),
+    ])
 
     const r3 = await admin.from('users').delete().eq('id', targetUser.id)
     if (r3.error) return NextResponse.json({ error: 'فشل حذف الحساب: ' + r3.error.message }, { status: 500 })
