@@ -33,6 +33,12 @@ function dateKey(value: string | null) {
   return d.getFullYear() + '-' + m + '-' + day
 }
 
+/** جلسة مرّ موعدها ولم يُسجَّل قرارها بعد، فبقيت مجدولة */
+function isOverdue(value: string | null) {
+  if (!value) return false
+  return dateKey(value) < dateKey(new Date().toISOString())
+}
+
 function fmtDate(value: string | null) {
   if (!value) return ''
   const d = new Date(value)
@@ -77,8 +83,20 @@ function CaseCard({ c }: { c: any }) {
         )}
         {c.nextSessionDate && (
           <div className="min-w-0">
-            <span className="text-slate-400 text-[11px] block">الجلسة القادمة</span>
-            <span className="font-bold text-emerald-700 text-sm block mt-0.5">{fmtDate(c.nextSessionDate)}</span>
+            <span className="text-slate-400 text-[11px] block">
+              {isOverdue(c.nextSessionDate) ? 'جلسة متأخّرة' : 'الجلسة القادمة'}
+            </span>
+            <span className={
+              'font-bold text-sm block mt-0.5 ' +
+              (isOverdue(c.nextSessionDate) ? 'text-red-600' : 'text-emerald-700')
+            }>
+              {fmtDate(c.nextSessionDate)}
+            </span>
+            {isOverdue(c.nextSessionDate) && (
+              <span className="inline-block mt-1.5 bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                لم يُسجَّل قرارها
+              </span>
+            )}
           </div>
         )}
       </div>
