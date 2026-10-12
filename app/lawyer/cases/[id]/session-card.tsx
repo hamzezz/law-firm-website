@@ -12,14 +12,23 @@ function gregorian(d: Date) {
   return day + '/' + month + '/' + d.getFullYear()
 }
 
+/** الهجري بتقويم أم القرى صراحةً — لئلّا يختلف الخادم عن المتصفّح */
+function hijriLong(d: Date) {
+  try {
+    return d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    })
+  } catch {
+    return ''
+  }
+}
+
 /** الهجري الطويل كما تستعمله المحاكم، ثم الميلادي بجانبه */
 function bothCalendars(value: string) {
   const d = new Date(value)
   if (isNaN(d.getTime())) return ''
-  const hijri = d.toLocaleDateString('ar-SA', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  })
-  return hijri + ' — ' + gregorian(d)
+  const hijri = hijriLong(d)
+  return hijri ? hijri + ' — ' + gregorian(d) : gregorian(d)
 }
 
 function sessionStatusLabel(status: string) {
