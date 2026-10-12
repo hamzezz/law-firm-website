@@ -5,6 +5,23 @@ import { createClient } from '@/lib/supabase/client'
 import VoiceInput from '@/app/components/voice-input'
 import DocumentScanner from '@/app/components/document-scanner'
 
+/** التاريخ الميلادي بأرقام إنجليزية: 25/10/2026 */
+function gregorian(d: Date) {
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  return day + '/' + month + '/' + d.getFullYear()
+}
+
+/** الهجري الطويل كما تستعمله المحاكم، ثم الميلادي بجانبه */
+function bothCalendars(value: string) {
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return ''
+  const hijri = d.toLocaleDateString('ar-SA', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  })
+  return hijri + ' — ' + gregorian(d)
+}
+
 function sessionStatusLabel(status: string) {
   const map: Record<string, string> = { scheduled: 'مجدولة', held: 'منعقدة', postponed: 'مؤجلة' }
   return map[status?.toLowerCase()] || status
@@ -18,9 +35,7 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [locked, setLocked] = useState(session.is_locked)
 
-  const sessionDateFormatted = new Date(session.session_date).toLocaleDateString('ar-SA', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  })
+  const sessionDateFormatted = bothCalendars(session.session_date)
 
   async function handleFinalSave() {
     if (!notes.trim()) {
@@ -152,7 +167,7 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
 
           {session.next_session_date && (
             <p className="text-xs text-emerald-700 font-bold mt-3">
-              الجلسة القادمة: {new Date(session.next_session_date).toLocaleDateString('ar-SA')}
+              الجلسة القادمة: {gregorian(new Date(session.next_session_date))}
             </p>
           )}
 
