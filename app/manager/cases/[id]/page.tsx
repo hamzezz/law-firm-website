@@ -19,11 +19,20 @@ function statusLabel(status: string) {
   return map[status ? status.toLowerCase() : ''] || status
 }
 
+/** الميلادي بأرقام إنجليزية */
+function gregorian(value: string) {
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return ''
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  return day + '/' + month + '/' + d.getFullYear()
+}
+
 export default async function ManagerCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/staff/login')
+  if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
     .from('users')
@@ -31,7 +40,7 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
     .eq('auth_id', user.id)
     .single()
 
-  if (!appUser || appUser.role !== 'manager') redirect('/staff/login')
+  if (!appUser || appUser.role !== 'manager') redirect('/portal.html')
 
   const { data: caseRow } = await supabase
     .from('cases')
@@ -110,28 +119,45 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
-      <header className="bg-gradient-to-l from-slate-900 to-amber-950 border-b-4 border-amber-500 px-6 py-8">
+      <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 md:static md:bg-gradient-to-l md:from-slate-900 md:to-amber-950 md:border-b-4 md:border-amber-500 md:px-6 md:py-8">
         <div className="max-w-3xl mx-auto">
-          <Link href="/manager/dashboard" className="text-amber-200 text-sm hover:text-white transition">رجوع للوحة التحكم</Link>
-          <div className="flex items-start justify-between mt-4 flex-wrap gap-3">
-            <div>
-              <h1 className="royal-title text-2xl">{caseRow.title}</h1>
-              <p className="text-amber-200 text-sm mt-1">رقم القضية: {caseRow.case_number}</p>
+          <div className="flex items-start gap-3 md:block">
+            <Link
+              href="/manager/dashboard"
+              aria-label="رجوع للوحة التحكم"
+              className="md:hidden shrink-0 w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-700"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[17px] h-[17px]">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </Link>
+
+            <Link href="/manager/dashboard" className="hidden md:inline text-amber-200 text-sm hover:text-white transition">رجوع للوحة التحكم</Link>
+
+            <div className="min-w-0 flex-1 md:flex md:items-start md:justify-between md:mt-4 md:flex-wrap md:gap-3">
+              <div className="min-w-0">
+                <h1 className="font-display font-bold text-base leading-snug text-slate-900 md:royal-title md:text-2xl">{caseRow.title}</h1>
+                <p className="text-slate-500 text-[11px] mt-1 md:text-amber-200 md:text-sm">رقم القضية: {caseRow.case_number}</p>
+              </div>
+              <span className={'hidden md:inline-block px-4 py-1.5 rounded-full text-xs font-bold ' + statusBadge(caseRow.status)}>
+                {statusLabel(caseRow.status)}
+              </span>
             </div>
-            <span className={'px-4 py-1.5 rounded-full text-xs font-bold ' + statusBadge(caseRow.status)}>
+
+            <span className={'md:hidden shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold mt-0.5 ' + statusBadge(caseRow.status)}>
               {statusLabel(caseRow.status)}
             </span>
           </div>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto p-6 space-y-6">
+      <main className="max-w-3xl mx-auto px-4 py-4 space-y-4 md:p-6 md:space-y-6">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
           <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
             معلومات القضية
           </h2>
-          <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
+          <div className="grid grid-cols-2 gap-y-4 gap-x-4 md:gap-x-6 text-sm">
             <div>
               <p className="text-slate-400 text-xs mb-0.5">الموكل</p>
               <p className="font-bold text-slate-800">{clientName}</p>
@@ -160,11 +186,11 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
             )}
             <div>
               <p className="text-slate-400 text-xs mb-0.5">تاريخ الفتح</p>
-              <p className="font-bold text-slate-800">{new Date(caseRow.opened_at).toLocaleDateString('ar-SA')}</p>
+              <p className="font-bold text-slate-800">{gregorian(caseRow.opened_at)}</p>
             </div>
           </div>
         </div>
-<CriticalDeadlines caseId={id} deadlines={deadlines || []} />
+        <CriticalDeadlines caseId={id} deadlines={deadlines || []} />
 
         <CloseCase caseId={id} currentStatus={caseRow.status} />
         {appUser.username === 'tech' && (

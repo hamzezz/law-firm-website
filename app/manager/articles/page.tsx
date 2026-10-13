@@ -6,7 +6,7 @@ import ArticlesManager from './articles-manager'
 export default async function ManagerArticlesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/staff/login')
+  if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
     .from('users')
@@ -14,7 +14,7 @@ export default async function ManagerArticlesPage() {
     .eq('auth_id', user.id)
     .single()
 
-  if (!appUser || appUser.role !== 'manager') redirect('/staff/login')
+  if (!appUser || appUser.role !== 'manager') redirect('/portal.html')
 
   const { data: articles } = await supabase
     .from('articles')

@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/app/staff/logout-button'
@@ -7,23 +6,10 @@ import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
 import ViewSwitcher from './view-switcher'
 
-function statusBadge(status: string) {
-  const s = status?.toLowerCase() || ''
-  if (s.includes('active')) return 'bg-green-100 text-green-700'
-  if (s.includes('postponed')) return 'bg-amber-100 text-amber-700'
-  if (s.includes('closed')) return 'bg-slate-200 text-slate-700'
-  return 'bg-blue-100 text-blue-700'
-}
-
-function statusLabel(status: string) {
-  const map: Record<string, string> = { active: 'نشطة', postponed: 'مؤجلة', closed: 'مغلقة' }
-  return map[status?.toLowerCase()] || status
-}
-
 export default async function LawyerDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/staff/login')
+  if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
     .from('users')
@@ -32,7 +18,7 @@ export default async function LawyerDashboardPage() {
     .single()
 
   if (!appUser || appUser.role !== 'lawyer') {
-    redirect('/staff/login')
+    redirect('/portal.html')
   }
 
   const { data: lawyerRow } = await supabase
@@ -146,81 +132,29 @@ export default async function LawyerDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
-      <header className="bg-slate-900 border-b-4 border-emerald-600 px-6 py-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-white text-xl font-bold">لوحة تحكم المحامي</h1>
-          <p className="text-slate-300 text-xs">مرحباً {appUser.full_name} — {lawyerRow.specialization}</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <NotificationBell userId={appUser.id} />
-          <EnableNotifications userId={appUser.id} />
-          <ChangePassword />
-          <LogoutButton />
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto p-6">
-        <ViewSwitcher calendarEvents={calendarEvents} casesContent={<>
-        {(!cases || cases.length === 0) && (
-          <div className="bg-white rounded-2xl shadow p-10 text-center text-slate-500">
-            لا توجد قضايا مسندة إليك حالياً.
+      <ViewSwitcher
+        cases={cases}
+        calendarEvents={calendarEvents}
+        lawyerName={appUser.full_name}
+        specialization={lawyerRow.specialization}
+        bell={<NotificationBell userId={appUser.id} />}
+        headerActions={
+          <div className="contents">
+            <EnableNotifications userId={appUser.id} />
+            <ChangePassword />
+            <LogoutButton />
           </div>
-        )}
-
-        <div className="grid gap-4">
-          {cases?.map((c: any) => (
-            <Link
-              href={`/lawyer/cases/${c.id}`}
-              key={c.id}
-              className="block bg-white rounded-2xl shadow p-6 border border-slate-100 hover:shadow-md hover:border-emerald-200 transition"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h2 className="font-bold text-lg text-slate-900">{c.title}</h2>
-                  <p className="text-slate-400 text-xs mt-1">رقم القضية: {c.case_number}</p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadge(c.status)}`}>
-                  {statusLabel(c.status)}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-                <div>
-                  <span className="text-slate-400 text-xs">الموكل: </span>
-                  <span className="font-bold text-slate-800">{c.clientName}</span>
-                </div>
-                {c.other_party && (
-                  <div>
-                    <span className="text-slate-400 text-xs">الطرف الآخر: </span>
-                    <span className="font-bold text-slate-800">{c.other_party}</span>
-                  </div>
-                )}
-                {c.case_type && (
-                  <div>
-                    <span className="text-slate-400 text-xs">نوع القضية: </span>
-                    <span className="font-bold text-slate-800">{c.case_type}</span>
-                  </div>
-                )}
-                {c.nextSessionDate && (
-                  <div>
-                    <span className="text-slate-400 text-xs">الجلسة القادمة: </span>
-                    <span className="font-bold text-emerald-700">
-                      {new Date(c.nextSessionDate).toLocaleDateString('ar-SA')}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {!c.primary_lawyer_id && (
-                <span className="inline-block mt-3 bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-1 rounded-full">
-                  متاحة لجميع المحامين
-                </span>
-              )}
-            </Link>
-          ))}
-        </div>
-      </>} />
-      </main>
+        }
+        accountActions={
+          <div className="contents">
+            <div className="py-4 border-b border-slate-100">
+              <EnableNotifications userId={appUser.id} />
+            </div>
+            <ChangePassword className="w-full text-right text-sm font-medium text-slate-700 py-4 border-b border-slate-100" />
+            <LogoutButton className="w-full text-right text-sm font-medium text-red-600 py-4" />
+          </div>
+        }
+      />
     </div>
   )
 }

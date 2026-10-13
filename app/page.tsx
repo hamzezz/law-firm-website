@@ -80,7 +80,7 @@ export default async function HomePage() {
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <MobileNav />
-            <Link href="/client/login" className="inline-flex items-center bg-blue-600 text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-4 py-2 rounded-full hover:bg-blue-700 transition whitespace-nowrap">بوابة الموكلين</Link>
+            <a href="/portal.html" className="inline-flex items-center bg-blue-600 text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-4 py-2 rounded-full hover:bg-blue-700 transition whitespace-nowrap">بوابة الموكلين</a>
           </div>
         </div>
       </header>
@@ -106,7 +106,7 @@ export default async function HomePage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto bg-gradient-to-l from-amber-500 to-amber-400 text-slate-900 font-bold px-8 py-3.5 rounded-full hover:shadow-lg hover:shadow-amber-500/20 transition">التواصل مع المكتب</a>
-            <Link href="/client/login" className="w-full sm:w-auto text-white font-bold px-8 py-3.5 rounded-full border border-slate-600 hover:border-amber-400 hover:text-amber-300 transition">بوابة الموكلين</Link>
+            <a href="/portal.html" className="w-full sm:w-auto text-white font-bold px-8 py-3.5 rounded-full border border-slate-600 hover:border-amber-400 hover:text-amber-300 transition">بوابة الموكلين</a>
           </div>
         </div>
       </section>
@@ -197,7 +197,7 @@ export default async function HomePage() {
             <div>
               <h3 className="font-display text-white font-bold text-lg mb-2">مكتب وليد الكثيري</h3>
               <p className="text-sm leading-relaxed mb-4">مكتب محاماة واستشارات قانونية في محافظة إب، يمثّل موكليه من الأفراد والشركات بمهنية ودقة وسرية تامة.</p>
-              <Link href="/staff/login" className="text-amber-400 text-xs hover:text-amber-300 transition">دخول فريق العمل</Link>
+              <a href="/portal.html" className="text-amber-400 text-xs hover:text-amber-300 transition">دخول فريق العمل</a>
             </div>
             <div>
               <h3 className="font-display text-white font-bold text-lg mb-3">تواصل معنا</h3>

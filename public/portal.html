@@ -389,6 +389,19 @@ a.dev::after{content:"";position:absolute;inset:0;background:linear-gradient(105
   document.getElementById('skip').onclick=function(){play(true);};
   document.getElementById('replay').onclick=function(){play(false,true);};
   var rz; window.addEventListener('resize',function(){clearTimeout(rz);rz=setTimeout(function(){if(stage.classList.contains('done')&&!dos)play(true);},200);});
+  /* ===== جلسة قائمة؟ ادخل مباشرة إلى اللوحة =====
+     تُعطَّل بإضافة ?stay=1 إلى الرابط، ولا تقاطع أحداً فتح ملف الدخول وبدأ الكتابة. */
+  (function autoEnter(){
+    if(/[?&]stay=1/.test(location.search))return;
+    var jumped=false;
+    fetch('/api/auth/session',{credentials:'same-origin',cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d&&d.redirect&&!jumped&&!dos){jumped=true;location.replace(d.redirect);}
+      })
+      .catch(function(){});
+  })();
+
   if(MASKIMG.complete&&MASKIMG.naturalWidth)start(); else MASKIMG.onload=start;
 })();
 </script>

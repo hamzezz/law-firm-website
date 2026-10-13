@@ -6,14 +6,13 @@ import ManagerTabs from './manager-tabs'
 import UploadSessions from './upload-sessions'
 import GlobalSearch from './global-search'
 import BackupButton from './backup-button'
-import AuditLog from './audit-log'
 import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
 
 export default async function ManagerDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/staff/login')
+  if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
     .from('users')
@@ -22,7 +21,7 @@ export default async function ManagerDashboardPage() {
     .single()
 
   if (!appUser || appUser.role !== 'manager') {
-    redirect('/staff/login')
+    redirect('/portal.html')
   }
 
   const isTech = appUser.username === 'tech'
@@ -99,24 +98,32 @@ export default async function ManagerDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
-      <header className="bg-slate-900 border-b-4 border-amber-500 px-6 py-5 flex items-center justify-between">
-        <div>
-          <h1 className="royal-title text-2xl">{isTech ? 'لوحة المدير التقني' : 'لوحة تحكم المدير'}</h1>
-          <p className="text-slate-300 text-xs mt-1">مرحباً {appUser.full_name}</p>
+      {/* رأس واحد يتبدّل شكله بالعرض */}
+      <header className="sticky top-0 z-20 flex items-start gap-3 px-4 py-3 bg-white border-b border-slate-200 md:static md:items-center md:justify-between md:gap-4 md:px-6 md:py-5 md:bg-slate-900 md:border-b-4 md:border-amber-500">
+        <span className="w-1 self-stretch rounded bg-amber-500 shrink-0 md:hidden" />
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display font-bold text-base leading-tight text-slate-900 md:royal-title md:text-2xl">
+            {isTech ? 'لوحة المدير التقني' : 'لوحة تحكم المدير'}
+          </h1>
+          <p className="text-[11px] mt-1 truncate text-slate-500 md:text-slate-300 md:text-xs">
+            مرحباً {appUser.full_name}
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <a href="/manager/articles" className="text-slate-300 text-sm hover:text-white transition">إدارة المقالات</a>
+
+        <div className="shrink-0 flex items-center gap-4 [&_button]:text-slate-600 md:[&_button]:text-white">
           <NotificationBell userId={appUser.id} />
-          <EnableNotifications userId={appUser.id} />
-          <ChangePassword />
-          <LogoutButton />
+          <span className="hidden md:flex items-center gap-4">
+            <a href="/manager/articles" className="text-slate-300 text-sm hover:text-white transition">إدارة المقالات</a>
+            <EnableNotifications userId={appUser.id} />
+            <ChangePassword />
+            <LogoutButton />
+          </span>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-6 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 py-4 space-y-4 pb-28 md:p-6 md:space-y-6 md:pb-10">
         <GlobalSearch />
-        {isTech && <BackupButton />}
-        {isTech && <UploadSessions />}
+
         <ManagerTabs
           calendarEvents={calendarEvents}
           auditLogs={auditLogs}
@@ -129,6 +136,17 @@ export default async function ManagerDashboardPage() {
           allClients={allClients}
           allLawyers={allLawyers}
           yemenCourts={yemenCourts}
+          backupPanel={isTech ? <BackupButton /> : null}
+          uploadPanel={isTech ? <UploadSessions /> : null}
+          accountActions={
+            <div className="contents">
+              <div className="py-4 border-b border-slate-100">
+                <EnableNotifications userId={appUser.id} />
+              </div>
+              <ChangePassword className="w-full text-right text-sm font-medium text-slate-700 py-4 border-b border-slate-100" />
+              <LogoutButton className="w-full text-right text-sm font-medium text-red-600 py-4" />
+            </div>
+          }
         />
       </main>
     </div>
