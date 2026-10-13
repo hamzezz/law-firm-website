@@ -1,16 +1,14 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LogoutButton({ className }: { className?: string } = {}) {
-  const router = useRouter()
-
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/client/login')
-    router.refresh()
+    // بوابة الشعاع صفحة ثابتة خارج موجّه Next، فالانتقال إليها انتقال كامل.
+    // stay=1 يمنع ارتداداً عائداً إلى اللوحة إن تأخّر محو الجلسة لحظةً.
+    window.location.href = '/portal.html?stay=1'
   }
 
   return (
