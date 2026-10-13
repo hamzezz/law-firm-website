@@ -76,11 +76,22 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
 
   if (!caseRow || caseRow.client_id !== clientRow.id) notFound()
 
-  const { data: sessions } = await supabase
+  const { data: sessionsRaw } = await supabase
     .from('sessions')
     .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
     .eq('case_id', id)
-    .order('session_order', { ascending: true })
+    .order('session_date', { ascending: true })
+
+  /** الترتيب والترقيم من التاريخ لا من عمود session_order (انظر صفحة المحامي) */
+  const sessions = (sessionsRaw || [])
+    .slice()
+    .sort((a: any, b: any) => {
+      const da = String(a.session_date).slice(0, 10)
+      const db = String(b.session_date).slice(0, 10)
+      if (da !== db) return da < db ? -1 : 1
+      return String(a.id) < String(b.id) ? -1 : 1
+    })
+    .map((s: any, i: number) => ({ ...s, displayOrder: i + 1 }))
 
   const { data: documents } = await supabase
     .from('documents')
@@ -204,7 +215,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
             )}
 
             <div className="space-y-3 md:space-y-5">
-              {sessions ? sessions.map((s) => {
+              {sessions.map((s: any) => {
                 const sDate = new Date(s.session_date).toISOString().slice(0, 10)
                 const isFuture = sDate > todayStr
                 const sessionDocs = docsWithUrls.filter((d) => d.session_id === s.id)
@@ -221,13 +232,13 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
                             : 'bg-amber-400 text-white')
                       }
                     >
-                      {isFuture ? '🔒' : s.session_order}
+                      {isFuture ? '🔒' : s.displayOrder}
                     </div>
 
                     {isFuture ? (
                       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <h3 className="font-bold text-sm text-slate-500">الجلسة رقم {s.session_order}</h3>
+                          <h3 className="font-bold text-sm text-slate-500">الجلسة رقم {s.displayOrder}</h3>
                           <span className="text-[11px] text-slate-400 shrink-0">{sessionStatusLabel(s.status)}</span>
                         </div>
                         <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -237,7 +248,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
                     ) : (
                       <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 p-4 md:rounded-2xl md:p-5">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <h3 className="font-display font-bold text-slate-900 text-sm">الجلسة رقم {s.session_order}</h3>
+                          <h3 className="font-display font-bold text-slate-900 text-sm">الجلسة رقم {s.displayOrder}</h3>
                           <span className="text-[11px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold shrink-0">
                             {sessionStatusLabel(s.status)}
                           </span>
@@ -286,7 +297,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
                     )}
                   </div>
                 )
-              }) : null}
+              })}
             </div>
           </div>
         </section>

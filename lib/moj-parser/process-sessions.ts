@@ -134,12 +134,17 @@ export async function createSessionAndNotify(
     sessionId = existingSession.id
     isNewSession = false
   } else {
-    const { count: existingCount } = await admin
+    // أعلى رقم موجود + ١، لا عدد الجلسات + ١:
+    // العدّ يُعيد استعمال رقم مستهلك إن حُذفت جلسة يوماً ما
+    const { data: topRow } = await admin
       .from('sessions')
-      .select('id', { count: 'exact', head: true })
+      .select('session_order')
       .eq('case_id', caseRow.id)
- 
-    const nextOrder = (existingCount || 0) + 1
+      .order('session_order', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const nextOrder = ((topRow && topRow.session_order) || 0) + 1
  
     const { data: newSession } = await admin
       .from('sessions')
