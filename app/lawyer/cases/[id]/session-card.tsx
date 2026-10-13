@@ -104,13 +104,34 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
       }
 
       if (nextDate) {
-        const insertResult = await supabase.from('sessions').insert({
-          case_id: caseId,
-          session_date: nextDate,
-          title: 'الجلسة رقم ' + ((session.session_order || 0) + 1),
-          status: 'scheduled',
-          session_order: (session.session_order || 0) + 1,
-        })
+        // لا نُنشئ جلسة ثانية لتاريخ جُدولت له جلسة من قبل (بوت المحكمة قد سبقنا إليها)
+        const { data: already } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('case_id', caseId)
+          .eq('session_date', nextDate)
+          .maybeSingle()
+
+        // الرقم الجديد = أعلى رقم في القضية + ١، لا رقم هذه الجلسة + ١
+        const { data: topRow } = await supabase
+          .from('sessions')
+          .select('session_order')
+          .eq('case_id', caseId)
+          .order('session_order', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        const nextOrder = ((topRow && topRow.session_order) || 0) + 1
+
+        const insertResult = already
+          ? { error: null }
+          : await supabase.from('sessions').insert({
+              case_id: caseId,
+              session_date: nextDate,
+              title: 'الجلسة رقم ' + nextOrder,
+              status: 'scheduled',
+              session_order: nextOrder,
+            })
         if (insertResult.error) {
           setMessage({ type: 'error', text: 'تم حفظ القرار لكن فشل جدولة الجلسة القادمة: ' + insertResult.error.message })
           setSaving(false)
@@ -137,7 +158,7 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
           : 'bg-slate-100 text-slate-400'
     return (
       <span className={'w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-display font-bold text-xs ' + cls}>
-        {session.session_order}
+        {session.displayOrder || session.session_order}
       </span>
     )
   }
@@ -149,7 +170,7 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
         <Num tone="muted" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-bold text-sm text-slate-500 leading-snug">الجلسة رقم {session.session_order}</p>
+            <p className="font-bold text-sm text-slate-500 leading-snug">الجلسة رقم {session.displayOrder || session.session_order}</p>
             <span className="text-[11px] text-slate-400 shrink-0">{sessionStatusLabel(session.status)}</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
@@ -167,7 +188,7 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
         <Num tone="done" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.session_order}</p>
+            <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.displayOrder || session.session_order}</p>
             <span className="text-[11px] text-slate-500 shrink-0">{sessionStatusLabel(session.status)}</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-1">{sessionDateFormatted}</p>
@@ -217,7 +238,7 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
         <Num tone="open" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.session_order}</p>
+            <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.displayOrder || session.session_order}</p>
             <span className="text-[11px] text-slate-500 shrink-0">{sessionStatusLabel(session.status)}</span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1">{sessionDateFormatted}</p>

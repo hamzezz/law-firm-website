@@ -89,11 +89,26 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
     .eq('is_resolved', false)
     .order('deadline_date', { ascending: true })
 
-  const { data: sessions } = await supabase
+  const { data: sessionsRaw } = await supabase
     .from('sessions')
     .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
     .eq('case_id', id)
-    .order('session_order', { ascending: true })
+    .order('session_date', { ascending: true })
+
+  /**
+   * الترتيب والترقيم من التاريخ لا من عمود session_order.
+   * العمود كُتب تاريخياً من ثلاثة مواضع لا يعرف بعضها بعضاً، فتكرّرت أرقامه
+   * واختلّ تسلسله. والتاريخ هو الحقيقة التي لا تكذب.
+   */
+  const sessions = (sessionsRaw || [])
+    .slice()
+    .sort((a: any, b: any) => {
+      const da = String(a.session_date).slice(0, 10)
+      const db = String(b.session_date).slice(0, 10)
+      if (da !== db) return da < db ? -1 : 1
+      return String(a.id) < String(b.id) ? -1 : 1
+    })
+    .map((s: any, i: number) => ({ ...s, displayOrder: i + 1 }))
 
   const { data: documents } = await supabase
     .from('documents')
@@ -225,12 +240,10 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
               <div className="absolute right-[15px] top-2 bottom-2 w-0.5 bg-slate-200"></div>
             )}
             <div className="space-y-5">
-              {sessions ? sessions.map((s) => {
+              {sessions.map((s: any, idx: number) => {
                 const sDate = new Date(s.session_date).toISOString().slice(0, 10)
                 // تُقفل البطاقة إن كانت مستقبلية، أو إن كانت جلسة سابقة لم يُسجَّل قرارها بعد
-                const hasUnresolvedEarlier = (sessions || []).some(
-                  (prev: any) => (prev.session_order || 0) < (s.session_order || 0) && !prev.is_locked
-                )
+                const hasUnresolvedEarlier = sessions.slice(0, idx).some((prev: any) => !prev.is_locked)
                 const isFuture = sDate > todayStr || hasUnresolvedEarlier
                 return (
                   <ManagerSessionCard
@@ -244,7 +257,7 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
                     isFuture={isFuture}
                   />
                 )
-              }) : null}
+              })}
             </div>
           </div>
         </div>

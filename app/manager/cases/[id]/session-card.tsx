@@ -106,13 +106,34 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
       }
 
       if (nextDate) {
-        const insertResult = await supabase.from('sessions').insert({
-          case_id: caseId,
-          session_date: nextDate,
-          title: 'الجلسة رقم ' + ((session.session_order || 0) + 1),
-          status: 'scheduled',
-          session_order: (session.session_order || 0) + 1,
-        })
+        // لا نُنشئ جلسة ثانية لتاريخ جُدولت له جلسة من قبل (بوت المحكمة قد سبقنا إليها)
+        const { data: already } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('case_id', caseId)
+          .eq('session_date', nextDate)
+          .maybeSingle()
+
+        // الرقم الجديد = أعلى رقم في القضية + ١، لا رقم هذه الجلسة + ١
+        const { data: topRow } = await supabase
+          .from('sessions')
+          .select('session_order')
+          .eq('case_id', caseId)
+          .order('session_order', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        const nextOrder = ((topRow && topRow.session_order) || 0) + 1
+
+        const insertResult = already
+          ? { error: null }
+          : await supabase.from('sessions').insert({
+              case_id: caseId,
+              session_date: nextDate,
+              title: 'الجلسة رقم ' + nextOrder,
+              status: 'scheduled',
+              session_order: nextOrder,
+            })
         if (insertResult.error) {
           setMessage({ type: 'error', text: 'تم حفظ القرار لكن فشل جدولة الجلسة القادمة: ' + insertResult.error.message })
           setSaving(false)
@@ -139,7 +160,7 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
           : 'bg-slate-200 text-slate-400'
     return (
       <div className={'absolute right-0 top-4 w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs border-2 border-white shadow ' + cls}>
-        {tone === 'muted' ? '🔒' : session.session_order}
+        {tone === 'muted' ? '🔒' : (session.displayOrder || session.session_order)}
       </div>
     )
   }
@@ -151,7 +172,7 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
         <Rail tone="muted" />
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-bold text-sm text-slate-500 leading-snug">الجلسة رقم {session.session_order}</p>
+            <p className="font-bold text-sm text-slate-500 leading-snug">الجلسة رقم {session.displayOrder || session.session_order}</p>
             <span className="text-[11px] text-slate-400 shrink-0">{sessionStatusLabel(session.status)}</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
@@ -169,7 +190,7 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
         <Rail tone="done" />
         <div className="rounded-xl border border-slate-200 border-r-[3px] border-r-amber-500 bg-white p-4">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.session_order}</p>
+            <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.displayOrder || session.session_order}</p>
             <span className="text-[11px] text-slate-500 shrink-0">{sessionStatusLabel(session.status)}</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-1">{sessionDateFormatted}</p>
@@ -218,7 +239,7 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
       <Rail tone="open" />
       <div className="rounded-xl border border-amber-200 border-r-[3px] border-r-amber-500 bg-amber-50/40 p-4">
         <div className="flex items-start justify-between gap-2">
-          <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.session_order}</p>
+          <p className="font-bold text-sm text-slate-900 leading-snug">الجلسة رقم {session.displayOrder || session.session_order}</p>
           <span className="text-[11px] text-slate-500 shrink-0">{sessionStatusLabel(session.status)}</span>
         </div>
         <p className="text-[11px] text-slate-500 mt-1">{sessionDateFormatted}</p>
