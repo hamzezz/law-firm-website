@@ -14,7 +14,7 @@ self.addEventListener('push', function (event) {
     badge: '/icons/icon-96.png',
     dir: 'rtl',
     lang: 'ar',
-    data: { url: payload.url || '/staff/login' },
+    data: { url: payload.url || '/portal.html' },
   }
 
   event.waitUntil(
@@ -24,7 +24,7 @@ self.addEventListener('push', function (event) {
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close()
-  const targetUrl = event.notification.data && event.notification.data.url ? event.notification.data.url : '/staff/login'
+  const targetUrl = event.notification.data && event.notification.data.url ? event.notification.data.url : '/portal.html'
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
