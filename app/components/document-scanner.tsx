@@ -41,28 +41,29 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     return cap
   }
 
-  function fileName() {
-    return 'محضر-' + new Date().toISOString().slice(0, 10) + '.jpg'
+  function fileName(ext: string) {
+    return 'محضر-' + new Date().toISOString().slice(0, 10) + '.' + ext
   }
 
   async function openNativeScanner(cap: any) {
     setNativeError('')
     try {
+      // محضر الجلسة مستند واحد مهما تعدّدت صفحاته، فنُخرجه PDF لا صوراً متفرّقة
       const res = await cap.Plugins.DocumentScanner.scanDocument({
-        resultFormats: 'JPEG',
-        pageLimit: 1,
+        resultFormats: 'PDF',
+        pageLimit: 20,
         scannerMode: 'FULL',
         galleryImportAllowed: true,
       })
 
-      const uri = res && res.scannedImages && res.scannedImages[0]
+      const uri = res && res.pdf && res.pdf.uri
       if (!uri) return // ألغى المستخدم
 
       const r = await fetch(cap.convertFileSrc(uri))
       if (!r.ok) throw new Error('status ' + r.status)
       const blob = await r.blob()
 
-      onCapture(new File([blob], fileName(), { type: 'image/jpeg' }))
+      onCapture(new File([blob], fileName('pdf'), { type: 'application/pdf' }))
     } catch (e: any) {
       const msg = e && e.message ? String(e.message) : ''
       // الإلغاء يرجع كخطأ أيضاً، ولا داعي لإزعاج المستخدم به
