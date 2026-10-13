@@ -9,7 +9,7 @@ import ViewSwitcher from './view-switcher'
 export default async function LawyerDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/staff/login')
+  if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
     .from('users')
@@ -18,7 +18,7 @@ export default async function LawyerDashboardPage() {
     .single()
 
   if (!appUser || appUser.role !== 'lawyer') {
-    redirect('/staff/login')
+    redirect('/portal.html')
   }
 
   const { data: lawyerRow } = await supabase

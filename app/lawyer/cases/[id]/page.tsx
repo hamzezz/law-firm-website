@@ -30,7 +30,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/staff/login')
+  if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
     .from('users')
@@ -38,7 +38,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
     .eq('auth_id', user.id)
     .single()
 
-  if (!appUser || appUser.role !== 'lawyer') redirect('/staff/login')
+  if (!appUser || appUser.role !== 'lawyer') redirect('/portal.html')
 
   const { data: lawyerRow } = await supabase
     .from('lawyers')

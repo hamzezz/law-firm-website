@@ -52,14 +52,14 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/client/login')
+  if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
     .from('users')
     .select('id')
     .eq('auth_id', user.id)
     .single()
-  if (!appUser) redirect('/client/login')
+  if (!appUser) redirect('/portal.html')
 
   const { data: clientRow } = await supabase
     .from('clients')

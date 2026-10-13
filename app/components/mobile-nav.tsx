@@ -48,13 +48,13 @@ export default function MobileNav() {
               </Link>
             ))}
 
-            <Link
-              href="/staff/login"
+            <a
+              href="/portal.html"
               onClick={() => setOpen(false)}
               className="text-slate-500 text-xs mt-8 hover:text-amber-300 transition"
             >
               دخول فريق العمل
-            </Link>
+            </a>
           </nav>
         </div>
       )}

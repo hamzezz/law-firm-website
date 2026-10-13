@@ -7,7 +7,7 @@ import ClientShell from './client-shell'
 export default async function ClientDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/client/login')
+  if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
     .from('users').select('id, full_name').eq('auth_id', user.id).single()

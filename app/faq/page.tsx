@@ -82,9 +82,9 @@ export default function FaqPage() {
 
           <div className="flex items-center gap-2">
             <MobileNav />
-            <Link href="/client/login" className="inline-flex items-center bg-blue-600 text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-4 py-2 rounded-full hover:bg-blue-700 transition whitespace-nowrap">
+            <a href="/portal.html" className="inline-flex items-center bg-blue-600 text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-4 py-2 rounded-full hover:bg-blue-700 transition whitespace-nowrap">
               بوابة الموكلين
-            </Link>
+            </a>
           </div>
         </div>
       </header>
