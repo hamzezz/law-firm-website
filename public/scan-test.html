@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تشخيص الماسح</title>
+<style>
+  body{margin:0;padding:16px;background:#0f172a;color:#e2e8f0;font:14px/1.7 system-ui,-apple-system,sans-serif}
+  h1{font-size:17px;margin:0 0 14px}
+  .row{background:#1e293b;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .k{color:#94a3b8;font-size:12px}
+  .v{font-weight:700;word-break:break-all}
+  .ok{color:#4ade80}.bad{color:#f87171}.warn{color:#fbbf24}
+  button{width:100%;padding:14px;margin-top:12px;border:0;border-radius:10px;
+    background:#d97706;color:#fff;font-size:15px;font-weight:700}
+  button:disabled{opacity:.5}
+  pre{background:#020617;padding:10px;border-radius:8px;font-size:11px;
+    white-space:pre-wrap;word-break:break-all;max-height:40vh;overflow:auto}
+  img{max-width:100%;border-radius:8px;margin-top:10px}
+</style>
+</head>
+<body>
+
+<h1>تشخيص ماسح المستندات</h1>
+<div id="info"></div>
+
+<button id="scan">تشغيل ماسح جوجل</button>
+<button id="clear" style="background:#334155">مسح النتيجة</button>
+
+<pre id="out">— لم يُشغَّل بعد —</pre>
+<div id="shot"></div>
+
+<script>
+(function(){
+  var info=document.getElementById('info'), out=document.getElementById('out'), shot=document.getElementById('shot');
+
+  function row(k,v,cls){
+    var d=document.createElement('div'); d.className='row';
+    d.innerHTML='<div class="k">'+k+'</div><div class="v '+(cls||'')+'">'+v+'</div>';
+    info.appendChild(d);
+  }
+  function log(x){ out.textContent += '\n' + x; }
+
+  var C = window.Capacitor;
+
+  /* ١ — هل الجسر موجود أصلاً؟ */
+  row('جسر Capacitor', C ? 'موجود ✓' : 'غير موجود ✗', C?'ok':'bad');
+
+  if (C) {
+    row('المنصّة', C.getPlatform ? C.getPlatform() : '—');
+    row('تطبيق أصلي؟', (C.isNativePlatform && C.isNativePlatform()) ? 'نعم ✓' : 'لا — متصفّح',
+        (C.isNativePlatform && C.isNativePlatform())?'ok':'warn');
+
+    /* ٢ — هل يرى الجسر الإضافة الأصلية؟ */
+    var headers = C.PluginHeaders || [];
+    var names = headers.map(function(h){ return h.name; });
+    row('الإضافات التي يراها الجسر', names.length ? names.join('، ') : 'لا شيء', names.length?'ok':'bad');
+
+    var ds = names.indexOf('DocumentScanner') !== -1;
+    row('إضافة الماسح', ds ? 'مُسجَّلة ✓' : 'غير مُسجَّلة ✗', ds?'ok':'bad');
+
+    row('convertFileSrc', (C.convertFileSrc ? 'متوفّرة ✓' : 'غير متوفّرة ✗'), C.convertFileSrc?'ok':'bad');
+  }
+
+  document.getElementById('clear').onclick=function(){ out.textContent='—'; shot.innerHTML=''; };
+
+  document.getElementById('scan').onclick=function(){
+    out.textContent='جارٍ الفتح…'; shot.innerHTML='';
+    if (!C || !C.Plugins || !C.Plugins.DocumentScanner) {
+      log('✗ الإضافة غير متاحة من الصفحة. Plugins = ' + (C && C.Plugins ? Object.keys(C.Plugins).join(',') : 'لا شيء'));
+      return;
+    }
+    C.Plugins.DocumentScanner.scanDocument({
+      resultFormats: 'JPEG',
+      pageLimit: 1,
+      scannerMode: 'FULL',
+      galleryImportAllowed: true
+    }).then(function(res){
+      log('✓ عاد الماسح بنتيجة:');
+      log(JSON.stringify(res, null, 2));
+      var uri = res && res.scannedImages && res.scannedImages[0];
+      if (!uri) { log('✗ لا يوجد مسار صورة في النتيجة'); return; }
+
+      /* ٣ — هل نستطيع قراءة بايتات الملف؟ هذا هو السؤال الأهم */
+      var src = C.convertFileSrc ? C.convertFileSrc(uri) : uri;
+      log('\nالمسار بعد التحويل:\n' + src);
+
+      var img=document.createElement('img'); img.src=src; shot.appendChild(img);
+
+      fetch(src).then(function(r){
+        log('\nحالة الجلب: ' + r.status + ' ' + (r.ok ? '✓' : '✗'));
+        return r.blob();
+      }).then(function(b){
+        log('✓✓ قُرئت البايتات: ' + Math.round(b.size/1024) + ' كيلوبايت، النوع ' + b.type);
+        log('\n>>> النتيجة: التكامل ممكن <<<');
+      }).catch(function(e){
+        log('✗ فشل جلب الملف: ' + e);
+        log('\n>>> نحتاج إضافة Filesystem لقراءة الملف <<<');
+      });
+    }).catch(function(e){
+      log('✗ فشل الماسح: ' + (e && e.message ? e.message : e));
+      log(JSON.stringify(e));
+    });
+  };
+})();
+</script>
+</body>
+</html>
