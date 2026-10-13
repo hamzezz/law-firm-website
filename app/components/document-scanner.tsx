@@ -26,7 +26,50 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   const shotRef = useRef<HTMLImageElement | null>(null)
 
   const [quad, setQuad] = useState<Quad>(DEFAULT_QUAD)
+  const [nativeError, setNativeError] = useState('')
   const dragRef = useRef<{ i: number | null }>({ i: null })
+
+  /**
+   * داخل تطبيق أندرويد يتوفّر ماسح جوجل الأصلي (ML Kit) عبر جسر Capacitor.
+   * نستعمله حين يكون موجوداً، ونرجع إلى الماسح المدمج في المتصفّح وعلى الآيفون.
+   */
+  function nativeScanner(): any {
+    if (typeof window === 'undefined') return null
+    const cap: any = (window as any).Capacitor
+    if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return null
+    if (!cap.Plugins || !cap.Plugins.DocumentScanner || !cap.convertFileSrc) return null
+    return cap
+  }
+
+  function fileName() {
+    return 'محضر-' + new Date().toISOString().slice(0, 10) + '.jpg'
+  }
+
+  async function openNativeScanner(cap: any) {
+    setNativeError('')
+    try {
+      const res = await cap.Plugins.DocumentScanner.scanDocument({
+        resultFormats: 'JPEG',
+        pageLimit: 1,
+        scannerMode: 'FULL',
+        galleryImportAllowed: true,
+      })
+
+      const uri = res && res.scannedImages && res.scannedImages[0]
+      if (!uri) return // ألغى المستخدم
+
+      const r = await fetch(cap.convertFileSrc(uri))
+      if (!r.ok) throw new Error('status ' + r.status)
+      const blob = await r.blob()
+
+      onCapture(new File([blob], fileName(), { type: 'image/jpeg' }))
+    } catch (e: any) {
+      const msg = e && e.message ? String(e.message) : ''
+      // الإلغاء يرجع كخطأ أيضاً، ولا داعي لإزعاج المستخدم به
+      if (/cancel/i.test(msg)) return
+      setNativeError('تعذّر فتح الماسح. ' + (msg || 'حاول مرة أخرى.'))
+    }
+  }
 
   useEffect(() => () => stopCamera(), [])
 
@@ -38,6 +81,10 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   }
 
   async function openScanner() {
+    // داخل التطبيق: ماسح جوجل الأصلي. خارجه: الماسح المدمج أدناه.
+    const cap = nativeScanner()
+    if (cap) { openNativeScanner(cap); return }
+
     setError('')
     setStage('camera')
     setOpen(true)
@@ -412,6 +459,10 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
         className="text-xs font-bold px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition w-full">
         📷 تصوير المحضر بالكاميرا
       </button>
+
+      {nativeError && (
+        <p className="text-[11px] text-red-600 mt-2">{nativeError}</p>
+      )}
 
       <canvas ref={canvasRef} className="hidden" />
 
