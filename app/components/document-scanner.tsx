@@ -2,13 +2,22 @@
 
 import { useState, useRef, useEffect } from 'react'
 
+/** نقطة بالنسبة المئوية من أبعاد الصورة */
+type Pt = { x: number; y: number }
+/** الزوايا الأربع بترتيب ثابت: أعلى-يسار، أعلى-يمين، أسفل-يمين، أسفل-يسار */
+type Quad = [Pt, Pt, Pt, Pt]
+
+const DEFAULT_QUAD: Quad = [
+  { x: 6, y: 6 }, { x: 94, y: 6 }, { x: 94, y: 94 }, { x: 6, y: 94 },
+]
+
 export default function DocumentScanner({ onCapture }: { onCapture: (file: File) => void }) {
   const [open, setOpen] = useState(false)
   const [stage, setStage] = useState<'camera' | 'crop'>('camera')
   const [error, setError] = useState('')
   const [enhance, setEnhance] = useState(true)
   const [autoDetected, setAutoDetected] = useState(false)
-  const [debugInfo, setDebugInfo] = useState('')
+  const [working, setWorking] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -16,10 +25,8 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   const streamRef = useRef<MediaStream | null>(null)
   const shotRef = useRef<HTMLImageElement | null>(null)
 
-  const [crop, setCrop] = useState({ x: 5, y: 5, w: 90, h: 90 })
-  const dragRef = useRef<{ corner: string | null; startX: number; startY: number; box: any }>({
-    corner: null, startX: 0, startY: 0, box: null,
-  })
+  const [quad, setQuad] = useState<Quad>(DEFAULT_QUAD)
+  const dragRef = useRef<{ i: number | null }>({ i: null })
 
   useEffect(() => () => stopCamera(), [])
 
@@ -55,6 +62,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     setOpen(false)
     setStage('camera')
     setError('')
+    setWorking(false)
   }
 
   function takeShot() {
@@ -78,7 +86,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
       shotRef.current = img
       stopCamera()
       const detected = detectEdges(img)
-      setCrop(detected || { x: 5, y: 5, w: 90, h: 90 })
+      setQuad(detected || DEFAULT_QUAD)
       setAutoDetected(!!detected)
       setStage('crop')
       setTimeout(drawPreview, 50)
@@ -87,11 +95,11 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   }
 
   /**
-   * كشف حواف الورقة على الخلفية بمسح خفيف للسطوع.
-   * نصغّر الصورة أولاً للسرعة، ثم نبحث عن أول وآخر صف/عمود يختلف سطوعه
-   * بوضوح عن حواف الإطار (الخلفية). يعمل خلال أجزاء من الثانية بلا مكتبات.
+   * اقتراح أوّلي لموضع الورقة بمسح خفيف للسطوع.
+   * يعطي مستطيلاً قائماً فحسب، فهو مجرّد نقطة بداية تُصحَّح بسحب الزوايا:
+   * الدقّة النهائية تأتي من تصحيح المنظور في confirmShot لا من هنا.
    */
-  function detectEdges(img: HTMLImageElement) {
+  function detectEdges(img: HTMLImageElement): Quad | null {
     try {
       const W = 160
       const H = Math.max(1, Math.round((img.height / img.width) * W))
@@ -113,7 +121,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
       for (let y = 0; y < H; y++) { bg += gray(0, y) + gray(W - 1, y); n += 2 }
       bg /= n
 
-      // نجرّب عتبات متدرّجة: الصارمة أدق، والمتساهلة تنقذ الخلفيات الفاتحة
+      // عتبات متدرّجة: الصارمة أدق، والمتساهلة تنقذ الخلفيات الفاتحة
       const tryDetect = (DIFF: number, RATIO: number) => {
         const isPaper = (v: number) => Math.abs(v - bg) > DIFF
         const colHit = (x: number) => {
@@ -137,17 +145,16 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
         if (w < 20 || h < 20 || (w > 98 && h > 98)) return null
 
         const pad = 1
-        return {
-          x: Math.max(0, (left / W) * 100 - pad),
-          y: Math.max(0, (top / H) * 100 - pad),
-          w: Math.min(100, w + pad * 2),
-          h: Math.min(100, h + pad * 2),
-        }
+        const x0 = Math.max(0, (left / W) * 100 - pad)
+        const y0 = Math.max(0, (top / H) * 100 - pad)
+        const x1 = Math.min(100, x0 + w + pad * 2)
+        const y1 = Math.min(100, y0 + h + pad * 2)
+        return [
+          { x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 },
+        ] as Quad
       }
 
-      const r = tryDetect(26, 0.35) || tryDetect(15, 0.25) || tryDetect(9, 0.18)
-      setDebugInfo('خلفية=' + Math.round(bg) + (r ? ' | نجح' : ' | فشل'))
-      return r
+      return tryDetect(26, 0.35) || tryDetect(15, 0.25) || tryDetect(9, 0.18)
     } catch {
       return null
     }
@@ -168,49 +175,28 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     if (stage === 'crop') drawPreview()
   }, [stage])
 
-  function pointerPos(e: React.PointerEvent, el: HTMLElement) {
-    const r = el.getBoundingClientRect()
-    return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 }
-  }
-
-  function startDrag(e: React.PointerEvent, corner: string) {
+  /* ——— سحب كل زاوية وحدها ——— */
+  function startDrag(e: React.PointerEvent, i: number) {
     e.preventDefault()
     e.stopPropagation()
-    const wrap = (e.currentTarget as HTMLElement).parentElement
-    if (!wrap) return
-    const p = pointerPos(e, wrap)
-    dragRef.current = { corner, startX: p.x, startY: p.y, box: { ...crop } }
+    dragRef.current.i = i
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   function onDrag(e: React.PointerEvent) {
-    const d = dragRef.current
-    if (!d.corner) return
-    const p = pointerPos(e, e.currentTarget as HTMLElement)
-    const dx = p.x - d.startX
-    const dy = p.y - d.startY
-    const b = d.box
-    const MIN = 15
-    let { x, y, w, h } = b
-
-    if (d.corner === 'tl') {
-      x = Math.min(Math.max(0, b.x + dx), b.x + b.w - MIN)
-      y = Math.min(Math.max(0, b.y + dy), b.y + b.h - MIN)
-      w = b.w - (x - b.x); h = b.h - (y - b.y)
-    } else if (d.corner === 'tr') {
-      y = Math.min(Math.max(0, b.y + dy), b.y + b.h - MIN)
-      w = Math.max(MIN, Math.min(100 - b.x, b.w + dx)); h = b.h - (y - b.y)
-    } else if (d.corner === 'bl') {
-      x = Math.min(Math.max(0, b.x + dx), b.x + b.w - MIN)
-      w = b.w - (x - b.x); h = Math.max(MIN, Math.min(100 - b.y, b.h + dy))
-    } else {
-      w = Math.max(MIN, Math.min(100 - b.x, b.w + dx))
-      h = Math.max(MIN, Math.min(100 - b.y, b.h + dy))
-    }
-    setCrop({ x, y, w, h })
+    const i = dragRef.current.i
+    if (i === null) return
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100))
+    const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100))
+    setQuad((q) => {
+      const next = q.slice() as Quad
+      next[i] = { x, y }
+      return next
+    })
   }
 
-  function endDrag() { dragRef.current.corner = null }
+  function endDrag() { dragRef.current.i = null }
 
   /**
    * تحسين وضوح المستند بعتبة محلية تكيّفية.
@@ -222,14 +208,12 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     const px = data.data
     const n = w * h
 
-    // 1) تحويل رمادي
     const gray = new Float32Array(n)
     for (let i = 0; i < n; i++) {
       const j = i * 4
       gray[i] = px[j] * 0.299 + px[j + 1] * 0.587 + px[j + 2] * 0.114
     }
 
-    // 2) صورة تكاملية لحساب متوسط أي نافذة بسرعة ثابتة
     const integral = new Float64Array((w + 1) * (h + 1))
     for (let y = 0; y < h; y++) {
       let rowSum = 0
@@ -239,9 +223,8 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
       }
     }
 
-    // 3) عتبة محلية: نافذة بنحو 12% من عرض الصورة
     const radius = Math.max(8, Math.floor(w * 0.06))
-    const T = 0.86 // كلما قلّ، زاد احتفاظ الصورة بالتفاصيل الرمادية
+    const T = 0.86
 
     for (let y = 0; y < h; y++) {
       const y1 = Math.max(0, y - radius)
@@ -261,7 +244,6 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
         const v = gray[y * w + x]
         const j = (y * w + x) * 4
 
-        // نص داكن نسبة لمحيطه: نثبّته أسود. غير ذلك: نبيّض الورق مع تدرّج خفيف
         let out: number
         if (v < localMean * T) {
           out = Math.max(0, v * 0.5)
@@ -275,36 +257,154 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     ctx.putImageData(data, 0, 0)
   }
 
-  /** كشف حواف الورقة وتصحيح ميلانها عبر OpenCV، ثم اعتماد النتيجة كصورة جديدة */
+  /**
+   * حلّ جملة خطّية بالحذف الغاوسي مع محور جزئي.
+   * تُستعمل لإيجاد مصفوفة التحويل الإسقاطي من ثماني معادلات.
+   */
+  function solve(A: number[][], b: number[]): number[] | null {
+    const n = b.length
+    for (let col = 0; col < n; col++) {
+      let piv = col
+      for (let r = col + 1; r < n; r++) if (Math.abs(A[r][col]) > Math.abs(A[piv][col])) piv = r
+      if (Math.abs(A[piv][col]) < 1e-10) return null
+      if (piv !== col) {
+        const t = A[piv]; A[piv] = A[col]; A[col] = t
+        const tb = b[piv]; b[piv] = b[col]; b[col] = tb
+      }
+      for (let r = col + 1; r < n; r++) {
+        const f = A[r][col] / A[col][col]
+        if (!f) continue
+        for (let c = col; c < n; c++) A[r][c] -= f * A[col][c]
+        b[r] -= f * b[col]
+      }
+    }
+    const x = new Array(n).fill(0)
+    for (let r = n - 1; r >= 0; r--) {
+      let s = b[r]
+      for (let c = r + 1; c < n; c++) s -= A[r][c] * x[c]
+      x[r] = s / A[r][r]
+    }
+    return x
+  }
+
+  /**
+   * تصحيح المنظور: يحوّل الشكل الرباعي المائل الذي حدّدته إلى مستطيل مستوٍ.
+   * نحسب التحويل الإسقاطي من وجهة الخرج إلى مصدر الصورة (تخطيط عكسي)،
+   * ثم نملأ كل بكسل في الخرج بأخذ عيّنة ثنائية الخطّية من موضعه في الأصل،
+   * فلا تظهر فجوات ولا تُسنَّن الحواف.
+   */
+  function warp(
+    img: HTMLImageElement,
+    src: { x: number; y: number }[],
+    outW: number,
+    outH: number
+  ): HTMLCanvasElement | null {
+    const sc = document.createElement('canvas')
+    sc.width = img.width; sc.height = img.height
+    const sctx = sc.getContext('2d', { willReadFrequently: true })
+    if (!sctx) return null
+    sctx.drawImage(img, 0, 0)
+    const sdata = sctx.getImageData(0, 0, img.width, img.height).data
+    const sw = img.width, sh = img.height
+
+    const dst = [ { x: 0, y: 0 }, { x: outW, y: 0 }, { x: outW, y: outH }, { x: 0, y: outH } ]
+
+    const A: number[][] = []
+    const b: number[] = []
+    for (let i = 0; i < 4; i++) {
+      const { x: dx, y: dy } = dst[i]
+      const { x: ux, y: uy } = src[i]
+      A.push([dx, dy, 1, 0, 0, 0, -dx * ux, -dy * ux]); b.push(ux)
+      A.push([0, 0, 0, dx, dy, 1, -dx * uy, -dy * uy]); b.push(uy)
+    }
+    const h = solve(A, b)
+    if (!h) return null
+    const [a1, a2, a3, a4, a5, a6, a7, a8] = h
+
+    const oc = document.createElement('canvas')
+    oc.width = outW; oc.height = outH
+    const octx = oc.getContext('2d')
+    if (!octx) return null
+    const out = octx.createImageData(outW, outH)
+    const o = out.data
+
+    for (let y = 0; y < outH; y++) {
+      for (let x = 0; x < outW; x++) {
+        const den = a7 * x + a8 * y + 1
+        const ux = (a1 * x + a2 * y + a3) / den
+        const uy = (a4 * x + a5 * y + a6) / den
+        const j = (y * outW + x) * 4
+
+        if (ux < 0 || uy < 0 || ux > sw - 1 || uy > sh - 1) {
+          o[j] = o[j + 1] = o[j + 2] = 255; o[j + 3] = 255
+          continue
+        }
+
+        const x0 = Math.floor(ux), y0 = Math.floor(uy)
+        const x1 = Math.min(sw - 1, x0 + 1), y1 = Math.min(sh - 1, y0 + 1)
+        const fx = ux - x0, fy = uy - y0
+        const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy)
+        const w01 = (1 - fx) * fy, w11 = fx * fy
+        const i00 = (y0 * sw + x0) * 4, i10 = (y0 * sw + x1) * 4
+        const i01 = (y1 * sw + x0) * 4, i11 = (y1 * sw + x1) * 4
+
+        for (let k = 0; k < 3; k++) {
+          o[j + k] = sdata[i00 + k] * w00 + sdata[i10 + k] * w10 + sdata[i01 + k] * w01 + sdata[i11 + k] * w11
+        }
+        o[j + 3] = 255
+      }
+    }
+
+    octx.putImageData(out, 0, 0)
+    return oc
+  }
+
   function confirmShot() {
     const img = shotRef.current
-    const canvas = canvasRef.current
-    if (!img || !canvas) return
+    if (!img || working) return
+    setWorking(true)
 
-    const sx = (crop.x / 100) * img.width
-    const sy = (crop.y / 100) * img.height
-    const sw = (crop.w / 100) * img.width
-    const sh = (crop.h / 100) * img.height
+    // ننتظر إطاراً حتى تظهر حالة "جارٍ المعالجة" قبل أن يحجز الحساب الخيط
+    setTimeout(() => {
+      try {
+        const src = quad.map((p) => ({ x: (p.x / 100) * img.width, y: (p.y / 100) * img.height }))
+        const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y)
 
-    // نحدّ العرض بـ 1400 بكسل: كافٍ لقراءة النص والأختام، ويقلّص الحجم كثيراً
-    const MAX_WIDTH = 1800
-    const scale = sw > MAX_WIDTH ? MAX_WIDTH / sw : 1
+        // أبعاد الخرج من أطول ضلعين متقابلين، حفاظاً على نسبة الورقة
+        let outW = Math.max(dist(src[0], src[1]), dist(src[3], src[2]))
+        let outH = Math.max(dist(src[0], src[3]), dist(src[1], src[2]))
 
-    canvas.width = Math.round(sw * scale)
-    canvas.height = Math.round(sh * scale)
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
-    if (enhance) applyEnhance(ctx, canvas.width, canvas.height)
+        const MAX_WIDTH = 1800
+        if (outW > MAX_WIDTH) {
+          outH = (outH * MAX_WIDTH) / outW
+          outW = MAX_WIDTH
+        }
+        outW = Math.max(1, Math.round(outW))
+        outH = Math.max(1, Math.round(outH))
 
-    // جودة 0.75 كافية لصورة عالية التباين، وتوفّر نحو 60% من الحجم
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      onCapture(new File([blob], 'محضر-' + new Date().toISOString().slice(0, 10) + '.jpg', { type: 'image/jpeg' }))
-      closeScanner()
-    }, 'image/jpeg', 0.85)
+        const oc = warp(img, src, outW, outH)
+        if (!oc) {
+          setError('تعذّرت معالجة الصورة. حرّك إحدى الزوايا وأعد المحاولة.')
+          setWorking(false)
+          return
+        }
+
+        const octx = oc.getContext('2d')
+        if (octx && enhance) applyEnhance(octx, oc.width, oc.height)
+
+        oc.toBlob((blob) => {
+          if (!blob) { setWorking(false); return }
+          onCapture(new File([blob], 'محضر-' + new Date().toISOString().slice(0, 10) + '.jpg', { type: 'image/jpeg' }))
+          closeScanner()
+        }, 'image/jpeg', 0.85)
+      } catch {
+        setError('تعذّرت معالجة الصورة. أعد الالتقاط.')
+        setWorking(false)
+      }
+    }, 30)
   }
+
+  const points = quad.map((p) => p.x + ',' + p.y).join(' ')
 
   return (
     <>
@@ -318,7 +418,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
       {open && (
         <div className="fixed inset-0 bg-black/85 z-50 flex flex-col" dir="rtl">
           <div className="flex items-center justify-between px-4 py-3 text-white">
-            <span className="text-sm font-bold">{stage === 'camera' ? 'صوّر المحضر' : 'حدّد حواف الورقة'}</span>
+            <span className="text-sm font-bold">{stage === 'camera' ? 'صوّر المحضر' : 'ضع الزوايا على حواف الورقة'}</span>
             <button onClick={closeScanner} className="text-white/70 hover:text-white text-lg px-2">✕</button>
           </div>
 
@@ -331,17 +431,17 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
               <div className="relative inline-block touch-none"
                 onPointerMove={onDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
                 <canvas ref={previewRef} className="max-w-full max-h-[65vh] rounded-lg block" />
-                <div className="absolute border-2 border-amber-400 bg-amber-400/10 pointer-events-none"
-                  style={{ left: crop.x + '%', top: crop.y + '%', width: crop.w + '%', height: crop.h + '%' }} />
-                {[
-                  { k: 'tl', s: { left: crop.x + '%', top: crop.y + '%' } },
-                  { k: 'tr', s: { left: crop.x + crop.w + '%', top: crop.y + '%' } },
-                  { k: 'bl', s: { left: crop.x + '%', top: crop.y + crop.h + '%' } },
-                  { k: 'br', s: { left: crop.x + crop.w + '%', top: crop.y + crop.h + '%' } },
-                ].map((c) => (
-                  <div key={c.k} onPointerDown={(e) => startDrag(e, c.k)}
-                    className="absolute w-9 h-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400 border-2 border-white shadow-lg touch-none"
-                    style={c.s as any} />
+
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+                  className="absolute inset-0 w-full h-full pointer-events-none">
+                  <polygon points={points} fill="rgba(251,191,36,0.14)" stroke="#fbbf24"
+                    strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
+                </svg>
+
+                {quad.map((p, i) => (
+                  <div key={i} onPointerDown={(e) => startDrag(e, i)}
+                    className="absolute w-10 h-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400 border-2 border-white shadow-lg touch-none"
+                    style={{ left: p.x + '%', top: p.y + '%' }} />
                 ))}
               </div>
             )}
@@ -350,7 +450,9 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
           <div className="p-4 space-y-3">
             {stage === 'crop' && (
               <p className="text-center text-[11px] text-white/60">
-                {(autoDetected ? '✓ حُدّدت الحواف تلقائياً' : 'اسحب الزوايا لتحديد حواف الورقة') + (debugInfo ? ' · ' + debugInfo : '')}
+                {autoDetected
+                  ? 'اقتراح أوّلي — صحّح الزوايا الأربع على حواف الورقة'
+                  : 'اسحب كل زاوية إلى ركن الورقة المقابل'}
               </p>
             )}
 
@@ -360,13 +462,18 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
                 تحسين الوضوح
               </label>
             )}
+
             <div className="flex gap-2">
               {stage === 'camera' ? (
                 <button onClick={takeShot} className="flex-1 bg-amber-500 text-white font-bold py-3 rounded-xl text-sm">التقاط</button>
               ) : (
                 <>
-                  <button onClick={confirmShot} className="flex-1 bg-amber-500 text-white font-bold py-3 rounded-xl text-sm">استخدام الصورة</button>
-                  <button onClick={openScanner} className="px-5 py-3 rounded-xl border border-white/25 text-white/80 text-sm">إعادة</button>
+                  <button onClick={confirmShot} disabled={working}
+                    className="flex-1 bg-amber-500 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-60">
+                    {working ? 'جارٍ المعالجة…' : 'استخدام الصورة'}
+                  </button>
+                  <button onClick={openScanner} disabled={working}
+                    className="px-5 py-3 rounded-xl border border-white/25 text-white/80 text-sm disabled:opacity-60">إعادة</button>
                 </>
               )}
             </div>
