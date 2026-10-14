@@ -36,7 +36,7 @@ function sessionStatusLabel(status: string) {
   return map[status?.toLowerCase()] || status
 }
 
-export default function SessionCard({ session, caseId, caseNumber, clientName, uploadedBy, sessionDocs, isFuture }: any) {
+export default function SessionCard({ session, caseId, caseNumber, clientName, uploadedBy, sessionDocs, isFuture, caseClosed }: any) {
   const [notes, setNotes] = useState('')
   const [nextDate, setNextDate] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -160,6 +160,25 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
       <span className={'w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-display font-bold text-xs ' + cls}>
         {session.displayOrder || session.session_order}
       </span>
+    )
+  }
+
+  /* ═══ 0) القضية مغلقة — سجلّ لا يُكتب فيه ═══ */
+  if (caseClosed && !locked) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-start gap-3">
+        <Num tone="muted" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-bold text-sm text-slate-500 leading-snug">الجلسة رقم {session.displayOrder || session.session_order}</p>
+            <span className="text-[11px] text-slate-400 shrink-0">{sessionStatusLabel(session.status)}</span>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1">{sessionDateFormatted}</p>
+          <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+            القضية مغلقة — لا يمكن تسجيل بيانات جديدة
+          </p>
+        </div>
+      </div>
     )
   }
 

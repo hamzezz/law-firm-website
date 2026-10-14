@@ -125,6 +125,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
   const docsWithUrls = await withSignedUrls(supabase, documents as any)
 
+  const caseClosed = caseRow.status === 'closed'
   const todayStr = new Date().toISOString().slice(0, 10)
 
   return (
@@ -188,7 +189,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
           </div>
         </section>
 
-        <CriticalDeadlines caseId={id} deadlines={deadlines || []} />
+        <CriticalDeadlines caseId={id} deadlines={deadlines || []} caseClosed={caseClosed} />
 
         <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
@@ -219,6 +220,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
                   uploadedBy={appUser.id}
                   sessionDocs={docsWithUrls.filter((d) => d.session_id === s.id)}
                   isFuture={isFuture}
+                  caseClosed={caseClosed}
                 />
               )
             })}
