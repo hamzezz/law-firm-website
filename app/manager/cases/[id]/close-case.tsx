@@ -32,6 +32,35 @@ export default function CloseCase({ caseId, currentStatus }: { caseId: string; c
         return
       }
 
+      // أُغلقت القضية — تُنقل مستنداتها إلى الأرشيف وتُحذف من التخزين الحيّ
+      setMessage('أُغلقت القضية. جارٍ أرشفة المستندات…')
+
+      try {
+        const res = await fetch('/api/manager/archive-case', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caseId }),
+        })
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok) {
+          // القضية مغلقة فعلاً، والمستندات سليمة في مكانها. نُخبر ولا نُخفي.
+          setMessage('أُغلقت القضية، لكن تعذّرت أرشفة المستندات: ' + ((data && data.error) || 'خطأ غير معروف'))
+          setLoading(false)
+          return
+        }
+
+        if (data && data.warning) {
+          setMessage('تمّت الأرشفة. ' + data.warning)
+          setLoading(false)
+          return
+        }
+      } catch {
+        setMessage('أُغلقت القضية، لكن تعذّر الاتصال بخدمة الأرشفة. المستندات لم تُمَسّ.')
+        setLoading(false)
+        return
+      }
+
       window.location.reload()
     } catch (err) {
       setMessage('حدث خطأ غير متوقع')

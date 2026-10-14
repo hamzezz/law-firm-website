@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { withSignedUrls } from '@/lib/documents/signed-urls'
 
 function statusBadge(status: string) {
   const s = status?.toLowerCase() || ''
@@ -95,18 +96,12 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
 
   const { data: documents } = await supabase
     .from('documents')
-    .select('id, file_name, session_id, storage_path, uploaded_at')
+    .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
     .eq('case_id', id)
     .order('uploaded_at', { ascending: false })
 
-  const docsWithUrls = await Promise.all(
-    (documents || []).map(async (d) => {
-      const signedResult = await supabase.storage
-        .from('case-documents')
-        .createSignedUrl(d.storage_path, 3600)
-      return { id: d.id, file_name: d.file_name, session_id: d.session_id, url: signedResult.data ? signedResult.data.signedUrl : null }
-    })
-  )
+  // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
+  const docsWithUrls = await withSignedUrls(supabase, documents as any)
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const nextUpcoming = sessions ? sessions.find((s) => {
