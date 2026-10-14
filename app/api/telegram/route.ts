@@ -38,9 +38,12 @@ function dateFromName(name: string): string | null {
 }
 
 export async function POST(request: Request) {
-  // سرّ مشترك في المسار يمنع استدعاء الطرف الثالث
+  // سرّ مشترك في المسار يمنع استدعاء الطرف الثالث.
+  // إن لم يُضبط السرّ على الخادم، يُغلق المسار بالكامل: السرّ الفارغ
+  // كان يُطابق طلباً فارغاً، فيفتح الباب على مصراعيه.
+  const secret = process.env.TELEGRAM_WEBHOOK_SECRET || ''
   const url = new URL(request.url)
-  if (url.searchParams.get('s') !== (process.env.TELEGRAM_WEBHOOK_SECRET || '')) {
+  if (!secret || url.searchParams.get('s') !== secret) {
     return NextResponse.json({ ok: true })
   }
 
