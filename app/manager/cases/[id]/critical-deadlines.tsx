@@ -117,7 +117,7 @@ function AddDeadlineForm({ caseId, onSuccess }: { caseId: string; onSuccess: () 
   )
 }
 
-export default function CriticalDeadlines({ caseId, deadlines }: { caseId: string; deadlines: any[] }) {
+export default function CriticalDeadlines({ caseId, deadlines, caseClosed }: { caseId: string; deadlines: any[]; caseClosed?: boolean }) {
   const [refreshKey, setRefreshKey] = useState(0)
 
   function handleRefresh() {
@@ -155,7 +155,11 @@ export default function CriticalDeadlines({ caseId, deadlines }: { caseId: strin
         </div>
       )}
 
-      <AddDeadlineForm caseId={caseId} onSuccess={handleRefresh} />
+      {caseClosed ? (
+        <p className="text-[11px] text-slate-400">القضية مغلقة — لا يمكن تسجيل مواعيد جديدة</p>
+      ) : (
+        <AddDeadlineForm caseId={caseId} onSuccess={handleRefresh} />
+      )}
     </div>
   )
 }

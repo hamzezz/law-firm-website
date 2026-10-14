@@ -97,11 +97,12 @@ export async function createSessionAndNotify(
 ): Promise<{ ok: boolean; isNew: boolean; title: string; sessionId: string }> {
   const { data: caseRow } = await admin
     .from('cases')
-    .select('id, title, case_number, court_name, primary_lawyer_id, client_id')
+    .select('id, title, case_number, court_name, primary_lawyer_id, client_id, status')
     .eq('id', caseId)
     .maybeSingle()
  
   if (!caseRow) return { ok: false, isNew: false, title: '', sessionId: '' }
+  if (caseRow.status === 'closed') return { ok: false, isNew: false, title: caseRow.title, sessionId: '' }
  
   let clientName = 'غير محدد'
   if (caseRow.client_id) {
@@ -243,9 +244,11 @@ export async function processSessionsText(
   const processedCaseIds = new Set<string>()
   const reviewKeys = new Set<string>()
  
+  // القضية المغلقة سجلّ لا يُكتب فيه: لا تُجدَّد لها جلسات ولو ظهر رقمها في جدول المحكمة
   const { data: allCases } = await admin
     .from('cases')
-    .select('id, title, case_number, court_name, primary_lawyer_id, client_id, other_party')
+    .select('id, title, case_number, court_name, primary_lawyer_id, client_id, other_party, status')
+    .neq('status', 'closed')
  
   const { data: allClientRows } = await admin.from('clients').select('id, user_id')
   const { data: allUserRows } = await admin.from('users').select('id, full_name')

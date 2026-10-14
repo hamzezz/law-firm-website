@@ -5,6 +5,7 @@ import { withSignedUrls } from '@/lib/documents/signed-urls'
 import ManagerSessionCard from './session-card'
 import CriticalDeadlines from './critical-deadlines'
 import CloseCase from './close-case'
+import ArchiveRetry from './archive-retry'
 import CaseAdmin from './case-admin'
 
 function statusBadge(status: string) {
@@ -120,6 +121,10 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
   const docsWithUrls = await withSignedUrls(supabase, documents as any)
 
+  const caseClosed = caseRow.status === 'closed'
+  const pendingArchive = caseClosed
+    ? (documents || []).filter((d: any) => d.storage_provider !== 'r2').length
+    : 0
   const todayStr = new Date().toISOString().slice(0, 10)
 
   return (
@@ -195,7 +200,9 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
             </div>
           </div>
         </div>
-        <CriticalDeadlines caseId={id} deadlines={deadlines || []} />
+        <CriticalDeadlines caseId={id} deadlines={deadlines || []} caseClosed={caseClosed} />
+
+        <ArchiveRetry caseId={id} pending={pendingArchive} />
 
         <CloseCase caseId={id} currentStatus={caseRow.status} />
         {appUser.username === 'tech' && (
@@ -245,6 +252,7 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
                     uploadedBy={appUser.id}
                     sessionDocs={docsWithUrls.filter((d) => d.session_id === s.id)}
                     isFuture={isFuture}
+                  caseClosed={caseClosed}
                   />
                 )
               })}
