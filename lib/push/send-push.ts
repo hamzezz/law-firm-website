@@ -29,7 +29,7 @@ export async function sendPushToUser(
 
   if (!subscriptions || subscriptions.length === 0) return
 
-  const payload = JSON.stringify({ title, body, url: url || '/staff/login' })
+  const payload = JSON.stringify({ title, body, url: url || '/portal.html' })
 
   for (const sub of subscriptions) {
     try {
