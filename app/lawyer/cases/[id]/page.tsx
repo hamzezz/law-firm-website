@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { withSignedUrls } from '@/lib/documents/signed-urls'
+import { documentLinks } from '@/lib/documents/signed-urls'
 import SessionCard from './session-card'
 import CriticalDeadlines from './critical-deadlines'
 
@@ -131,7 +131,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
     .map((s: any, i: number) => ({ ...s, displayOrder: i + 1 }))
 
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
-  const docsWithUrls = await withSignedUrls(supabase, documents as any)
+  const docsWithUrls = documentLinks(documents as any)
 
   const caseClosed = caseRow.status === 'closed'
   const todayStr = new Date().toISOString().slice(0, 10)

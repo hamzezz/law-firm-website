@@ -30,6 +30,9 @@ export type AuditAction =
   // الدخول
   | 'login_success'
   | 'login_failed'
+  // المستندات
+  | 'document_opened'
+  | 'document_access_denied'
 
 export async function logAudit(
   admin: ReturnType<typeof createAdminClient>,

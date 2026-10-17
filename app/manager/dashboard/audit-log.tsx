@@ -28,6 +28,10 @@ const ACTION_ICONS: Record<string, string> = {
   session_created: '📅',
   sessions_uploaded: '📎',
   // المستندات والأرشفة
+  document_uploaded: '📄',
+  document_deleted: '🗑️',
+  document_opened: '👁️',
+  document_access_denied: '🚫',
   case_archived: '📦',
   backup_downloaded: '💾',
   // الدخول
@@ -40,7 +44,14 @@ function actionIcon(action: string) {
 }
 
 /** الأحداث التي تستحقّ لفت النظر وإن لم تكن خطأً */
-const SENSITIVE = ['account_deleted', 'case_deleted', 'login_failed', 'password_changed']
+const SENSITIVE = [
+  'account_deleted',
+  'case_deleted',
+  'login_failed',
+  'password_changed',
+  'document_access_denied',
+  'document_deleted',
+]
 
 export default function AuditLog({ logs }: { logs: any[] }) {
   return (

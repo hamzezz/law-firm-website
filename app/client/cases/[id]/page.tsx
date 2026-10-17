@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { withSignedUrls } from '@/lib/documents/signed-urls'
+import { documentLinks } from '@/lib/documents/signed-urls'
 
 function statusBadge(status: string) {
   const s = status?.toLowerCase() || ''
@@ -106,7 +106,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
     .map((s: any, i: number) => ({ ...s, displayOrder: i + 1 }))
 
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
-  const docsWithUrls = await withSignedUrls(supabase, documents as any)
+  const docsWithUrls = documentLinks(documents as any)
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const nextUpcoming = sessions ? sessions.find((s) => {
