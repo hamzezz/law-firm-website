@@ -33,6 +33,8 @@ export type AuditAction =
   // المستندات
   | 'document_opened'
   | 'document_access_denied'
+  // النظام
+  | 'reminders_sent'
 
 export async function logAudit(
   admin: ReturnType<typeof createAdminClient>,

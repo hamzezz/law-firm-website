@@ -34,6 +34,9 @@ const ACTION_ICONS: Record<string, string> = {
   document_access_denied: '🚫',
   case_archived: '📦',
   backup_downloaded: '💾',
+  // النظام
+  reminders_sent: '🔔',
+  maintenance_cleanup: '🧹',
   // الدخول
   login_success: '🔐',
   login_failed: '⛔',
