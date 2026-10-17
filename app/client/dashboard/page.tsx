@@ -29,21 +29,29 @@ export default async function ClientDashboardPage() {
 
   // أقرب جلسة قادمة لكل قضية — ما لم يمرّ موعدها بعد
   const todayStr = new Date().toISOString().slice(0, 10)
-  const cases = await Promise.all(
-    (casesRaw || []).map(async (c: any) => {
-      const { data: nextSession } = await supabase
+  const caseIds = (casesRaw || []).map((c: any) => c.id)
+
+  // كانت جلسة لكل قضية على حدة، وصارت استعلاماً واحداً للجميع
+  const { data: upcomingSessions } = caseIds.length > 0
+    ? await supabase
         .from('sessions')
-        .select('session_date')
-        .eq('case_id', c.id)
+        .select('case_id, session_date')
+        .in('case_id', caseIds)
         .eq('status', 'scheduled')
         .gte('session_date', todayStr)
         .order('session_date', { ascending: true })
-        .limit(1)
-        .maybeSingle()
+    : { data: [] as any[] }
 
-      return { ...c, nextSessionDate: nextSession?.session_date || null }
-    })
-  )
+  // الترتيب تصاعدي، فأول ما يُصادَف لكل قضية هو أقربها
+  const nextByCase: Record<string, string> = {}
+  ;(upcomingSessions || []).forEach((s: any) => {
+    if (!nextByCase[s.case_id]) nextByCase[s.case_id] = s.session_date
+  })
+
+  const cases = (casesRaw || []).map((c: any) => ({
+    ...c,
+    nextSessionDate: nextByCase[c.id] || null,
+  }))
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">

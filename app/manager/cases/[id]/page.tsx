@@ -52,50 +52,52 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
 
   if (!caseRow) notFound()
 
-  let clientName = 'غير محدد'
-  const { data: clientRow } = await supabase
-    .from('clients')
-    .select('user_id')
-    .eq('id', caseRow.client_id)
-    .single()
-  if (clientRow) {
-    const { data: clientUser } = await supabase
-      .from('users')
-      .select('full_name')
-      .eq('id', clientRow.user_id)
-      .single()
-    if (clientUser) clientName = clientUser.full_name
-  }
+  /**
+   * الموكّل والمحامي والمواعيد والجلسات والمستندات — خمسة استعلامات
+   * مستقلّة كانت تنتظر بعضها بلا سبب، وصارت موجة واحدة.
+   */
+  const [clientResult, lawyerResult, deadlinesResult, sessionsResult, documentsResult] =
+    await Promise.all([
+      supabase.from('clients').select('user_id').eq('id', caseRow.client_id).single(),
+      caseRow.primary_lawyer_id
+        ? supabase.from('lawyers').select('user_id').eq('id', caseRow.primary_lawyer_id).single()
+        : Promise.resolve({ data: null as any }),
+      supabase
+        .from('critical_deadlines')
+        .select('id, deadline_type, description, deadline_date, is_resolved')
+        .eq('case_id', id)
+        .eq('is_resolved', false)
+        .order('deadline_date', { ascending: true }),
+      supabase
+        .from('sessions')
+        .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
+        .eq('case_id', id)
+        .order('session_date', { ascending: true }),
+      supabase
+        .from('documents')
+        .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
+        .eq('case_id', id)
+        .order('uploaded_at', { ascending: false }),
+    ])
 
-  let lawyerName = 'الكل (غير مخصصة)'
-  if (caseRow.primary_lawyer_id) {
-    const { data: lawyerRow } = await supabase
-      .from('lawyers')
-      .select('user_id')
-      .eq('id', caseRow.primary_lawyer_id)
-      .single()
-    if (lawyerRow) {
-      const { data: lawyerUser } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('id', lawyerRow.user_id)
-        .single()
-      if (lawyerUser) lawyerName = lawyerUser.full_name
-    }
-  }
+  const deadlines = deadlinesResult.data
+  const sessionsRaw = sessionsResult.data
+  const documents = documentsResult.data
 
-  const { data: deadlines } = await supabase
-    .from('critical_deadlines')
-    .select('id, deadline_type, description, deadline_date, is_resolved')
-    .eq('case_id', id)
-    .eq('is_resolved', false)
-    .order('deadline_date', { ascending: true })
+  // اسما الموكّل والمحامي من جدول المستخدمين — استعلام واحد للاثنين
+  const nameUserIds = [clientResult.data?.user_id, lawyerResult.data?.user_id].filter(Boolean)
 
-  const { data: sessionsRaw } = await supabase
-    .from('sessions')
-    .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
-    .eq('case_id', id)
-    .order('session_date', { ascending: true })
+  const { data: nameUsers } = nameUserIds.length > 0
+    ? await supabase.from('users').select('id, full_name').in('id', nameUserIds)
+    : { data: [] as any[] }
+
+  const fullNameById: Record<string, string> = {}
+  ;(nameUsers || []).forEach((u: any) => { fullNameById[u.id] = u.full_name })
+
+  const clientName = fullNameById[clientResult.data?.user_id] || 'غير محدد'
+  const lawyerName = caseRow.primary_lawyer_id
+    ? fullNameById[lawyerResult.data?.user_id] || 'غير محدد'
+    : 'الكل (غير مخصصة)'
 
   /**
    * الترتيب والترقيم من التاريخ لا من عمود session_order.
@@ -111,12 +113,6 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
       return String(a.id) < String(b.id) ? -1 : 1
     })
     .map((s: any, i: number) => ({ ...s, displayOrder: i + 1 }))
-
-  const { data: documents } = await supabase
-    .from('documents')
-    .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
-    .eq('case_id', id)
-    .order('uploaded_at', { ascending: false })
 
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
   const docsWithUrls = await withSignedUrls(supabase, documents as any)

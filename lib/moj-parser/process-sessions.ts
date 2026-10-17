@@ -182,12 +182,32 @@ export async function createSessionAndNotify(
   if (caseRow.primary_lawyer_id) {
     const row = (allLawyerRows || []).find((l: any) => l.id === caseRow.primary_lawyer_id)
     if (row?.user_id) recipientUserIds.push(row.user_id)
+
+    /**
+     * المحامون المشاركون في القضية (case_lawyer_access).
+     * كانوا يملكون صلاحية الاطّلاع على القضية ولا يصلهم إشعار بجلساتها:
+     * يرون الجلسة إن فتحوا القضية، ولا يُنبَّهون إليها.
+     */
+    const { data: sharedAccess } = await admin
+      .from('case_lawyer_access')
+      .select('lawyer_id')
+      .eq('case_id', caseRow.id)
+
+    for (const a of sharedAccess || []) {
+      const shared = (allLawyerRows || []).find((l: any) => l.id === a.lawyer_id)
+      if (shared?.user_id) recipientUserIds.push(shared.user_id)
+    }
   } else {
     for (const l of allLawyerRows || []) recipientUserIds.push(l.user_id)
   }
  
   const { data: allManagers } = await admin.from('users').select('id').eq('role', 'manager')
   for (const m of allManagers || []) recipientUserIds.push(m.id)
+
+  // لا إشعار مكرّر لمن جمع أكثر من صفة (محامٍ أساسي ومشارك، أو محامٍ ومدير)
+  const uniqueRecipients = Array.from(new Set(recipientUserIds.filter(Boolean)))
+  recipientUserIds.length = 0
+  recipientUserIds.push(...uniqueRecipients)
  
   const caseUrl = '/lawyer/cases/' + caseRow.id
  

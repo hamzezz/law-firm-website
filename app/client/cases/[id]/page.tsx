@@ -77,11 +77,22 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
 
   if (!caseRow || caseRow.client_id !== clientRow.id) notFound()
 
-  const { data: sessionsRaw } = await supabase
-    .from('sessions')
-    .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
-    .eq('case_id', id)
-    .order('session_date', { ascending: true })
+  // الجلسات والمستندات معاً — لا ينتظر أحدهما الآخر
+  const [sessionsResult, documentsResult] = await Promise.all([
+    supabase
+      .from('sessions')
+      .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
+      .eq('case_id', id)
+      .order('session_date', { ascending: true }),
+    supabase
+      .from('documents')
+      .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
+      .eq('case_id', id)
+      .order('uploaded_at', { ascending: false }),
+  ])
+
+  const sessionsRaw = sessionsResult.data
+  const documents = documentsResult.data
 
   /** الترتيب والترقيم من التاريخ لا من عمود session_order (انظر صفحة المحامي) */
   const sessions = (sessionsRaw || [])
@@ -93,12 +104,6 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
       return String(a.id) < String(b.id) ? -1 : 1
     })
     .map((s: any, i: number) => ({ ...s, displayOrder: i + 1 }))
-
-  const { data: documents } = await supabase
-    .from('documents')
-    .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
-    .eq('case_id', id)
-    .order('uploaded_at', { ascending: false })
 
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
   const docsWithUrls = await withSignedUrls(supabase, documents as any)

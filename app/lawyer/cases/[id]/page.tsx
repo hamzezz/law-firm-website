@@ -49,20 +49,25 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
 
   if (!lawyerRow) redirect('/lawyer/dashboard')
 
-  const { data: caseRow } = await supabase
-    .from('cases')
-    .select('id, case_number, title, case_type, status, court_name, opened_at, primary_lawyer_id, client_id')
-    .eq('id', id)
-    .single()
+  // القضية وصلاحية الوصول إليها — لا ينتظر أحدهما الآخر
+  const [caseResult, accessResult] = await Promise.all([
+    supabase
+      .from('cases')
+      .select('id, case_number, title, case_type, status, court_name, opened_at, primary_lawyer_id, client_id')
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('case_lawyer_access')
+      .select('id')
+      .eq('case_id', id)
+      .eq('lawyer_id', lawyerRow.id)
+      .maybeSingle(),
+  ])
+
+  const caseRow = caseResult.data
+  const accessRow = accessResult.data
 
   if (!caseRow) notFound()
-
-  const { data: accessRow } = await supabase
-    .from('case_lawyer_access')
-    .select('id')
-    .eq('case_id', id)
-    .eq('lawyer_id', lawyerRow.id)
-    .maybeSingle()
 
   const hasAccess =
     caseRow.primary_lawyer_id === lawyerRow.id ||
@@ -71,34 +76,43 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
 
   if (!hasAccess) notFound()
 
-  let clientName = 'غير محدد'
-  const { data: clientRow } = await supabase
-    .from('clients')
-    .select('user_id')
-    .eq('id', caseRow.client_id)
-    .single()
+  /**
+   * الموكّل والمواعيد والجلسات والمستندات — أربعة استعلامات مستقلّة
+   * كانت تنتظر بعضها بلا سبب، وصارت موجة واحدة.
+   */
+  const [clientResult, deadlinesResult, sessionsResult, documentsResult] = await Promise.all([
+    supabase.from('clients').select('user_id').eq('id', caseRow.client_id).single(),
+    supabase
+      .from('critical_deadlines')
+      .select('id, deadline_type, description, deadline_date, is_resolved')
+      .eq('case_id', id)
+      .eq('is_resolved', false)
+      .order('deadline_date', { ascending: true }),
+    supabase
+      .from('sessions')
+      .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
+      .eq('case_id', id)
+      .order('session_date', { ascending: true }),
+    supabase
+      .from('documents')
+      .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
+      .eq('case_id', id)
+      .order('uploaded_at', { ascending: false }),
+  ])
 
-  if (clientRow) {
+  const deadlines = deadlinesResult.data
+  const sessionsRaw = sessionsResult.data
+  const documents = documentsResult.data
+
+  let clientName = 'غير محدد'
+  if (clientResult.data) {
     const { data: clientUser } = await supabase
       .from('users')
       .select('full_name')
-      .eq('id', clientRow.user_id)
+      .eq('id', clientResult.data.user_id)
       .single()
     if (clientUser) clientName = clientUser.full_name
   }
-
-  const { data: deadlines } = await supabase
-    .from('critical_deadlines')
-    .select('id, deadline_type, description, deadline_date, is_resolved')
-    .eq('case_id', id)
-    .eq('is_resolved', false)
-    .order('deadline_date', { ascending: true })
-
-  const { data: sessionsRaw } = await supabase
-    .from('sessions')
-    .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
-    .eq('case_id', id)
-    .order('session_date', { ascending: true })
 
   /**
    * الترتيب والترقيم من التاريخ لا من عمود session_order.
@@ -115,12 +129,6 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
       return String(a.id) < String(b.id) ? -1 : 1
     })
     .map((s: any, i: number) => ({ ...s, displayOrder: i + 1 }))
-
-  const { data: documents } = await supabase
-    .from('documents')
-    .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
-    .eq('case_id', id)
-    .order('uploaded_at', { ascending: false })
 
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
   const docsWithUrls = await withSignedUrls(supabase, documents as any)
