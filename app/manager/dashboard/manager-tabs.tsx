@@ -471,7 +471,7 @@ export default function ManagerTabs({
     setOpen((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const inMore = ['more', 'permissions', 'accounts', 'upload', 'backup'].indexOf(activeTab) !== -1
+  const inMore = ['more', 'permissions', 'accounts', 'upload', 'backup', 'archive'].indexOf(activeTab) !== -1
 
   // الأرشيف: المغلقة التي اكتملت أرشفة مستنداتها. وما عداها «جارٍ»، بما فيه
   // المغلقة التي تعثّرت أرشفتها — كي لا تختفي من بين يدي المدير.
@@ -653,6 +653,10 @@ export default function ManagerTabs({
               <span className="flex-1 h-px bg-slate-200" />
             </div>
             <div className="bg-white rounded-2xl border border-slate-200/80 px-4 shadow-sm">
+              <button onClick={() => setActiveTab('archive')} className="w-full flex items-center py-4 border-b border-slate-100 text-right">
+                <span className="text-sm font-medium text-slate-700">القضايا المؤرشفة</span>
+                <span className="mr-auto text-slate-300">‹</span>
+              </button>
               <button onClick={() => setActiveTab('permissions')} className="w-full flex items-center py-4 border-b border-slate-100 text-right">
                 <span className="text-sm font-medium text-slate-700">الصلاحيات</span>
                 <span className="mr-auto text-slate-300">‹</span>
@@ -689,7 +693,6 @@ export default function ManagerTabs({
           { k: 'overview', label: 'إحصاء', on: activeTab === 'overview' },
           { k: 'add', label: 'إضافة', on: activeTab === 'add' },
           { k: 'clients-cases', label: 'القضايا', on: activeTab === 'clients-cases' },
-          { k: 'archive', label: 'الأرشيف', on: activeTab === 'archive' },
           { k: 'calendar', label: 'التقويم', on: activeTab === 'calendar' },
           { k: 'team', label: 'الفريق', on: activeTab === 'team' },
           { k: 'more', label: 'المزيد', on: inMore },
