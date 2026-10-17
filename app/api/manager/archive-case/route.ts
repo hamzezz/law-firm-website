@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { r2Put, r2Size, r2Configured } from '@/lib/r2/client'
+import { logAudit } from '@/lib/audit/log'
 
 /**
  * أرشفة مستندات قضية مغلقة إلى Cloudflare R2.
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
   // لا نؤرشف إلا قضية مغلقة فعلاً
   const { data: caseRow } = await admin
     .from('cases')
-    .select('id, status')
+    .select('id, status, case_number')
     .eq('id', caseId)
     .maybeSingle()
 
@@ -134,6 +135,9 @@ export async function POST(request: Request) {
       warning: 'نُقلت المستندات بنجاح، لكن تعذّر حذف النسخ الأصلية: ' + del.error.message,
     })
   }
+
+  await logAudit(admin, appUser.id, 'case_archived',
+    'أرشف مستندات القضية ' + (caseRow.case_number || caseId) + ' (' + movedPaths.length + ' مستنداً)')
 
   return NextResponse.json({ ok: true, moved: movedPaths.length })
 }

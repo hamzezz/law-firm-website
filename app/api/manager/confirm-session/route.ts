@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createSessionAndNotify } from '@/lib/moj-parser/process-sessions'
+import { logAudit } from '@/lib/audit/log'
 
 export async function POST(request: Request) {
   const supabase = await createServerClient()
@@ -40,6 +41,11 @@ export async function POST(request: Request) {
   )
 
   const result = await createSessionAndNotify(admin, caseId, sessionDate)
+
+  if (result.ok && result.isNew) {
+    await logAudit(admin, appUser.id, 'session_created',
+      'أنشأ جلسة بتاريخ ' + sessionDate + ' في قضية: ' + result.title)
+  }
 
   if (!result.ok) {
     return NextResponse.json({ error: 'لم يتم العثور على القضية' }, { status: 404 })

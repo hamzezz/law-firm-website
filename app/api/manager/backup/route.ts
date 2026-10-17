@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { logAudit } from '@/lib/audit/log'
 
 export async function GET() {
   const supabase = await createServerClient()
@@ -79,6 +80,8 @@ export async function GET() {
     }
 
     const fileName = 'backup-' + new Date().toISOString().slice(0, 10) + '.json'
+
+    await logAudit(admin, appUser.id, 'backup_downloaded', 'نزّل نسخة احتياطية كاملة من بيانات النظام')
 
     return new NextResponse(JSON.stringify(backup, null, 2), {
       headers: {

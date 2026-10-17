@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { logAudit } from '@/lib/audit/log'
 
 export async function POST(request: Request) {
   const supabase = await createServerClient()
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
 
   const { data: appUser } = await supabase
     .from('users')
-    .select('role')
+    .select('id, role')
     .eq('auth_id', user.id)
     .single()
 
@@ -73,6 +74,8 @@ export async function POST(request: Request) {
   if (lawyerError) {
     return NextResponse.json({ error: lawyerError.message }, { status: 400 })
   }
+
+  await logAudit(admin, appUser.id, 'lawyer_created', 'أنشأ حساب محامٍ: ' + fullName)
 
   return NextResponse.json({ success: true, username: username.trim().toLowerCase() })
 }

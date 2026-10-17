@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { logAudit, auditClient } from '@/lib/audit/log'
 
 /**
  * دخول من شاشة بوابة التطبيق (public/portal.html).
@@ -26,10 +27,14 @@ export async function POST(request: Request) {
   })
 
   if (authError || !data.user) {
+    // محاولة فاشلة: لا نعرف صاحبها، فنسجّل الاسم المستعمل وحده
+    await logAudit(auditClient(), null, 'login_failed',
+      'محاولة دخول فاشلة باسم المستخدم: ' + username, { portal })
     return NextResponse.json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' }, { status: 401 })
   }
 
   if (portal === 'client') {
+    await logAudit(auditClient(), null, 'login_success', 'دخول موكّل: ' + username, { portal })
     return NextResponse.json({ redirect: '/client/dashboard' })
   }
 
@@ -44,12 +49,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'لم يتم العثور على حساب موظف مرتبط بهذا المستخدم' }, { status: 403 })
   }
 
-  if (appUser.role === 'lawyer') {
-    return NextResponse.json({ redirect: '/lawyer/dashboard' })
-  }
-
-  if (appUser.role === 'manager') {
-    return NextResponse.json({ redirect: '/manager/dashboard' })
+  if (appUser.role === 'lawyer' || appUser.role === 'manager') {
+    const roleLabel = appUser.role === 'lawyer' ? 'محامٍ' : 'مدير'
+    await logAudit(auditClient(), appUser.id, 'login_success', 'دخول ' + roleLabel + ': ' + username, { portal })
+    return NextResponse.json({
+      redirect: appUser.role === 'lawyer' ? '/lawyer/dashboard' : '/manager/dashboard',
+    })
   }
 
   await supabase.auth.signOut()

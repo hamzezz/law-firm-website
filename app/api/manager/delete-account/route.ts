@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { logAudit } from '@/lib/audit/log'
 
 function normalizeForCompare(text: string): string {
   return (text || '')
@@ -109,6 +110,8 @@ export async function POST(request: Request) {
 
     const r4 = await admin.auth.admin.deleteUser(targetUser.auth_id)
     if (r4.error) return NextResponse.json({ error: 'فشل حذف حساب الدخول: ' + r4.error.message }, { status: 500 })
+
+    await logAudit(admin, requester.id, 'account_deleted', 'حذف حساب: ' + targetUser.full_name + ' (' + targetUser.username + ')')
 
     return NextResponse.json({ success: true, deletedName: targetUser.full_name })
   } catch (err) {

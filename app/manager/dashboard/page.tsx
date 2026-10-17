@@ -110,7 +110,7 @@ export default async function ManagerDashboardPage() {
     .from('audit_log')
     .select('id, action, metadata, created_at, users ( full_name )')
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(80)
 
   const { data: allSessions } = await supabase
     .from('sessions')

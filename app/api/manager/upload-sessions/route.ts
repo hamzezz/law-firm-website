@@ -7,6 +7,7 @@ import { promisify } from 'util'
 import { writeFile, unlink } from 'fs/promises'
 import path from 'path'
 import os from 'os'
+import { logAudit } from '@/lib/audit/log'
 
 const execFileAsync = promisify(execFile)
 
@@ -70,6 +71,9 @@ export async function POST(request: Request) {
   )
 
   const result = await processSessionsText(admin, fullText, providedDate)
+
+  await logAudit(admin, appUser.id, 'sessions_uploaded',
+    'رفع كشف جلسات المحكمة' + (providedDate ? ' لتاريخ ' + providedDate : ''))
 
   return NextResponse.json(result)
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { logAudit } from '@/lib/audit/log'
 
 async function requireTech() {
   const supabase = await createServerClient()
@@ -16,7 +17,7 @@ async function requireTech() {
   if (!appUser || appUser.role !== 'manager' || appUser.username !== 'tech') {
     return { error: 'هذا الإجراء متاح للمدير التقني فقط', status: 403 as const }
   }
-  return { ok: true as const }
+  return { ok: true as const, userId: appUser.id }
 }
 
 function admin() {
@@ -55,6 +56,9 @@ export async function PATCH(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  await logAudit(admin(), guard.userId, 'case_updated',
+    'عدّل بيانات قضية (' + Object.keys(patch).join('، ') + ')', { caseId })
 
   return NextResponse.json({ success: true, message: 'تم حفظ التعديلات' })
 }
@@ -120,6 +124,9 @@ export async function DELETE(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  await logAudit(db, guard.userId, 'case_deleted',
+    'حذف القضية نهائياً: ' + (caseRow.case_number || caseId))
 
   return NextResponse.json({ success: true, message: 'تم حذف القضية نهائياً' })
 }
