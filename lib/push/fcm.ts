@@ -125,7 +125,8 @@ export async function sendFcmToToken(
   token: string,
   title: string,
   body: string,
-  url: string
+  url: string,
+  notificationId?: string
 ): Promise<FcmResult> {
   const sa = serviceAccount()
   if (!sa) return { ok: false, dead: false, detail: 'غير مهيّأ' }
@@ -140,7 +141,8 @@ export async function sendFcmToToken(
     message: {
       token,
       notification: { title, body },
-      data: { url },
+      // قيم FCM نصّية وجوباً
+      data: { url, notificationId: notificationId || '' },
       android: {
         priority: 'HIGH',
         notification: { sound: 'default', default_vibrate_timings: true },

@@ -12,6 +12,17 @@ import { useEffect } from 'react'
 
 let alreadyWired = false
 
+/** إقرار الاستلام. يُهمَل بصمت إن تعذّر — لا شأن للمستخدم به. */
+function reportDelivered(notificationId: any) {
+  if (typeof notificationId !== 'string' || !notificationId) return
+  fetch('/api/push/receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ notificationId }),
+  }).catch(() => {})
+}
+
 function nativePush(): any {
   const cap: any = (window as any).Capacitor
   if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return null
@@ -43,6 +54,12 @@ export default function RegisterDeviceToken() {
       }
     })
 
+    // وصل الإشعار إلى الجهاز — نبلّغ الخادم (الصحّان الرماديان)
+    push.addListener('pushNotificationReceived', (notification: any) => {
+      const data = (notification && notification.data) || {}
+      reportDelivered(data.notificationId)
+    })
+
     push.addListener('registrationError', (err: any) => {
       console.log('[push] registrationError | ' + JSON.stringify(err || {}))
     })
@@ -50,6 +67,8 @@ export default function RegisterDeviceToken() {
     // الضغط على الإشعار من شريط إشعارات الهاتف
     push.addListener('pushNotificationActionPerformed', (action: any) => {
       const data = (action && action.notification && action.notification.data) || {}
+      // الضغط يعني الوصول أيضاً، وقد يكون الجهاز استلمه وهو مغلق فلم يبلّغ
+      reportDelivered(data.notificationId)
       const url = typeof data.url === 'string' ? data.url : ''
       // مسارات داخلية فقط، منعاً لفتح أي عنوان خارجي من حمولة إشعار
       if (url && url.charAt(0) === '/' && url.charAt(1) !== '/') {

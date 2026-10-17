@@ -1,3 +1,14 @@
+// إقرار استلام الإشعار — الصحّان الرماديان. يُهمَل بصمت إن تعذّر.
+function reportDelivered(notificationId) {
+  if (!notificationId) return Promise.resolve()
+  return fetch('/api/push/receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ notificationId: notificationId }),
+  }).catch(function () {})
+}
+
 self.addEventListener('push', function (event) {
   if (!event.data) return
 
@@ -14,17 +25,27 @@ self.addEventListener('push', function (event) {
     badge: '/icons/icon-96.png',
     dir: 'rtl',
     lang: 'ar',
-    data: { url: payload.url || '/portal.html' },
+    data: {
+      url: payload.url || '/portal.html',
+      notificationId: payload.notificationId || '',
+    },
   }
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'مكتب وليد الكثيري', options)
+    Promise.all([
+      self.registration.showNotification(payload.title || 'مكتب وليد الكثيري', options),
+      reportDelivered(payload.notificationId),
+    ])
   )
 })
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close()
   const targetUrl = event.notification.data && event.notification.data.url ? event.notification.data.url : '/portal.html'
+  const notifId = event.notification.data ? event.notification.data.notificationId : ''
+
+  // قد يكون الجهاز استلمه والمتصفح مغلق فلم يبلّغ، فالضغط يثبت الوصول أيضاً
+  reportDelivered(notifId)
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {

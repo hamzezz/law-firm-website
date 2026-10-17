@@ -65,12 +65,28 @@ export async function POST(request: Request) {
 
   console.log('[push-test] إرسال إلى ' + targetName + ' | أجهزة=' + (devices || 0) + ' | متصفحات=' + (subs || 0))
 
+  const testTitle = 'إشعار تجريبي'
+  const testBody = 'هذه رسالة اختبار من نظام المكتب. لا إجراء مطلوب.'
+
+  // صفّ حقيقي، ليحمل الإشعار معرّفاً يُقرّ الجهاز باستلامه — فتظهر العلامات
+  const { data: notifRow } = await admin
+    .from('notifications')
+    .insert({
+      recipient_user_id: targetId,
+      type: 'test',
+      title: testTitle,
+      body: testBody,
+    })
+    .select('id')
+    .single()
+
   await sendPushToUser(
     admin,
     targetId,
-    'إشعار تجريبي',
-    'هذه رسالة اختبار من نظام المكتب. لا إجراء مطلوب.',
-    '/portal.html'
+    testTitle,
+    testBody,
+    '/portal.html',
+    notifRow?.id || ''
   )
 
   return NextResponse.json({

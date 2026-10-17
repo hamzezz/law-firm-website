@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import LogoutButton from '@/app/staff/logout-button'
 import ChangePassword from '@/app/components/change-password'
 import ManagerTabs from './manager-tabs'
@@ -7,6 +8,7 @@ import UploadSessions from './upload-sessions'
 import GlobalSearch from './global-search'
 import BackupButton from './backup-button'
 import PushTest from './push-test'
+import DeliveryStatus from './delivery-status'
 import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
@@ -58,6 +60,42 @@ export default async function ManagerDashboardPage() {
     })
 
     archivedCaseIds = closedCaseIds.filter((id: string) => !pendingByCase[id])
+  }
+
+  /**
+   * حالة وصول الإشعارات — للمدير التقني وحده.
+   * تُقرأ بصلاحية الخادم عمداً: سياسة RLS تحصر كل مستخدم بإشعاراته،
+   * وهذه الشاشة تعرض إشعارات الفريق كلّه لتشخيص ما لا يصل.
+   */
+  let deliveryRows: any[] = []
+
+  if (isTech) {
+    const admin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { data: notifRows } = await admin
+      .from('notifications')
+      .select('id, title, created_at, delivered_at, is_read, recipient_user_id')
+      .order('created_at', { ascending: false })
+      .limit(30)
+
+    const recipientIds = Array.from(
+      new Set((notifRows || []).map((n: any) => n.recipient_user_id).filter(Boolean))
+    )
+
+    const { data: recipients } = recipientIds.length > 0
+      ? await admin.from('users').select('id, full_name').in('id', recipientIds)
+      : { data: [] as any[] }
+
+    const nameById: Record<string, string> = {}
+    ;(recipients || []).forEach((u: any) => { nameById[u.id] = u.full_name })
+
+    deliveryRows = (notifRows || []).map((n: any) => ({
+      ...n,
+      recipientName: nameById[n.recipient_user_id] || 'مستخدم',
+    }))
   }
 
   const { data: allClients } = await supabase
@@ -173,6 +211,7 @@ export default async function ManagerDashboardPage() {
               <div className="space-y-4">
                 <BackupButton />
                 <PushTest />
+                <DeliveryStatus rows={deliveryRows} />
               </div>
             ) : null
           }

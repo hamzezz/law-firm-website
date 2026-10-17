@@ -212,14 +212,27 @@ export async function createSessionAndNotify(
   const caseUrl = '/lawyer/cases/' + caseRow.id
  
   for (const recipientId of recipientUserIds) {
-    await admin.from('notifications').insert({
-      recipient_user_id: recipientId,
-      case_id: caseRow.id,
-      type: 'session_today',
-      title: notificationTitle,
-      body: notificationBody,
-    })
-    await sendPushToUser(admin, recipientId, notificationTitle, notificationBody, caseUrl)
+    // نحتاج معرّف الصفّ لنحمله في الدفعة، فيبلّغ الجهاز باستلامه لاحقاً
+    const { data: notifRow } = await admin
+      .from('notifications')
+      .insert({
+        recipient_user_id: recipientId,
+        case_id: caseRow.id,
+        type: 'session_today',
+        title: notificationTitle,
+        body: notificationBody,
+      })
+      .select('id')
+      .single()
+
+    await sendPushToUser(
+      admin,
+      recipientId,
+      notificationTitle,
+      notificationBody,
+      caseUrl,
+      notifRow?.id || ''
+    )
   }
  
   return { ok: true, isNew: true, title: caseRow.title, sessionId }

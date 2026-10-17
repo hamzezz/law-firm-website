@@ -24,7 +24,8 @@ async function sendToDevices(
   userId: string,
   title: string,
   body: string,
-  url: string
+  url: string,
+  notificationId: string
 ) {
   if (!fcmConfigured()) return
 
@@ -38,7 +39,7 @@ async function sendToDevices(
   const dead: string[] = []
 
   for (const device of devices) {
-    const result = await sendFcmToToken(device.token, title, body, url)
+    const result = await sendFcmToToken(device.token, title, body, url, notificationId)
 
     if (result.ok) {
       console.log('[fcm] sent ok | user=' + userId + ' | device=' + device.id)
@@ -62,13 +63,15 @@ export async function sendPushToUser(
   userId: string,
   title: string,
   body: string,
-  url?: string
+  url?: string,
+  notificationId?: string
 ) {
   const target = url || '/portal.html'
+  const notifId = notificationId || ''
 
   // قناة التطبيق أولاً، ولا يُوقف خطؤها ما بعدها
   try {
-    await sendToDevices(admin, userId, title, body, target)
+    await sendToDevices(admin, userId, title, body, target, notifId)
   } catch (err: any) {
     console.log('[fcm] خطأ غير متوقَّع | user=' + userId + ' | ' + (err && err.message))
   }
@@ -84,7 +87,7 @@ export async function sendPushToUser(
 
   if (!subscriptions || subscriptions.length === 0) return
 
-  const payload = JSON.stringify({ title, body, url: target })
+  const payload = JSON.stringify({ title, body, url: target, notificationId: notifId })
 
   for (const sub of subscriptions) {
     try {
