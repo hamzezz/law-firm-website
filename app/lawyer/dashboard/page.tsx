@@ -36,28 +36,25 @@ export default async function LawyerDashboardPage() {
     )
   }
 
-  const { data: accessRows } = await supabase
-    .from('case_lawyer_access')
-    .select('case_id')
-    .eq('lawyer_id', lawyerRow.id)
+  const CASE_FIELDS =
+    'id, case_number, title, case_type, status, court_name, opened_at, client_id, primary_lawyer_id, other_party'
 
-  const accessCaseIds = accessRows?.map((r) => r.case_id) || []
+  // ثلاثة استعلامات مستقلّة لا ينتظر بعضها بعضاً
+  const [accessResult, primaryResult, openResult] = await Promise.all([
+    supabase.from('case_lawyer_access').select('case_id').eq('lawyer_id', lawyerRow.id),
+    supabase.from('cases').select(CASE_FIELDS).eq('primary_lawyer_id', lawyerRow.id),
+    supabase.from('cases').select(CASE_FIELDS).is('primary_lawyer_id', null),
+  ])
 
-  const { data: primaryCases } = await supabase
-    .from('cases')
-    .select('id, case_number, title, case_type, status, court_name, opened_at, client_id, primary_lawyer_id, other_party')
-    .eq('primary_lawyer_id', lawyerRow.id)
-
-  const { data: openCases } = await supabase
-    .from('cases')
-    .select('id, case_number, title, case_type, status, court_name, opened_at, client_id, primary_lawyer_id, other_party')
-    .is('primary_lawyer_id', null)
+  const accessCaseIds = accessResult.data?.map((r: any) => r.case_id) || []
+  const primaryCases = primaryResult.data
+  const openCases = openResult.data
 
   let sharedCases: any[] = []
   if (accessCaseIds.length > 0) {
     const { data } = await supabase
       .from('cases')
-      .select('id, case_number, title, case_type, status, court_name, opened_at, client_id, primary_lawyer_id, other_party')
+      .select(CASE_FIELDS)
       .in('id', accessCaseIds)
     sharedCases = data || []
   }
@@ -68,18 +65,61 @@ export default async function LawyerDashboardPage() {
 
   const caseIds = casesRaw.map((c) => c.id)
 
-  const sessionsResult = caseIds.length > 0 ? await supabase
-    .from('sessions')
-    .select('id, session_date, title, case_id')
-    .in('case_id', caseIds) : { data: [] }
-  const lawyerSessions = sessionsResult.data
+  const clientIds = Array.from(
+    new Set(casesRaw.map((c: any) => c.client_id).filter(Boolean))
+  )
 
-  const deadlinesResult = caseIds.length > 0 ? await supabase
-    .from('critical_deadlines')
-    .select('id, deadline_type, deadline_date, case_id')
-    .in('case_id', caseIds)
-    .eq('is_resolved', false) : { data: [] }
+  // الجلسات والمواعيد والموكلون — دفعة واحدة، ولا ينتظر بعضها بعضاً
+  const [sessionsResult, deadlinesResult, clientsResult] = await Promise.all([
+    caseIds.length > 0
+      ? supabase
+          .from('sessions')
+          .select('id, session_date, title, case_id, status')
+          .in('case_id', caseIds)
+          .order('session_date', { ascending: true })
+      : Promise.resolve({ data: [] as any[] }),
+    caseIds.length > 0
+      ? supabase
+          .from('critical_deadlines')
+          .select('id, deadline_type, deadline_date, case_id')
+          .in('case_id', caseIds)
+          .eq('is_resolved', false)
+      : Promise.resolve({ data: [] as any[] }),
+    clientIds.length > 0
+      ? supabase.from('clients').select('id, user_id').in('id', clientIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
+
+  const lawyerSessions = sessionsResult.data
   const lawyerDeadlines = deadlinesResult.data
+
+  // أسماء الموكّلين: استعلام واحد لا استعلامان لكل قضية
+  const clientRows = clientsResult.data || []
+  const clientUserIds = clientRows.map((r: any) => r.user_id).filter(Boolean)
+
+  const { data: clientUsers } = clientUserIds.length > 0
+    ? await supabase.from('users').select('id, full_name').in('id', clientUserIds)
+    : { data: [] as any[] }
+
+  const userNameById: Record<string, string> = {}
+  ;(clientUsers || []).forEach((u: any) => { userNameById[u.id] = u.full_name })
+
+  const clientNameById: Record<string, string> = {}
+  clientRows.forEach((r: any) => {
+    const name = userNameById[r.user_id]
+    if (name) clientNameById[r.id] = name
+  })
+
+  /**
+   * أقرب جلسة مجدولة لكل قضية — تُحسب من الجلسات المجلوبة أعلاه.
+   * كانت تُجلب باستعلام منفصل لكل قضية (٥٠ قضية = ٥٠ استعلاماً)، وهي
+   * موجودة أصلاً في النتيجة نفسها. والترتيب تصاعدي، فأول ما يُصادَف هو الأقرب.
+   */
+  const nextSessionByCase: Record<string, string> = {}
+  ;(lawyerSessions || []).forEach((s: any) => {
+    if (s.status !== 'scheduled') return
+    if (!nextSessionByCase[s.case_id]) nextSessionByCase[s.case_id] = s.session_date
+  })
 
   const caseTitleMap = {}
   casesRaw.forEach((c) => { caseTitleMap[c.id] = c.title })
@@ -99,28 +139,12 @@ export default async function LawyerDashboardPage() {
     })),
   ]
 
-  // جلب اسم الموكل ورقم أقرب جلسة قادمة لكل قضية
-  const cases = await Promise.all(
-    casesRaw.map(async (c: any) => {
-      let clientName = 'غير محدد'
-      const { data: clientRow } = await supabase.from('clients').select('user_id').eq('id', c.client_id).single()
-      if (clientRow) {
-        const { data: clientUser } = await supabase.from('users').select('full_name').eq('id', clientRow.user_id).single()
-        if (clientUser) clientName = clientUser.full_name
-      }
-
-      const { data: nextSession } = await supabase
-        .from('sessions')
-        .select('session_date')
-        .eq('case_id', c.id)
-        .eq('status', 'scheduled')
-        .order('session_date', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-
-      return { ...c, clientName, nextSessionDate: nextSession?.session_date || null }
-    })
-  )
+  // اسم الموكل وأقرب جلسة — من الخرائط المبنيّة أعلاه، بلا أي استعلام إضافي
+  const cases = casesRaw.map((c: any) => ({
+    ...c,
+    clientName: clientNameById[c.client_id] || 'غير محدد',
+    nextSessionDate: nextSessionByCase[c.id] || null,
+  }))
 
   cases.sort((a, b) => {
     if (a.nextSessionDate && b.nextSessionDate) {
