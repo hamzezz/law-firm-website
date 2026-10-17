@@ -34,7 +34,9 @@ const CASE_TYPES = ['جزائية - جسيمة', 'جزائية - غير جسيم
 const TABS = [
   { id: 'overview', label: 'الإحصائيات' },
   { id: 'calendar', label: '📅 التقويم' },
-  { id: 'clients-cases', label: 'الموكلون والقضايا' },
+  { id: 'add', label: '＋ إضافة' },
+  { id: 'clients-cases', label: 'القضايا الجارية' },
+  { id: 'archive', label: 'الأرشيف' },
   { id: 'team', label: 'فريق العمل' },
   { id: 'permissions', label: 'الصلاحيات' },
   { id: 'accounts', label: 'إدارة الحسابات' },
@@ -451,7 +453,7 @@ function Section({ id, label, open, onToggle, children }: any) {
 }
 
 export default function ManagerTabs({
-  cases, clientsCount, lawyersCount, allClients, allLawyers, yemenCourts,
+  cases, archivedCaseIds, clientsCount, lawyersCount, allClients, allLawyers, yemenCourts,
   calendarEvents, auditLogs, allSessions, manageableAccounts, isTech,
   backupPanel, uploadPanel, accountActions,
 }: any) {
@@ -470,6 +472,12 @@ export default function ManagerTabs({
   }
 
   const inMore = ['more', 'permissions', 'accounts', 'upload', 'backup'].indexOf(activeTab) !== -1
+
+  // الأرشيف: المغلقة التي اكتملت أرشفة مستنداتها. وما عداها «جارٍ»، بما فيه
+  // المغلقة التي تعثّرت أرشفتها — كي لا تختفي من بين يدي المدير.
+  const archivedSet = new Set(archivedCaseIds || [])
+  const archivedCases = (cases || []).filter((c: any) => archivedSet.has(c.id))
+  const activeCases = (cases || []).filter((c: any) => !archivedSet.has(c.id))
 
   return (
     <div>
@@ -497,7 +505,9 @@ export default function ManagerTabs({
         <h2 className="font-display font-bold text-slate-900 text-lg">
           {activeTab === 'overview' && 'الإحصائيات'}
           {activeTab === 'calendar' && 'التقويم'}
-          {activeTab === 'clients-cases' && 'الموكلون والقضايا'}
+          {activeTab === 'add' && 'إضافة موكل أو قضية'}
+          {activeTab === 'clients-cases' && 'القضايا الجارية'}
+          {activeTab === 'archive' && 'القضايا المؤرشفة'}
           {activeTab === 'team' && 'فريق العمل'}
           {activeTab === 'permissions' && 'الصلاحيات'}
           {activeTab === 'accounts' && 'إدارة الحسابات'}
@@ -549,14 +559,46 @@ export default function ManagerTabs({
       {/* ═══════════ التقويم ═══════════ */}
       {activeTab === 'calendar' && <CalendarView events={calendarEvents || []} />}
 
-      {/* ═══════════ الموكلون والقضايا ═══════════ */}
-      {activeTab === 'clients-cases' && (
+      {/* ═══════════ إضافة موكل أو قضية ═══════════ */}
+      {activeTab === 'add' && (
         <div className="space-y-5">
           <AddClientForm onSuccess={handleRefresh} />
           <AddCaseForm allClients={allClients} allLawyers={allLawyers} yemenCourts={yemenCourts} onSuccess={handleRefresh} />
+        </div>
+      )}
+
+      {/* ═══════════ القضايا الجارية ═══════════ */}
+      {activeTab === 'clients-cases' && (
+        <div className="space-y-5">
           <div>
-            <h2 className="font-display font-bold text-slate-900 mb-3 text-base sm:text-lg">جدول كل القضايا</h2>
-            <CasesTable cases={cases} allLawyers={allLawyers} />
+            <h2 className="font-display font-bold text-slate-900 mb-3 text-base sm:text-lg">
+              القضايا الجارية
+              <span className="text-slate-400 text-xs font-normal mr-2">{activeCases.length}</span>
+            </h2>
+            <CasesTable cases={activeCases} allLawyers={allLawyers} />
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ الأرشيف ═══════════ */}
+      {activeTab === 'archive' && (
+        <div className="space-y-5">
+          <div>
+            <h2 className="font-display font-bold text-slate-900 mb-1 text-base sm:text-lg">
+              القضايا المؤرشفة
+              <span className="text-slate-400 text-xs font-normal mr-2">{archivedCases.length}</span>
+            </h2>
+            <p className="text-slate-500 text-[11px] mb-3 leading-relaxed">
+              قضايا مغلقة انتقلت مستنداتها إلى الأرشيف. والقضية المغلقة التي لم تكتمل أرشفتها
+              تبقى في «القضايا الجارية» حتى تُؤرشف.
+            </p>
+            {archivedCases.length === 0 ? (
+              <p className="text-slate-400 text-sm py-8 text-center bg-white rounded-2xl border border-slate-200/80">
+                لا توجد قضايا مؤرشفة بعد.
+              </p>
+            ) : (
+              <CasesTable cases={archivedCases} allLawyers={allLawyers} />
+            )}
           </div>
         </div>
       )}
@@ -644,8 +686,10 @@ export default function ManagerTabs({
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         {[
-          { k: 'overview', label: 'الإحصائيات', on: activeTab === 'overview' },
+          { k: 'overview', label: 'إحصاء', on: activeTab === 'overview' },
+          { k: 'add', label: 'إضافة', on: activeTab === 'add' },
           { k: 'clients-cases', label: 'القضايا', on: activeTab === 'clients-cases' },
+          { k: 'archive', label: 'الأرشيف', on: activeTab === 'archive' },
           { k: 'calendar', label: 'التقويم', on: activeTab === 'calendar' },
           { k: 'team', label: 'الفريق', on: activeTab === 'team' },
           { k: 'more', label: 'المزيد', on: inMore },
@@ -654,18 +698,20 @@ export default function ManagerTabs({
             key={t.k}
             onClick={() => setActiveTab(t.k)}
             className={
-              'flex-1 flex flex-col items-center justify-center gap-1 py-2.5 min-h-[56px] text-[10px] transition ' +
+              'flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] text-[9px] transition ' +
               (t.on ? 'text-amber-600 font-bold' : 'text-slate-400')
             }
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={t.on ? 2 : 1.7} strokeLinecap="round" strokeLinejoin="round" className="w-[21px] h-[21px]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={t.on ? 2 : 1.7} strokeLinecap="round" strokeLinejoin="round" className="w-[19px] h-[19px]">
               {t.k === 'overview' && <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />}
+              {t.k === 'add' && <><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></>}
               {t.k === 'clients-cases' && <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />}
+              {t.k === 'archive' && <><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" /></>}
               {t.k === 'calendar' && <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></>}
               {t.k === 'team' && <><circle cx="9" cy="8" r="3.5" /><path d="M2 20c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5M17 8.5a3 3 0 0 1 0 5M18 14.5c2.4.5 4 2.2 4 4.5" /></>}
               {t.k === 'more' && <><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></>}
             </svg>
-            {t.label}
+            <span className="truncate max-w-full px-0.5">{t.label}</span>
           </button>
         ))}
       </nav>

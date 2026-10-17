@@ -33,6 +33,33 @@ export default async function ManagerDashboardPage() {
     .select('id, case_number, title, case_type, status, stage, court_name, opened_at, clients ( id, national_id, users ( full_name ) ), lawyers ( id, users ( full_name ) )')
     .order('opened_at', { ascending: false })
 
+  /**
+   * القضايا المؤرشفة: المغلقة التي انتقلت كل مستنداتها إلى R2 فعلاً.
+   * والقضية المغلقة التي تعثّرت أرشفتها تبقى في «القضايا» لا في «الأرشيف»،
+   * كي لا تختفي من بين يدي المدير وهي تنتظر إجراءً.
+   */
+  const closedCaseIds = (cases || [])
+    .filter((c: any) => c.status === 'closed')
+    .map((c: any) => c.id)
+
+  let archivedCaseIds: string[] = []
+
+  if (closedCaseIds.length > 0) {
+    const { data: closedDocs } = await supabase
+      .from('documents')
+      .select('case_id, storage_provider')
+      .in('case_id', closedCaseIds)
+
+    const pendingByCase: Record<string, number> = {}
+    ;(closedDocs || []).forEach((d: any) => {
+      if (d.storage_provider !== 'r2') {
+        pendingByCase[d.case_id] = (pendingByCase[d.case_id] || 0) + 1
+      }
+    })
+
+    archivedCaseIds = closedCaseIds.filter((id: string) => !pendingByCase[id])
+  }
+
   const { data: allClients } = await supabase
     .from('clients')
     .select('id, users ( full_name )')
@@ -135,6 +162,7 @@ export default async function ManagerDashboardPage() {
           manageableAccounts={manageableAccounts}
           isTech={isTech}
           cases={cases}
+          archivedCaseIds={archivedCaseIds}
           clientsCount={clientsCount}
           lawyersCount={lawyersCount}
           allClients={allClients}
