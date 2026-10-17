@@ -6,6 +6,7 @@ import ManagerTabs from './manager-tabs'
 import UploadSessions from './upload-sessions'
 import GlobalSearch from './global-search'
 import BackupButton from './backup-button'
+import PushTest from './push-test'
 import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
@@ -139,7 +140,14 @@ export default async function ManagerDashboardPage() {
           allClients={allClients}
           allLawyers={allLawyers}
           yemenCourts={yemenCourts}
-          backupPanel={isTech ? <BackupButton /> : null}
+          backupPanel={
+            isTech ? (
+              <div className="space-y-4">
+                <BackupButton />
+                <PushTest />
+              </div>
+            ) : null
+          }
           uploadPanel={isTech ? <UploadSessions /> : null}
           accountActions={
             <div className="contents">
