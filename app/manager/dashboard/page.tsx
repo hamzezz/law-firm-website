@@ -8,6 +8,7 @@ import GlobalSearch from './global-search'
 import BackupButton from './backup-button'
 import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
+import RegisterDeviceToken from '@/app/components/register-device-token'
 
 export default async function ManagerDashboardPage() {
   const supabase = await createClient()
@@ -120,6 +121,8 @@ export default async function ManagerDashboardPage() {
           </span>
         </div>
       </header>
+
+      <RegisterDeviceToken />
 
       <main className="max-w-5xl mx-auto px-4 py-4 space-y-4 pb-28 md:p-6 md:space-y-6 md:pb-10">
         <GlobalSearch />
