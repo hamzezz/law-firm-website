@@ -4,6 +4,7 @@ import LogoutButton from '@/app/staff/logout-button'
 import ChangePassword from '@/app/components/change-password'
 import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
+import RegisterDeviceToken from '@/app/components/register-device-token'
 import ViewSwitcher from './view-switcher'
 
 export default async function LawyerDashboardPage() {
@@ -132,6 +133,8 @@ export default async function LawyerDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
+      <RegisterDeviceToken />
+
       <ViewSwitcher
         cases={cases}
         calendarEvents={calendarEvents}
