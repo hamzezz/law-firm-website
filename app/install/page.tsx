@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import Link from 'next/link'
 import Image from 'next/image'
 import MobileNav from '../components/mobile-nav'
@@ -19,6 +21,20 @@ export const metadata = {
 
 const APK_PATH = '/download/kathiri-law.apk'
 
+/**
+ * زرّ التحميل يظهر إن كان الملف موجوداً فعلاً، ويختفي إن لم يكن.
+ * فلا يصطدم أحد برابط معطوب، ولا يحتاج الأمر تعديل كود عند رفع الملف:
+ * يكفي وضعه في public/download ودفعه، فيظهر من تلقاء نفسه.
+ */
+function apkReady(): boolean {
+  try {
+    const file = path.join(process.cwd(), 'public', 'download', 'kathiri-law.apk')
+    return fs.statSync(file).size > 0
+  } catch {
+    return false
+  }
+}
+
 function Step({ n, title, children }: { n: number; title: string; children?: React.ReactNode }) {
   return (
     <li className="flex gap-3">
@@ -34,6 +50,8 @@ function Step({ n, title, children }: { n: number; title: string; children?: Rea
 }
 
 export default function InstallPage() {
+  const ready = apkReady()
+
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
       <header className="bg-slate-900 border-b-4 border-amber-500">
@@ -79,18 +97,34 @@ export default function InstallPage() {
             <h2 className="font-display font-bold text-slate-900 text-base md:text-lg">على هواتف أندرويد</h2>
           </div>
 
-          <a
-            href={APK_PATH}
-            download
-            className="flex items-center justify-center gap-2.5 w-full bg-slate-900 text-white font-bold text-sm py-3.5 rounded-xl hover:bg-slate-800 transition mb-5"
-          >
-            <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3v12M7 11l5 5 5-5M5 21h14" />
-            </svg>
-            تحميل التطبيق
-          </a>
+          {ready ? (
+            <a
+              href={APK_PATH}
+              download
+              className="flex items-center justify-center gap-2.5 w-full bg-slate-900 text-white font-bold text-sm py-3.5 rounded-xl hover:bg-slate-800 transition mb-5"
+            >
+              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12M7 11l5 5 5-5M5 21h14" />
+              </svg>
+              تحميل التطبيق
+            </a>
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 text-center">
+              <p className="text-slate-700 text-sm font-bold">التحميل غير متاح بعد</p>
+              <p className="text-slate-500 text-[13px] leading-relaxed mt-1">
+                يُنشر الملف هنا قريباً. وإلى ذلك الحين يعمل النظام كاملاً من المتصفح —
+                عدا تصوير المحاضر.
+              </p>
+              <a
+                href="/portal.html"
+                className="inline-flex items-center mt-3 text-amber-700 text-[13px] font-bold hover:underline"
+              >
+                الدخول من المتصفح
+              </a>
+            </div>
+          )}
 
-          <ol className="space-y-4">
+          <ol className={'space-y-4 ' + (ready ? '' : 'opacity-60')}>
             <Step n={1} title="اضغط «تحميل التطبيق» أعلاه">
               سينزّل ملف باسم <span dir="ltr" className="font-mono text-[12px]">kathiri-law.apk</span>.
             </Step>
