@@ -14,6 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/expats`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
     { url: BASE + '/faq', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: BASE + '/privacy', lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
+    { url: BASE + '/install', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
     ...SPECIALTIES.map((s) => ({
       url: `${BASE}/specialties/${s.slug}`,
       lastModified: new Date(),

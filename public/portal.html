@@ -44,6 +44,12 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .q{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;color:var(--mute)}
 .q::before,.q::after{content:"";flex:1;height:1px;background:currentColor;opacity:.25}
 .rl{display:grid;gap:10px;max-width:420px;margin:0 auto}
+.app{display:flex;align-items:center;justify-content:center;gap:7px;max-width:420px;margin:12px auto 0;padding:9px 12px;
+  border-radius:12px;border:1px solid rgba(201,164,92,.22);background:rgba(255,240,210,.02);
+  color:rgba(236,226,208,.72);font-size:12.5px;font-weight:600;text-decoration:none;
+  transition:border-color .25s ease,background .25s ease,color .25s ease}
+.app:hover{border-color:rgba(201,164,92,.5);background:rgba(201,164,92,.07);color:#ece2d0}
+.app .ai{display:flex;opacity:.8}
 .rc{display:flex;align-items:center;gap:12px;min-height:68px;padding:10px 14px;border-radius:16px;border:1px solid rgba(201,164,92,.28);background:rgba(255,240,210,.035);
   color:var(--cream);text-align:right;cursor:pointer;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);transition:border-color .25s,background .25s,transform .25s}
 .rc:hover{border-color:var(--gold);background:rgba(201,164,92,.09);transform:translateX(-3px)}
@@ -286,7 +292,8 @@ a.dev::after{content:"";position:absolute;inset:0;background:linear-gradient(105
   function renderRoles(){
     var ks=solo?[solo]:['staff','client'];
     roles.innerHTML='<div class="q">'+(solo?'مرحباً بعودتك':'اختر بوابة الدخول')+'</div><div class="rl">'+
-      ks.map(function(k){return '<button class="rc" type="button" data-k="'+k+'"><span class="ri">'+IC[k]+'</span><span class="rt"><b>'+ROLE[k].t+'</b><small>'+ROLE[k].s+'</small></span><span class="ra">'+IC.arrow+'</span></button>';}).join('')+'</div>';
+      ks.map(function(k){return '<button class="rc" type="button" data-k="'+k+'"><span class="ri">'+IC[k]+'</span><span class="rt"><b>'+ROLE[k].t+'</b><small>'+ROLE[k].s+'</small></span><span class="ra">'+IC.arrow+'</span></button>';}).join('')+'</div>'+
+      '<a class="app" href="/install"><span class="ai"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg></span>تحميل التطبيق على هاتفك</a>';
     roles.classList.remove('in'); void roles.offsetWidth; roles.classList.add('in');
     [].forEach.call(roles.querySelectorAll('.rc'),function(b){b.onclick=function(){choose(b);};});
     stage.classList.add('done');
