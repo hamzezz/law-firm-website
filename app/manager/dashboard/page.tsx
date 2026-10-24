@@ -181,6 +181,7 @@ export default async function ManagerDashboardPage() {
           <NotificationBell userId={appUser.id} />
           <span className="hidden md:flex items-center gap-4">
             <a href="/manager/articles" className="text-slate-300 text-sm hover:text-white transition">إدارة المقالات</a>
+            <a href="/manager/cards" className="text-slate-300 text-sm hover:text-white transition">بطاقات المنشورات</a>
             <EnableNotifications userId={appUser.id} />
             <ChangePassword />
             <LogoutButton />

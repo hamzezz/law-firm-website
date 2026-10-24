@@ -665,8 +665,12 @@ export default function ManagerTabs({
                 <span className="text-sm font-medium text-slate-700">إدارة الحسابات</span>
                 <span className="mr-auto text-slate-300">‹</span>
               </button>
-              <a href="/manager/articles" className="w-full flex items-center py-4 text-right">
+              <a href="/manager/articles" className="w-full flex items-center py-4 border-b border-slate-100 text-right">
                 <span className="text-sm font-medium text-slate-700">إدارة المقالات</span>
+                <span className="mr-auto text-slate-300">‹</span>
+              </a>
+              <a href="/manager/cards" className="w-full flex items-center py-4 text-right">
+                <span className="text-sm font-medium text-slate-700">بطاقات المنشورات</span>
                 <span className="mr-auto text-slate-300">‹</span>
               </a>
             </div>
