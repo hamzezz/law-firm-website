@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ArticleSchema, Breadcrumbs } from '@/app/components/page-schema'
+import ArticleBody from '../article-body'
+import { parseArticle, formatArabicDate, minutesLabel } from '@/lib/articles/parse'
 
 /** بيانات المشاركة لكل مقال على حدة: عنوانه ومقتطفه وصورته */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -59,6 +61,8 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
   if (!article) notFound()
 
+  const { minutes } = parseArticle(article.content || '')
+
   return (
     <div dir="rtl" className="min-h-screen bg-white">
       <ArticleSchema
@@ -88,16 +92,21 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      <main className="max-w-3xl mx-auto p-6 py-12">
-        <h1 className="font-display text-3xl font-bold text-slate-900 mb-3 leading-snug">{article.title}</h1>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-400 text-[13px] mb-8 pb-6 border-b border-slate-100">
+      <main className="max-w-[46rem] mx-auto px-6 py-12">
+        <h1 className="font-display text-[26px] md:text-3xl font-bold text-slate-900 mb-3 leading-snug text-balance">{article.title}</h1>
+
+        {article.excerpt && (
+          <p className="text-slate-500 text-base leading-relaxed mb-6">{article.excerpt}</p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-400 text-[13px] mb-10 pb-6 border-b border-slate-100">
           <span className="text-slate-600">
             بقلم <span className="font-bold text-slate-800">فريق مكتب وليد الكثيري للمحاماة</span>
           </span>
 
           {article.published_at && (
             <time dateTime={new Date(article.published_at).toISOString()}>
-              نُشر في {new Date(article.published_at).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })}
+              نُشر في {formatArabicDate(article.published_at)}
             </time>
           )}
 
@@ -106,13 +115,17 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
             new Date((article as any).updated_at).toDateString() !==
               new Date(article.published_at).toDateString() && (
               <time dateTime={new Date((article as any).updated_at).toISOString()}>
-                آخر تحديث {new Date((article as any).updated_at).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })}
+                آخر تحديث {formatArabicDate((article as any).updated_at)}
               </time>
             )}
+
+          <span className="flex items-center gap-1.5">
+            <span className="w-1 h-1 rounded-full bg-slate-300" />
+            قراءة {minutesLabel(minutes)}
+          </span>
         </div>
-        <div className="prose prose-slate max-w-none">
-          <p className="text-slate-700 leading-loose whitespace-pre-line">{article.content}</p>
-        </div>
+
+        <ArticleBody content={article.content || ''} />
       </main>
     </div>
   )
