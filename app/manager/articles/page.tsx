@@ -18,7 +18,7 @@ export default async function ManagerArticlesPage() {
 
   const { data: articles } = await supabase
     .from('articles')
-    .select('id, slug, title, excerpt, status, published_at, created_at, category, is_featured')
+    .select('id, slug, title, excerpt, content, status, published_at, created_at, category, is_featured, cover_image')
     .order('created_at', { ascending: false })
 
   return (

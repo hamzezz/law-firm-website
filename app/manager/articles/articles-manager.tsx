@@ -149,8 +149,122 @@ function AddArticleForm({ authorId, onSuccess }: { authorId: string; onSuccess: 
   )
 }
 
+/** تعديل مقالٍ قائم: تصنيفه وتمييزه ونصّه */
+function EditArticleForm({
+  article,
+  onSaved,
+  onCancel,
+}: {
+  article: any
+  onSaved: (patch: any) => void
+  onCancel: () => void
+}) {
+  const [title, setTitle] = useState(article.title || '')
+  const [excerpt, setExcerpt] = useState(article.excerpt || '')
+  const [content, setContent] = useState(article.content || '')
+  const [category, setCategory] = useState(article.category || '')
+  const [isFeatured, setIsFeatured] = useState(Boolean(article.is_featured))
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setMessage(null)
+
+    const supabase = createClient()
+
+    // المختار واحدٌ لا غير
+    if (isFeatured && !article.is_featured) {
+      await supabase.from('articles').update({ is_featured: false }).eq('is_featured', true)
+    }
+
+    const patch = {
+      title,
+      excerpt: excerpt || null,
+      content,
+      category: category || null,
+      is_featured: isFeatured,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase.from('articles').update(patch).eq('id', article.id)
+    setLoading(false)
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    onSaved(patch)
+  }
+
+  return (
+    <form onSubmit={save} className="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+      {message && <div className="text-sm p-3 rounded-lg bg-red-50 text-red-700">{message}</div>}
+
+      <div>
+        <label className="text-xs text-slate-500 block mb-1">العنوان</label>
+        <input
+          type="text" value={title} onChange={(e) => setTitle(e.target.value)} required
+          className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-sm bg-white"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs text-slate-500 block mb-1">المقتطف</label>
+        <textarea
+          value={excerpt} onChange={(e) => setExcerpt(e.target.value)}
+          className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-sm h-20 resize-none bg-white"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs text-slate-500 block mb-1">المحتوى</label>
+        <textarea
+          value={content} onChange={(e) => setContent(e.target.value)} required
+          className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-sm h-56 resize-y bg-white leading-relaxed"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs text-slate-500 block mb-1">التصنيف</label>
+        <select
+          value={category} onChange={(e) => setCategory(e.target.value)}
+          className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-sm bg-white"
+        >
+          <option value="">بلا تصنيف</option>
+          {ARTICLE_CATEGORIES.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox" checked={isFeatured}
+          onChange={(e) => setIsFeatured(e.target.checked)}
+          className="w-4 h-4 accent-amber-500"
+        />
+        <span className="text-sm text-slate-700">مقالٌ مختار (يظهر في صدارة المكتبة)</span>
+      </label>
+
+      <div className="flex gap-2 pt-1">
+        <button type="submit" disabled={loading}
+          className="bg-amber-500 text-white font-bold px-5 py-2 rounded-xl hover:bg-amber-600 transition disabled:opacity-50 text-sm">
+          {loading ? 'جارٍ الحفظ…' : 'حفظ التعديلات'}
+        </button>
+        <button type="button" onClick={onCancel}
+          className="px-5 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm hover:bg-white transition">
+          إلغاء
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function ArticlesManager({ initialArticles, authorId }: any) {
   const [articles, setArticles] = useState(initialArticles)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   async function toggleStatus(id: string, currentStatus: string) {
     const supabase = createClient()
@@ -186,7 +300,8 @@ export default function ArticlesManager({ initialArticles, authorId }: any) {
         )}
         <div className="divide-y divide-slate-100">
           {articles?.map((a: any) => (
-            <div key={a.id} className="p-4 flex items-center justify-between gap-3 flex-wrap">
+            <div key={a.id} className="p-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               {a.cover_image && (
                 <img src={a.cover_image} alt={a.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
               )}
@@ -208,6 +323,9 @@ export default function ArticlesManager({ initialArticles, authorId }: any) {
                 {statusLabel(a.status)}
               </span>
               <div className="flex gap-2">
+                <button onClick={() => setEditingId(editingId === a.id ? null : a.id)} className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition font-bold">
+                  {editingId === a.id ? 'إغلاق' : 'تعديل'}
+                </button>
                 <button onClick={() => toggleStatus(a.id, a.status)} className="text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition font-bold">
                   {a.status === 'published' ? 'إخفاء' : 'نشر'}
                 </button>
@@ -215,6 +333,24 @@ export default function ArticlesManager({ initialArticles, authorId }: any) {
                   حذف
                 </button>
               </div>
+            </div>
+
+            {editingId === a.id && (
+              <EditArticleForm
+                article={a}
+                onCancel={() => setEditingId(null)}
+                onSaved={(patch) => {
+                  setArticles((prev: any) =>
+                    prev.map((x: any) =>
+                      x.id === a.id
+                        ? { ...x, ...patch }
+                        : patch.is_featured ? { ...x, is_featured: false } : x
+                    )
+                  )
+                  setEditingId(null)
+                }}
+              />
+            )}
             </div>
           ))}
         </div>
