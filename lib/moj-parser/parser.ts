@@ -57,11 +57,40 @@ function findTableStart(page: string): number {
 }
 const PROSECUTION_MARKER = 'النيابة العامة'
 
+// نسخ غير شاملة (بلا g) للفحص فقط: الشاملة تحتفظ بـ lastIndex بين النداءات
+const HAS_CASE_NUMBER_AR = /(١٤[٢٣٤٥][٠١٢٣٤٥٦٧٨٩])\/([٠١٢٣٤٥٦٧٨٩]+)/
+const HAS_CASE_NUMBER_EN = /(14[2-5][0-9])\/([0-9]+)/
+
+/**
+ * خانة «رقم القضية» في كشف المحكمة ضيّقة، فإذا طال الرقم نزل آخر أرقامه
+ * إلى سطرٍ تحته. ورد في كشف ٢٨/١٠/٢٠٢٦ ثلاث مرات، منها:
+ *
+ *     ... اعتداء على ملك الغير   ٢  ١٤٤٧/١٠٢١٥
+ *     ... سلامه  غ.ج                           ٤
+ *
+ * والرقم الحقيقي ١٤٤٧/١٠٢٤، و«١٥» تسلسل الصف التصق بالرقم. فكان المحلّل
+ * يقرأ ١٤٤٧/١٠٢ ولا يجد لها قضية، فتسقط الجلسة صامتةً.
+ *
+ * تُعاد هنا أرقام السطر التالي إن كان ينتهي برقمٍ من خانة أو خانتين ولا
+ * يحمل رقم قضية خاصاً به — أي إنه تتمّة لا صفٌّ جديد.
+ */
+function trailingContinuationDigits(nextLine: string): string {
+  if (!nextLine) return ''
+  const clean = cleanText(nextLine).trim()
+  if (!clean) return ''
+  if (HAS_CASE_NUMBER_AR.test(clean) || HAS_CASE_NUMBER_EN.test(clean)) return ''
+
+  const m = clean.match(/(?:^|\s)([٠١٢٣٤٥٦٧٨٩]{1,2}|[0-9]{1,2})$/)
+  return m ? normalizeDigits(m[1]) : ''
+}
+
 /**
  * يستخرج أرقام القضايا من سطر واحد، مستبعداً أرقام النيابة العامة
  * (المميزة بحرف "هـ" الملتصق بها، أو المسبوقة بعبارة "النيابة العامة")
+ *
+ * continuation: أرقام نزلت إلى السطر التالي من خانة رقم القضية، إن وُجدت.
  */
-function extractCaseNumbersFromLine(line: string): string[] {
+function extractCaseNumbersFromLine(line: string, continuation: string = ''): string[] {
   const results: string[] = []
   const patterns = [CASE_NUMBER_PATTERN_AR, CASE_NUMBER_PATTERN_EN]
 
@@ -88,6 +117,20 @@ function extractCaseNumbersFromLine(line: string): string[] {
       // نضيف الاحتمالات المقتطعة؛ اشتراط تطابق اسم أحد الأطراف يمنع المطابقات الخاطئة.
       if (serial.length > 1) results.push(year + '/' + serial.slice(0, -1))
       if (serial.length > 2) results.push(year + '/' + serial.slice(0, -2))
+
+      /**
+       * الرقم النازل إلى السطر التالي يُلحَق بالتسلسل، وبمقتطعاته أيضاً،
+       * لأن تسلسل الصف قد يكون التصق بالرقم قبل أن ينزل آخره:
+       *   «١٠٢١٥» + «٤»  →  ١٠٢١٥٤ ، ١٠٢١٤ ، ١٠٢٤ ← وهذا هو الصحيح.
+       *
+       * وهذه احتمالات تُضاف لا تُبدِّل: لا تُقبل واحدةٌ منها إلا إن طابقت
+       * محكمةَ القضية واسمَ أحد أطرافها، وهو الشرط الذي يحمي من الخطأ.
+       */
+      if (continuation) {
+        results.push(year + '/' + serial + continuation)
+        if (serial.length > 1) results.push(year + '/' + serial.slice(0, -1) + continuation)
+        if (serial.length > 2) results.push(year + '/' + serial.slice(0, -2) + continuation)
+      }
     }
   }
 
@@ -132,8 +175,10 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
     }
 
     const lines = searchArea.split('\n')
-    for (const line of lines) {
-      const caseNumbers = extractCaseNumbersFromLine(line)
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li]
+      const continuation = trailingContinuationDigits(lines[li + 1] || '')
+      const caseNumbers = extractCaseNumbersFromLine(line, continuation)
       for (const caseNumber of caseNumbers) {
         results.push({
           caseNumber,
