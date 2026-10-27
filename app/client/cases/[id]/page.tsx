@@ -55,30 +55,24 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/portal.html')
 
-  const { data: appUser } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-  if (!appUser) redirect('/portal.html')
-
-  const { data: clientRow } = await supabase
-    .from('clients')
-    .select('id')
-    .eq('user_id', appUser.id)
-    .single()
-  if (!clientRow) redirect('/client/dashboard')
-
-  const { data: caseRow } = await supabase
-    .from('cases')
-    .select('id, case_number, title, case_type, status, court_name, opened_at, other_party, client_id')
-    .eq('id', id)
-    .single()
-
-  if (!caseRow || caseRow.client_id !== clientRow.id) notFound()
-
-  // الجلسات والمستندات معاً — لا ينتظر أحدهما الآخر
-  const [sessionsResult, documentsResult] = await Promise.all([
+  /**
+   * موجة واحدة: هوية الموكّل والقضية وجلساتها ومستنداتها.
+   *
+   * كانت خمس موجات متتابعة، والخادم في Oregon وقاعدة البيانات في
+   * Frankfurt، فكل موجة ربع ثانية. والتحقّق من ملكية القضية يقع بعد
+   * الجلب في الذاكرة، ولا يُعرض شيء قبله.
+   */
+  const [clientResult, caseResult, sessionsResult, documentsResult] = await Promise.all([
+    supabase
+      .from('clients')
+      .select('id, users!inner ( auth_id )')
+      .eq('users.auth_id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('cases')
+      .select('id, case_number, title, case_type, status, court_name, opened_at, other_party, client_id')
+      .eq('id', id)
+      .single(),
     supabase
       .from('sessions')
       .select('id, session_date, title, status, notes, next_session_date, session_order, is_locked')
@@ -90,6 +84,24 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
       .eq('case_id', id)
       .order('uploaded_at', { ascending: false }),
   ])
+
+  let clientId: string | null = clientResult.data ? (clientResult.data as any).id : null
+
+  // مسارٌ بديل إن تعذّرت الضمّة، فلا تنكسر البوابة
+  if (!clientId) {
+    const { data: appUser } = await supabase
+      .from('users').select('id').eq('auth_id', user.id).single()
+    if (!appUser) redirect('/portal.html')
+
+    const { data: clientRow } = await supabase
+      .from('clients').select('id').eq('user_id', appUser.id).single()
+    if (!clientRow) redirect('/client/dashboard')
+    clientId = clientRow.id
+  }
+
+  const caseRow = caseResult.data
+
+  if (!caseRow || caseRow.client_id !== clientId) notFound()
 
   const sessionsRaw = sessionsResult.data
   const documents = documentsResult.data

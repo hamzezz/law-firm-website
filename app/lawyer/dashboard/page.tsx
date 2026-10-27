@@ -39,25 +39,27 @@ export default async function LawyerDashboardPage() {
   const CASE_FIELDS =
     'id, case_number, title, case_type, status, court_name, opened_at, client_id, primary_lawyer_id, other_party'
 
-  // ثلاثة استعلامات مستقلّة لا ينتظر بعضها بعضاً
+  /**
+   * القضايا الثلاث الفئات في موجة واحدة.
+   *
+   * كانت القضايا المشتركة تُجلب بموجتين: معرّفات من case_lawyer_access
+   * ثم القضايا بتلك المعرّفات. وصارت تأتي مضمومة في الاستعلام نفسه.
+   */
   const [accessResult, primaryResult, openResult] = await Promise.all([
-    supabase.from('case_lawyer_access').select('case_id').eq('lawyer_id', lawyerRow.id),
+    supabase
+      .from('case_lawyer_access')
+      .select('case_id, cases ( ' + CASE_FIELDS + ' )')
+      .eq('lawyer_id', lawyerRow.id),
     supabase.from('cases').select(CASE_FIELDS).eq('primary_lawyer_id', lawyerRow.id),
     supabase.from('cases').select(CASE_FIELDS).is('primary_lawyer_id', null),
   ])
 
-  const accessCaseIds = accessResult.data?.map((r: any) => r.case_id) || []
   const primaryCases = primaryResult.data
   const openCases = openResult.data
 
-  let sharedCases: any[] = []
-  if (accessCaseIds.length > 0) {
-    const { data } = await supabase
-      .from('cases')
-      .select(CASE_FIELDS)
-      .in('id', accessCaseIds)
-    sharedCases = data || []
-  }
+  const sharedCases: any[] = (accessResult.data || [])
+    .map((r: any) => (Array.isArray(r.cases) ? r.cases[0] : r.cases))
+    .filter(Boolean)
 
   const allCasesMap = new Map()
   ;[...(primaryCases || []), ...(openCases || []), ...sharedCases].forEach((c) => allCasesMap.set(c.id, c))
@@ -69,8 +71,11 @@ export default async function LawyerDashboardPage() {
     new Set(casesRaw.map((c: any) => c.client_id).filter(Boolean))
   )
 
-  // الجلسات والمواعيد والموكلون — دفعة واحدة، ولا ينتظر بعضها بعضاً
-  const [sessionsResult, deadlinesResult, clientsResult] = await Promise.all([
+  /** معرّفات القضايا المغلقة — تُحسب قبل الموجة ليأتي استعلام مستنداتها معها */
+  const closedCaseIds = casesRaw.filter((c: any) => c.status === 'closed').map((c: any) => c.id)
+
+  // الجلسات والمواعيد والموكلون ومستندات المغلقة — دفعة واحدة
+  const [sessionsResult, deadlinesResult, clientsResult, closedDocsResult] = await Promise.all([
     caseIds.length > 0
       ? supabase
           .from('sessions')
@@ -86,28 +91,21 @@ export default async function LawyerDashboardPage() {
           .eq('is_resolved', false)
       : Promise.resolve({ data: [] as any[] }),
     clientIds.length > 0
-      ? supabase.from('clients').select('id, user_id').in('id', clientIds)
+      ? supabase.from('clients').select('id, users ( full_name )').in('id', clientIds)
+      : Promise.resolve({ data: [] as any[] }),
+    closedCaseIds.length > 0
+      ? supabase.from('documents').select('case_id, storage_provider').in('case_id', closedCaseIds)
       : Promise.resolve({ data: [] as any[] }),
   ])
 
   const lawyerSessions = sessionsResult.data
   const lawyerDeadlines = deadlinesResult.data
 
-  // أسماء الموكّلين: استعلام واحد لا استعلامان لكل قضية
-  const clientRows = clientsResult.data || []
-  const clientUserIds = clientRows.map((r: any) => r.user_id).filter(Boolean)
-
-  const { data: clientUsers } = clientUserIds.length > 0
-    ? await supabase.from('users').select('id, full_name').in('id', clientUserIds)
-    : { data: [] as any[] }
-
-  const userNameById: Record<string, string> = {}
-  ;(clientUsers || []).forEach((u: any) => { userNameById[u.id] = u.full_name })
-
+  // أسماء الموكّلين جاءت مضمومة مع صفوفهم، فلا استعلام ثانٍ لها
   const clientNameById: Record<string, string> = {}
-  clientRows.forEach((r: any) => {
-    const name = userNameById[r.user_id]
-    if (name) clientNameById[r.id] = name
+  ;(clientsResult.data || []).forEach((r: any) => {
+    const u = Array.isArray(r.users) ? r.users[0] : r.users
+    if (u?.full_name) clientNameById[r.id] = u.full_name
   })
 
   /**
@@ -147,25 +145,14 @@ export default async function LawyerDashboardPage() {
    * والمغلقة التي تعثّرت أرشفتها تبقى في «قضاياي»، فلا تغيب عن المحامي
    * وهي تنتظر إجراءً.
    */
-  const closedCaseIds = casesRaw.filter((c: any) => c.status === 'closed').map((c: any) => c.id)
+  const pendingByCase: Record<string, number> = {}
+  ;(closedDocsResult.data || []).forEach((d: any) => {
+    if (d.storage_provider !== 'r2') {
+      pendingByCase[d.case_id] = (pendingByCase[d.case_id] || 0) + 1
+    }
+  })
 
-  let archivedIds = new Set<string>()
-
-  if (closedCaseIds.length > 0) {
-    const { data: closedDocs } = await supabase
-      .from('documents')
-      .select('case_id, storage_provider')
-      .in('case_id', closedCaseIds)
-
-    const pendingByCase: Record<string, number> = {}
-    ;(closedDocs || []).forEach((d: any) => {
-      if (d.storage_provider !== 'r2') {
-        pendingByCase[d.case_id] = (pendingByCase[d.case_id] || 0) + 1
-      }
-    })
-
-    archivedIds = new Set(closedCaseIds.filter((id: string) => !pendingByCase[id]))
-  }
+  const archivedIds = new Set(closedCaseIds.filter((id: string) => !pendingByCase[id]))
 
   // اسم الموكل وأقرب جلسة — من الخرائط المبنيّة أعلاه، بلا أي استعلام إضافي
   const allCases = casesRaw.map((c: any) => ({

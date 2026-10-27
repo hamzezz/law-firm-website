@@ -36,32 +36,21 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/portal.html')
 
-  const { data: appUser } = await supabase
-    .from('users')
-    .select('id, role, username')
-    .eq('auth_id', user.id)
-    .single()
-
-  if (!appUser || appUser.role !== 'manager') redirect('/portal.html')
-
-  const { data: caseRow } = await supabase
-    .from('cases')
-    .select('id, case_number, title, case_type, status, court_name, opened_at, other_party, client_id, primary_lawyer_id')
-    .eq('id', id)
-    .single()
-
-  if (!caseRow) notFound()
-
   /**
-   * الموكّل والمحامي والمواعيد والجلسات والمستندات — خمسة استعلامات
-   * مستقلّة كانت تنتظر بعضها بلا سبب، وصارت موجة واحدة.
+   * موجة واحدة: هوية المدير، والقضية بأسماء موكّلها ومحاميها مضمومة،
+   * ومواعيدها وجلساتها ومستنداتها.
+   *
+   * كانت خمس موجات متتابعة. والخادم في Oregon وقاعدة البيانات في
+   * Frankfurt، فكل موجة ربع ثانية إلى ثلث.
    */
-  const [clientResult, lawyerResult, deadlinesResult, sessionsResult, documentsResult] =
+  const [userResult, caseResult, deadlinesResult, sessionsResult, documentsResult] =
     await Promise.all([
-      supabase.from('clients').select('user_id').eq('id', caseRow.client_id).single(),
-      caseRow.primary_lawyer_id
-        ? supabase.from('lawyers').select('user_id').eq('id', caseRow.primary_lawyer_id).single()
-        : Promise.resolve({ data: null as any }),
+      supabase.from('users').select('id, role, username').eq('auth_id', user.id).single(),
+      supabase
+        .from('cases')
+        .select('id, case_number, title, case_type, status, court_name, opened_at, other_party, client_id, primary_lawyer_id, clients ( users ( full_name ) ), lawyers ( users ( full_name ) )')
+        .eq('id', id)
+        .single(),
       supabase
         .from('critical_deadlines')
         .select('id, deadline_type, description, deadline_date, is_resolved')
@@ -80,23 +69,27 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
         .order('uploaded_at', { ascending: false }),
     ])
 
+  const appUser = userResult.data
+  if (!appUser || appUser.role !== 'manager') redirect('/portal.html')
+
+  const caseRow = caseResult.data
+  if (!caseRow) notFound()
+
   const deadlines = deadlinesResult.data
   const sessionsRaw = sessionsResult.data
   const documents = documentsResult.data
 
-  // اسما الموكّل والمحامي من جدول المستخدمين — استعلام واحد للاثنين
-  const nameUserIds = [clientResult.data?.user_id, lawyerResult.data?.user_id].filter(Boolean)
+  /** الاسم المضموم قد يأتي كائناً أو مصفوفة بحسب العلاقة، فيُقرأ على الوجهين */
+  function joinedName(rel: any): string | null {
+    const row = Array.isArray(rel) ? rel[0] : rel
+    if (!row) return null
+    const u = Array.isArray(row.users) ? row.users[0] : row.users
+    return u?.full_name || null
+  }
 
-  const { data: nameUsers } = nameUserIds.length > 0
-    ? await supabase.from('users').select('id, full_name').in('id', nameUserIds)
-    : { data: [] as any[] }
-
-  const fullNameById: Record<string, string> = {}
-  ;(nameUsers || []).forEach((u: any) => { fullNameById[u.id] = u.full_name })
-
-  const clientName = fullNameById[clientResult.data?.user_id] || 'غير محدد'
+  const clientName = joinedName((caseRow as any).clients) || 'غير محدد'
   const lawyerName = caseRow.primary_lawyer_id
-    ? fullNameById[lawyerResult.data?.user_id] || 'غير محدد'
+    ? joinedName((caseRow as any).lawyers) || 'غير محدد'
     : 'الكل (غير مخصصة)'
 
   /**

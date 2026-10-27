@@ -9,55 +9,71 @@ export default async function ClientDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/portal.html')
 
-  const { data: appUser } = await supabase
-    .from('users').select('id, full_name').eq('auth_id', user.id).single()
-  if (!appUser) {
-    return <div className="min-h-screen flex items-center justify-center p-4" dir="rtl"><p className="text-slate-600">لم يتم العثور على حساب مرتبط بالمصادقة.</p></div>
+  /**
+   * الموكّل وحسابه في استعلام واحد بدل اثنين.
+   *
+   * الخادم في Oregon وقاعدة البيانات في Frankfurt، فكل استعلامٍ متتابع
+   * يكلّف ربع ثانية. وإن تعذّرت الضمّة لسببٍ ما رجعنا إلى المسار القديم،
+   * فلا تنكسر البوابة في كل الأحوال.
+   */
+  let clientId: string | null = null
+  let clientName = ''
+
+  const { data: joined } = await supabase
+    .from('clients')
+    .select('id, users!inner ( id, full_name, auth_id )')
+    .eq('users.auth_id', user.id)
+    .maybeSingle()
+
+  if (joined) {
+    clientId = (joined as any).id
+    const u: any = Array.isArray((joined as any).users) ? (joined as any).users[0] : (joined as any).users
+    clientName = u?.full_name || ''
+  } else {
+    const { data: appUser } = await supabase
+      .from('users').select('id, full_name').eq('auth_id', user.id).single()
+    if (!appUser) {
+      return <div className="min-h-screen flex items-center justify-center p-4" dir="rtl"><p className="text-slate-600">لم يتم العثور على حساب مرتبط بالمصادقة.</p></div>
+    }
+    clientName = appUser.full_name
+
+    const { data: clientRow } = await supabase
+      .from('clients').select('id').eq('user_id', appUser.id).single()
+    if (clientRow) clientId = clientRow.id
   }
 
-  const { data: clientRow } = await supabase
-    .from('clients').select('id').eq('user_id', appUser.id).single()
-  if (!clientRow) {
+  if (!clientId) {
     return <div className="min-h-screen flex items-center justify-center p-4" dir="rtl"><p className="text-slate-600">لم يتم العثور على بيانات الموكل المرتبطة بحسابك.</p></div>
   }
 
+  /**
+   * القضايا وجلساتها في استعلام واحد.
+   * كانت الجلسات استعلاماً ثانياً ينتظر معرّفات القضايا، وصارت تأتي معها.
+   */
   const { data: casesRaw } = await supabase
     .from('cases')
-    .select('id, case_number, title, case_type, status, court_name, opened_at')
-    .eq('client_id', clientRow.id)
+    .select('id, case_number, title, case_type, status, court_name, opened_at, sessions ( session_date, status )')
+    .eq('client_id', clientId)
     .order('opened_at', { ascending: false })
 
   // أقرب جلسة قادمة لكل قضية — ما لم يمرّ موعدها بعد
   const todayStr = new Date().toISOString().slice(0, 10)
-  const caseIds = (casesRaw || []).map((c: any) => c.id)
 
-  // كانت جلسة لكل قضية على حدة، وصارت استعلاماً واحداً للجميع
-  const { data: upcomingSessions } = caseIds.length > 0
-    ? await supabase
-        .from('sessions')
-        .select('case_id, session_date')
-        .in('case_id', caseIds)
-        .eq('status', 'scheduled')
-        .gte('session_date', todayStr)
-        .order('session_date', { ascending: true })
-    : { data: [] as any[] }
+  const cases = (casesRaw || []).map((c: any) => {
+    const upcoming = (c.sessions || [])
+      .filter((s: any) => s.status === 'scheduled' && String(s.session_date).slice(0, 10) >= todayStr)
+      .map((s: any) => s.session_date)
+      .sort()
 
-  // الترتيب تصاعدي، فأول ما يُصادَف لكل قضية هو أقربها
-  const nextByCase: Record<string, string> = {}
-  ;(upcomingSessions || []).forEach((s: any) => {
-    if (!nextByCase[s.case_id]) nextByCase[s.case_id] = s.session_date
+    const { sessions: _ignored, ...rest } = c
+    return { ...rest, nextSessionDate: upcoming[0] || null }
   })
-
-  const cases = (casesRaw || []).map((c: any) => ({
-    ...c,
-    nextSessionDate: nextByCase[c.id] || null,
-  }))
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
       <ClientShell
         cases={cases}
-        clientName={appUser.full_name}
+        clientName={clientName}
         headerActions={
           <div className="contents">
             <ChangePassword />
