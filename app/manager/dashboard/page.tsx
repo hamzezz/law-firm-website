@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { startTimer } from '@/lib/perf/timer'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import LogoutButton from '@/app/staff/logout-button'
 import ChangePassword from '@/app/components/change-password'
@@ -14,8 +15,11 @@ import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
 
 export default async function ManagerDashboardPage() {
+  const perf = startTimer('لوحة المدير')
   const supabase = await createClient()
+  perf.mark('إنشاء-العميل')
   const { data: { user } } = await supabase.auth.getUser()
+  perf.mark('تحقق-الهوية')
   if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
@@ -28,6 +32,7 @@ export default async function ManagerDashboardPage() {
     redirect('/portal.html')
   }
 
+  perf.mark('المستخدم')
   const isTech = appUser.username === 'tech'
 
   const { data: cases } = await supabase
@@ -40,6 +45,7 @@ export default async function ManagerDashboardPage() {
    * والقضية المغلقة التي تعثّرت أرشفتها تبقى في «القضايا» لا في «الأرشيف»،
    * كي لا تختفي من بين يدي المدير وهي تنتظر إجراءً.
    */
+  perf.mark('القضايا')
   const closedCaseIds = (cases || [])
     .filter((c: any) => c.status === 'closed')
     .map((c: any) => c.id)
@@ -98,6 +104,7 @@ export default async function ManagerDashboardPage() {
     }))
   }
 
+  perf.mark('الأرشفة+حالة-الإشعارات')
   const { data: allClients } = await supabase
     .from('clients')
     .select('id, users ( full_name )')
@@ -121,6 +128,7 @@ export default async function ManagerDashboardPage() {
     .select('id, deadline_type, deadline_date, case_id, cases ( title, case_number )')
     .eq('is_resolved', false)
 
+  perf.mark('الموكلون+المحامون+السجل+الجلسات+المواعيد')
   const calendarEvents = [
     ...(allSessions || []).map((s) => ({
       date: new Date(s.session_date).toISOString().slice(0, 10),
@@ -149,6 +157,7 @@ export default async function ManagerDashboardPage() {
     .from('lawyers')
     .select('*', { count: 'exact', head: true })
 
+  perf.mark('المحاكم+الأعداد')
   // tech يدير الجميع (بما فيهم المدراء)، أي مدير آخر يدير فقط المحامين والموكلين
   const managedRoles = isTech ? ['lawyer', 'client', 'manager'] : ['lawyer', 'client']
 
@@ -162,6 +171,9 @@ export default async function ManagerDashboardPage() {
   const manageableAccounts = manageableAccountsRaw
     ? manageableAccountsRaw.filter((a) => a.username !== 'tech')
     : []
+
+  perf.mark('الحسابات')
+  perf.end()
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { startTimer } from '@/lib/perf/timer'
 import { documentLinks } from '@/lib/documents/signed-urls'
 import SessionCard from './session-card'
 import CriticalDeadlines from './critical-deadlines'
@@ -28,9 +29,12 @@ function fmt(value: string | null) {
 }
 
 export default async function LawyerCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const perf = startTimer('قضية المحامي')
   const { id } = await params
   const supabase = await createClient()
+  perf.mark('إنشاء-العميل')
   const { data: { user } } = await supabase.auth.getUser()
+  perf.mark('تحقق-الهوية')
   if (!user) redirect('/portal.html')
 
   const { data: appUser } = await supabase
@@ -39,6 +43,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
     .eq('auth_id', user.id)
     .single()
 
+  perf.mark('المستخدم')
   if (!appUser || appUser.role !== 'lawyer') redirect('/portal.html')
 
   const { data: lawyerRow } = await supabase
@@ -47,6 +52,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
     .eq('user_id', appUser.id)
     .single()
 
+  perf.mark('المحامي')
   if (!lawyerRow) redirect('/lawyer/dashboard')
 
   // القضية وصلاحية الوصول إليها — لا ينتظر أحدهما الآخر
@@ -64,6 +70,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
       .maybeSingle(),
   ])
 
+  perf.mark('القضية+الصلاحية')
   const caseRow = caseResult.data
   const accessRow = accessResult.data
 
@@ -100,6 +107,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
       .order('uploaded_at', { ascending: false }),
   ])
 
+  perf.mark('المواعيد+الجلسات+المستندات')
   const deadlines = deadlinesResult.data
   const sessionsRaw = sessionsResult.data
   const documents = documentsResult.data
@@ -132,6 +140,9 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
 
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
   const docsWithUrls = documentLinks(documents as any)
+
+  perf.mark('اسم-الموكّل')
+  perf.end()
 
   const caseClosed = caseRow.status === 'closed'
   const todayStr = new Date().toISOString().slice(0, 10)
