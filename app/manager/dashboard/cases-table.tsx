@@ -1,5 +1,7 @@
 'use client'
 
+import { matchesArabic } from '@/lib/text/arabic'
+
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -149,12 +151,22 @@ export default function CasesTable({ cases, allLawyers }: any) {
     let result = localCases || []
 
     if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      result = result.filter(
-        (c: any) =>
-          c.case_number?.toLowerCase().includes(q) ||
-          c.title?.toLowerCase().includes(q) ||
-          c.clients?.users?.full_name?.toLowerCase().includes(q)
+      // تطبيع عربي: من كتب «احمد» يجد «أحمد»، ومن كتب 1448 يجد ١٤٤٨
+      result = result.filter((c: any) =>
+        matchesArabic(
+          [
+            c.case_number,
+            c.title,
+            c.clients?.users?.full_name,
+            c.lawyers?.users?.full_name,
+            c.other_party,
+            c.court_name,
+            c.case_type,
+          ]
+            .filter(Boolean)
+            .join(' '),
+          search
+        )
       )
     }
 
@@ -198,7 +210,7 @@ export default function CasesTable({ cases, allLawyers }: any) {
       <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3">
         <input
           type="text"
-          placeholder="بحث برقم القضية أو العنوان أو اسم الموكل"
+          placeholder="بحث برقم القضية أو العنوان أو اسم الموكل أو الخصم"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)

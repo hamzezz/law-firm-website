@@ -72,7 +72,7 @@ export default async function ManagerDashboardPage() {
   ] = await Promise.all([
     supabase
       .from('cases')
-      .select('id, case_number, title, case_type, status, stage, court_name, opened_at, clients ( id, national_id, users ( full_name ) ), lawyers ( id, users ( full_name ) )')
+      .select('id, case_number, title, case_type, status, stage, court_name, opened_at, other_party, clients ( id, national_id, users ( full_name ) ), lawyers ( id, users ( full_name ) )')
       .order('opened_at', { ascending: false }),
     supabase.from('clients').select('id, users ( full_name )'),
     supabase.from('lawyers').select('id, user_id, users ( full_name )'),
@@ -213,7 +213,7 @@ export default async function ManagerDashboardPage() {
       <RegisterDeviceToken />
 
       <main className="max-w-5xl mx-auto px-4 py-4 space-y-4 pb-28 md:p-6 md:space-y-6 md:pb-10">
-        <GlobalSearch />
+        <GlobalSearch cases={cases} />
 
         <ManagerTabs
           calendarEvents={calendarEvents}
