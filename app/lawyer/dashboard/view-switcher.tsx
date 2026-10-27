@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import CalendarView from './calendar-view'
-import { matchesArabic } from '@/lib/text/arabic'
+import { matchesArabic, shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
 import { useHashTab } from '@/app/components/use-hash-tab'
 
 /**
@@ -203,8 +203,10 @@ export default function ViewSwitcher({
   const visibleCases = filterCases(cases || [])
   const visibleArchive = filterCases(archive)
 
-  const todayKey = dateKey(new Date().toISOString())
-  const todayCases = (cases || []).filter((c) => dateKey(c.nextSessionDate) === todayKey)
+  /** جلسات الغد: القضايا التي أقرب جلسةٍ مجدولة لها تقع غداً */
+  const tKey = tomorrowKey()
+  const tomorrowCases = (cases || []).filter((c) => localDateKey(c.nextSessionDate) === tKey)
+  const tomorrowDay = tomorrowWeekday()
 
   const tabBase = 'px-5 py-3 text-sm font-bold border-b-2 transition'
   const tabOn = tabBase + ' border-emerald-600 text-emerald-700'
@@ -266,30 +268,30 @@ export default function ViewSwitcher({
           <div className={view === 'account' ? 'hidden md:block' : ''}>
             <SearchBox value={q} onChange={setQ} placeholder="ابحث برقم القضية أو اسم الموكّل أو المحكمة…" />
 
-            {todayCases.length > 0 && !q.trim() && (
+            {tomorrowCases.length > 0 && !q.trim() && (
               <section className="mb-7">
                 <div className="flex items-center gap-3 mb-3">
                   <h2 className="font-display font-bold text-sm text-slate-700 whitespace-nowrap">
-                    جلسات اليوم — {todayCases.length}
+                    جلسات يوم غدٍ{tomorrowDay ? ' ' + tomorrowDay : ''} — {tomorrowCases.length}
                   </h2>
                   <span className="flex-1 h-px bg-slate-200" />
                 </div>
 
                 <div className="space-y-2.5">
-                  {todayCases.map((c) => (
+                  {tomorrowCases.map((c) => (
                     <Link
-                      key={'today-' + c.id}
+                      key={'tomorrow-' + c.id}
                       href={'/lawyer/cases/' + c.id}
                       className="flex items-start gap-3 bg-white rounded-xl border border-slate-200/80 border-r-[3px] border-r-emerald-600 p-3.5 shadow-sm hover:border-emerald-300 transition"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="font-display font-bold text-slate-900 text-sm leading-snug">{c.clientName}</p>
-                        <p className="text-slate-500 text-[11px] mt-1">
-                          {c.court_name ? c.court_name + ' — ' : ''}
-                          {c.case_number}
-                        </p>
+                        <p className="font-display font-bold text-slate-900 text-sm leading-snug">{c.title}</p>
+                        <p className="text-slate-600 text-[12px] mt-1">{shortArabicName(c.clientName)}</p>
+                        {c.court_name && (
+                          <p className="text-slate-400 text-[11px] mt-0.5">{c.court_name}</p>
+                        )}
                       </div>
-                      <span className="text-emerald-700 text-[11px] font-bold shrink-0 mt-0.5">اليوم</span>
+                      <span className="text-emerald-700 text-[11px] font-bold shrink-0 mt-0.5">غداً</span>
                     </Link>
                   ))}
                 </div>

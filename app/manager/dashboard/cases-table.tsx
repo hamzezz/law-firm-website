@@ -253,9 +253,21 @@ export default function CasesTable({ cases, allLawyers }: any) {
 
       <div className="divide-y divide-slate-100">
         {visible.map((c: any) => (
-          <div key={c.id} className="p-4 hover:bg-slate-50 transition">
-            <div className="flex items-start justify-between mb-2">
-              <Link href={`/manager/cases/${c.id}`} className="flex-1 min-w-0">
+          <div key={c.id} className="relative p-4 hover:bg-slate-50 transition">
+            {/*
+              رابط ممتدّ يغطّي البطاقة كلّها، فتُفتح القضية بالضغط في أي موضع.
+              ولا يُلفّ الكرت كلّه في رابط لأن داخله قائمة اختيار وزرّاً،
+              ولا يصحّ وضع عنصر تفاعلي داخل رابط. فالرابط تحتهما طبقةً،
+              وهما فوقه بـ relative z-10.
+            */}
+            <Link
+              href={`/manager/cases/${c.id}`}
+              aria-label={'فتح القضية: ' + c.title}
+              className="absolute inset-0 z-0"
+            />
+
+            <div className="relative flex items-start justify-between mb-2 pointer-events-none">
+              <div className="flex-1 min-w-0">
                 <h4 className="font-bold text-slate-900 text-sm hover:text-amber-600 transition leading-snug">{c.title}</h4>
 
                 {/* سطر البيانات: رقم القضية · الموكل · المحكمة — يلتفّ على الشاشات الضيّقة */}
@@ -288,14 +300,14 @@ export default function CasesTable({ cases, allLawyers }: any) {
                     </>
                   )}
                 </div>
-              </Link>
+              </div>
               <div className="flex flex-col gap-1 items-end">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadge(c.status)}`}>{statusLabel(c.status)}</span>
                 {c.stage && (<span className={`px-3 py-1 rounded-full text-xs font-bold ${stageBadge(c.stage)}`}>{c.stage}</span>)}
               </div>
               </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+            <div className="relative z-10 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
               <select
                 value={c.lawyers?.id || 'all'}
                 onChange={(e) => handleLawyerChange(c.id, e.target.value)}

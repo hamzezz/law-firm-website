@@ -148,9 +148,9 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
           <Link
             href="/lawyer/dashboard#cases"
             aria-label="رجوع لقضاياي"
-            className="md:hidden shrink-0 w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-700"
+            className="md:hidden shrink-0 w-11 h-11 rounded-full active:scale-95 transition bg-slate-100 flex items-center justify-center text-slate-700"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[17px] h-[17px]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[21px] h-[21px]">
               <path d="M9 6l6 6-6 6" />
             </svg>
           </Link>

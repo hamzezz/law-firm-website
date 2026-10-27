@@ -12,21 +12,48 @@ export default async function LawyerDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/portal.html')
 
-  const { data: appUser } = await supabase
-    .from('users')
-    .select('id, role, full_name')
-    .eq('auth_id', user.id)
-    .single()
+  /**
+   * المحامي وحسابه في استعلام واحد بدل اثنين متتابعين.
+   *
+   * الخادم في Oregon وقاعدة البيانات في Frankfurt، فكل موجة تكلّف
+   * ربع ثانية. وإن تعذّرت الضمّة رجعنا إلى الاستعلامين، فلا ينكسر الدخول.
+   */
+  let lawyerRow: any = null
+  let lawyerName = ''
+  let appUserId = ''
 
-  if (!appUser || appUser.role !== 'lawyer') {
-    redirect('/portal.html')
-  }
-
-  const { data: lawyerRow } = await supabase
+  const { data: joined } = await supabase
     .from('lawyers')
-    .select('id, specialization, bar_number')
-    .eq('user_id', appUser.id)
-    .single()
+    .select('id, specialization, bar_number, users!inner ( id, role, full_name, auth_id )')
+    .eq('users.auth_id', user.id)
+    .maybeSingle()
+
+  if (joined) {
+    const u: any = Array.isArray((joined as any).users) ? (joined as any).users[0] : (joined as any).users
+    if (!u || u.role !== 'lawyer') redirect('/portal.html')
+    lawyerRow = { id: (joined as any).id, specialization: (joined as any).specialization, bar_number: (joined as any).bar_number }
+    lawyerName = u.full_name || ''
+    appUserId = u.id
+  } else {
+    const { data: appUser } = await supabase
+      .from('users')
+      .select('id, role, full_name')
+      .eq('auth_id', user.id)
+      .single()
+
+    if (!appUser || appUser.role !== 'lawyer') {
+      redirect('/portal.html')
+    }
+    lawyerName = appUser.full_name
+    appUserId = appUser.id
+
+    const { data: row } = await supabase
+      .from('lawyers')
+      .select('id, specialization, bar_number')
+      .eq('user_id', appUser.id)
+      .single()
+    lawyerRow = row
+  }
 
   if (!lawyerRow) {
     return (
@@ -183,12 +210,12 @@ export default async function LawyerDashboardPage() {
         cases={cases}
         archivedCases={archivedCases}
         calendarEvents={calendarEvents}
-        lawyerName={appUser.full_name}
+        lawyerName={lawyerName}
         specialization={lawyerRow.specialization}
-        bell={<NotificationBell userId={appUser.id} />}
+        bell={<NotificationBell userId={appUserId} />}
         headerActions={
           <div className="contents">
-            <EnableNotifications userId={appUser.id} />
+            <EnableNotifications userId={appUserId} />
             <ChangePassword />
             <LogoutButton />
           </div>
@@ -196,7 +223,7 @@ export default async function LawyerDashboardPage() {
         accountActions={
           <div className="contents">
             <div className="py-4 border-b border-slate-100">
-              <EnableNotifications userId={appUser.id} />
+              <EnableNotifications userId={appUserId} />
             </div>
             <ChangePassword className="w-full text-right text-sm font-medium text-slate-700 py-4 border-b border-slate-100" />
             <LogoutButton className="w-full text-right text-sm font-medium text-red-600 py-4" />

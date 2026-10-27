@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useHashTab } from '@/app/components/use-hash-tab'
+import { shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CasesTable from './cases-table'
@@ -458,6 +460,29 @@ export default function ManagerTabs({
   calendarEvents, auditLogs, allSessions, manageableAccounts, isTech,
   backupPanel, uploadPanel, accountActions,
 }: any) {
+  /**
+   * جلسات الغد: تُبنى من الجلسات والقضايا المحمّلة أصلاً، بلا استعلام.
+   * والمقارنة بالتاريخ المحلّي لا بتوقيت غرينتش، كيلا تنزلق الجلسة يوماً.
+   */
+  const tKey = tomorrowKey()
+  const tomorrowDay = tomorrowWeekday()
+
+  const caseById: Record<string, any> = {}
+  ;(cases || []).forEach((c: any) => { caseById[c.id] = c })
+
+  const tomorrowSessions = (allSessions || [])
+    .filter((s: any) => localDateKey(s.session_date) === tKey)
+    .map((s: any) => {
+      const c = caseById[s.case_id]
+      return {
+        id: s.id,
+        caseId: s.case_id,
+        title: (c && c.title) || s.title || 'قضية',
+        client: shortArabicName(c && c.clients && c.clients.users ? c.clients.users.full_name : ''),
+        court: (c && c.court_name) || '',
+      }
+    })
+
   const [activeTab, setActiveTab] = useHashTab(
     ['overview', 'calendar', 'add', 'clients-cases', 'archive', 'team',
      'permissions', 'accounts', 'upload', 'backup', 'more'] as const,
@@ -525,6 +550,34 @@ export default function ManagerTabs({
       {/* ═══════════ الإحصائيات ═══════════ */}
       {activeTab === 'overview' && (
         <div>
+          {tomorrowSessions.length > 0 && (
+            <section className="mb-5">
+              <div className="flex items-center gap-3 mb-3">
+                <h2 className="font-display font-bold text-sm text-slate-700 whitespace-nowrap">
+                  جلسات يوم غدٍ{tomorrowDay ? ' ' + tomorrowDay : ''} — {tomorrowSessions.length}
+                </h2>
+                <span className="flex-1 h-px bg-slate-200" />
+              </div>
+
+              <div className="space-y-2.5">
+                {tomorrowSessions.map((t: any) => (
+                  <Link
+                    key={'tm-' + t.id}
+                    href={'/manager/cases/' + t.caseId}
+                    className="flex items-start gap-3 bg-white rounded-xl border border-slate-200/80 border-r-[3px] border-r-amber-500 p-3.5 shadow-sm hover:border-amber-300 transition"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display font-bold text-slate-900 text-sm leading-snug">{t.title}</p>
+                      {t.client && <p className="text-slate-600 text-[12px] mt-1">{t.client}</p>}
+                      {t.court && <p className="text-slate-400 text-[11px] mt-0.5">{t.court}</p>}
+                    </div>
+                    <span className="text-amber-600 text-[11px] font-bold shrink-0 mt-0.5">غداً</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="grid grid-cols-3 gap-2 sm:gap-4">
             <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 text-center border border-slate-200/80">
               <p className="text-2xl sm:text-3xl font-bold text-amber-600">{cases ? cases.length : 0}</p>
