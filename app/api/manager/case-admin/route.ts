@@ -43,8 +43,18 @@ export async function PATCH(request: Request) {
 
   const allowed = ['title', 'case_number', 'court_name', 'case_type', 'stage', 'other_party']
   const patch: Record<string, any> = {}
+  /**
+   * الحقل الفارغ يُحفظ نصّاً فارغاً لا null.
+   *
+   * كان يُحوَّل إلى null، فإذا كان أحد الأعمدة لا يقبل الفراغ — و«stage»
+   * كذلك — رُفض الحفظ كلّه ولو لم يمسّ المستخدم ذلك الحقل أصلاً. وقع هذا
+   * عند تصحيح اسم محكمة قضية مرحلتها فارغة، فتعذّر التعديل بلا سبب ظاهر.
+   *
+   * والنصّ الفارغ يُعامَل في النظام كله معاملة الغياب (c.stage && ...)،
+   * فلا يتغيّر شيء في العرض ولا في المطابقة.
+   */
   for (const k of allowed) {
-    if (typeof fields[k] === 'string') patch[k] = fields[k].trim() || null
+    if (typeof fields[k] === 'string') patch[k] = fields[k].trim()
   }
 
   if (Object.keys(patch).length === 0) {
