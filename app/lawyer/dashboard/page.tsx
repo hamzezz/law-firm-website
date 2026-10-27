@@ -139,12 +139,45 @@ export default async function LawyerDashboardPage() {
     })),
   ]
 
+  /**
+   * القضايا المؤرشفة: المغلقة التي انتقلت كل مستنداتها إلى R2 فعلاً —
+   * وهو تعريف الأرشفة نفسه المعتمد في لوحة المدير، كيلا يختلف معنى
+   * «مؤرشفة» بين شاشتين في نظامٍ واحد.
+   *
+   * والمغلقة التي تعثّرت أرشفتها تبقى في «قضاياي»، فلا تغيب عن المحامي
+   * وهي تنتظر إجراءً.
+   */
+  const closedCaseIds = casesRaw.filter((c: any) => c.status === 'closed').map((c: any) => c.id)
+
+  let archivedIds = new Set<string>()
+
+  if (closedCaseIds.length > 0) {
+    const { data: closedDocs } = await supabase
+      .from('documents')
+      .select('case_id, storage_provider')
+      .in('case_id', closedCaseIds)
+
+    const pendingByCase: Record<string, number> = {}
+    ;(closedDocs || []).forEach((d: any) => {
+      if (d.storage_provider !== 'r2') {
+        pendingByCase[d.case_id] = (pendingByCase[d.case_id] || 0) + 1
+      }
+    })
+
+    archivedIds = new Set(closedCaseIds.filter((id: string) => !pendingByCase[id]))
+  }
+
   // اسم الموكل وأقرب جلسة — من الخرائط المبنيّة أعلاه، بلا أي استعلام إضافي
-  const cases = casesRaw.map((c: any) => ({
+  const allCases = casesRaw.map((c: any) => ({
     ...c,
     clientName: clientNameById[c.client_id] || 'غير محدد',
     nextSessionDate: nextSessionByCase[c.id] || null,
   }))
+
+  const cases = allCases.filter((c: any) => !archivedIds.has(c.id))
+  const archivedCases = allCases
+    .filter((c: any) => archivedIds.has(c.id))
+    .sort((a: any, b: any) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime())
 
   cases.sort((a, b) => {
     if (a.nextSessionDate && b.nextSessionDate) {
@@ -161,6 +194,7 @@ export default async function LawyerDashboardPage() {
 
       <ViewSwitcher
         cases={cases}
+        archivedCases={archivedCases}
         calendarEvents={calendarEvents}
         lawyerName={appUser.full_name}
         specialization={lawyerRow.specialization}

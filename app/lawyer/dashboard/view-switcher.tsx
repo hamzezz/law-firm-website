@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import CalendarView from './calendar-view'
+import { matchesArabic } from '@/lib/text/arabic'
 
 /**
  * واجهة لوحة المحامي.
@@ -110,8 +111,40 @@ function CaseCard({ c }: { c: any }) {
   )
 }
 
+/** مربّع البحث في القضايا */
+function SearchBox({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+}) {
+  return (
+    <div className="relative mb-4">
+      <input
+        id="case-search"
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pr-11 pl-4 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-300 transition"
+      />
+      <svg
+        className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-3.5-3.5" strokeLinecap="round" />
+      </svg>
+    </div>
+  )
+}
+
 export default function ViewSwitcher({
   cases,
+  archivedCases,
   calendarEvents,
   lawyerName,
   specialization,
@@ -120,6 +153,7 @@ export default function ViewSwitcher({
   accountActions,
 }: {
   cases: any[]
+  archivedCases?: any[]
   calendarEvents: any[]
   lawyerName: string
   specialization: string
@@ -127,7 +161,26 @@ export default function ViewSwitcher({
   headerActions: React.ReactNode
   accountActions: React.ReactNode
 }) {
-  const [view, setView] = useState<'cases' | 'calendar' | 'account'>('cases')
+  const [view, setView] = useState<'cases' | 'calendar' | 'account' | 'archive'>('cases')
+  const [q, setQ] = useState('')
+
+  const archive = archivedCases || []
+
+  /** البحث يشمل رقم القضية وعنوانها والموكّل والطرف الآخر والمحكمة */
+  function filterCases(list: any[]) {
+    if (!q.trim()) return list
+    return list.filter((c) =>
+      matchesArabic(
+        [c.case_number, c.title, c.clientName, c.other_party, c.court_name, c.case_type]
+          .filter(Boolean)
+          .join(' '),
+        q
+      )
+    )
+  }
+
+  const visibleCases = filterCases(cases || [])
+  const visibleArchive = filterCases(archive)
 
   const todayKey = dateKey(new Date().toISOString())
   const todayCases = (cases || []).filter((c) => dateKey(c.nextSessionDate) === todayKey)
@@ -144,7 +197,13 @@ export default function ViewSwitcher({
         <div className="min-w-0 flex-1">
           <h1 className="font-display font-bold text-base leading-tight text-slate-900 md:text-xl md:text-white">
             <span className="md:hidden">
-              {view === 'calendar' ? 'التقويم' : view === 'account' ? 'حسابي' : 'قضاياي'}
+              {view === 'calendar'
+                ? 'التقويم'
+                : view === 'account'
+                ? 'حسابي'
+                : view === 'archive'
+                ? 'الأرشيف'
+                : 'قضاياي'}
             </span>
             <span className="hidden md:inline">لوحة تحكم المحامي</span>
           </h1>
@@ -173,13 +232,20 @@ export default function ViewSwitcher({
         <button onClick={() => setView('calendar')} className={view === 'calendar' ? tabOn : tabOff}>
           📅 التقويم
         </button>
+        {archive.length > 0 && (
+          <button onClick={() => setView('archive')} className={view === 'archive' ? tabOn : tabOff}>
+            الأرشيف — {archive.length}
+          </button>
+        )}
       </div>
 
       {/* ===== المحتوى ===== */}
       <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 md:px-6 md:pt-6 md:pb-12">
-        {view !== 'calendar' && (
+        {view !== 'calendar' && view !== 'archive' && (
           <div className={view === 'account' ? 'hidden md:block' : ''}>
-            {todayCases.length > 0 && (
+            <SearchBox value={q} onChange={setQ} placeholder="ابحث برقم القضية أو اسم الموكّل أو المحكمة…" />
+
+            {todayCases.length > 0 && !q.trim() && (
               <section className="mb-7">
                 <div className="flex items-center gap-3 mb-3">
                   <h2 className="font-display font-bold text-sm text-slate-700 whitespace-nowrap">
@@ -209,21 +275,67 @@ export default function ViewSwitcher({
               </section>
             )}
 
-            <div className="flex items-center gap-3 mb-3 md:hidden">
+            <div className="flex items-center gap-3 mb-3">
               <h2 className="font-display font-bold text-sm text-slate-700 whitespace-nowrap">
-                كل قضاياي — {cases ? cases.length : 0}
+                {q.trim()
+                  ? 'نتائج البحث — ' + visibleCases.length
+                  : 'كل قضاياي — ' + (cases ? cases.length : 0)}
               </h2>
               <span className="flex-1 h-px bg-slate-200" />
             </div>
 
-            {(!cases || cases.length === 0) && (
+            {visibleCases.length === 0 && (
               <div className="bg-white rounded-2xl shadow p-10 text-center text-slate-500">
-                لا توجد قضايا مسندة إليك حالياً.
+                {q.trim() ? (
+                  <>
+                    <p className="text-sm">لا توجد قضية مطابقة لبحثك.</p>
+                    <button
+                      onClick={() => setQ('')}
+                      className="text-emerald-700 text-sm font-bold mt-3 hover:underline"
+                    >
+                      عرض كل القضايا
+                    </button>
+                  </>
+                ) : (
+                  'لا توجد قضايا مسندة إليك حالياً.'
+                )}
               </div>
             )}
 
             <div className="grid gap-3 sm:gap-4">
-              {(cases || []).map((c) => (
+              {visibleCases.map((c) => (
+                <CaseCard key={c.id} c={c} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {view === 'archive' && (
+          <div>
+            <div className="flex items-start gap-3 mb-4 bg-slate-100 border border-slate-200 rounded-xl p-3.5">
+              <span className="text-slate-400 text-lg leading-none mt-0.5">🗄</span>
+              <p className="text-slate-600 text-[12.5px] leading-relaxed">
+                قضايا مغلقة انتقلت مستنداتها إلى الأرشيف. تُعرض هنا للرجوع إليها، ولا تظهر في «قضاياي».
+              </p>
+            </div>
+
+            <SearchBox value={q} onChange={setQ} placeholder="ابحث في الأرشيف…" />
+
+            <div className="flex items-center gap-3 mb-3">
+              <h2 className="font-display font-bold text-sm text-slate-700 whitespace-nowrap">
+                {q.trim() ? 'نتائج البحث — ' + visibleArchive.length : 'القضايا المؤرشفة — ' + archive.length}
+              </h2>
+              <span className="flex-1 h-px bg-slate-200" />
+            </div>
+
+            {visibleArchive.length === 0 && (
+              <div className="bg-white rounded-2xl shadow p-10 text-center text-slate-500 text-sm">
+                {q.trim() ? 'لا توجد قضية مطابقة في الأرشيف.' : 'لا توجد قضايا مؤرشفة.'}
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:gap-4">
+              {visibleArchive.map((c) => (
                 <CaseCard key={c.id} c={c} />
               ))}
             </div>
@@ -241,6 +353,19 @@ export default function ViewSwitcher({
               <p className="font-display font-bold text-slate-900">{lawyerName}</p>
               <p className="text-slate-500 text-xs mt-1">{specialization}</p>
             </div>
+
+            {archive.length > 0 && (
+              <button
+                onClick={() => { setQ(''); setView('archive') }}
+                className="w-full bg-white rounded-2xl border border-slate-200/80 px-4 py-4 shadow-sm flex items-center justify-between text-right"
+              >
+                <span className="text-sm font-medium text-slate-700">
+                  القضايا المؤرشفة
+                  <span className="text-slate-400 font-normal"> — {archive.length}</span>
+                </span>
+                <span className="text-slate-300">‹</span>
+              </button>
+            )}
 
             <div className="bg-white rounded-2xl border border-slate-200/80 px-4 shadow-sm">
               {accountActions}
@@ -261,17 +386,19 @@ export default function ViewSwitcher({
         ].map((t) => (
           <button
             key={t.k}
-            onClick={() => setView(t.k)}
+            onClick={() => { setQ(''); setView(t.k) }}
             className={
               'flex-1 flex flex-col items-center justify-center gap-1 py-2.5 min-h-[56px] text-[11px] transition ' +
-              (view === t.k ? 'text-emerald-700 font-bold' : 'text-slate-400')
+              (view === t.k || (view === 'archive' && t.k === 'account')
+                ? 'text-emerald-700 font-bold'
+                : 'text-slate-400')
             }
           >
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth={view === t.k ? 2 : 1.7}
+              strokeWidth={view === t.k || (view === 'archive' && t.k === 'account') ? 2 : 1.7}
               strokeLinecap="round"
               strokeLinejoin="round"
               className="w-[22px] h-[22px]"
