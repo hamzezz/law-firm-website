@@ -35,100 +35,131 @@ export default async function ManagerDashboardPage() {
   perf.mark('المستخدم')
   const isTech = appUser.username === 'tech'
 
-  const { data: cases } = await supabase
-    .from('cases')
-    .select('id, case_number, title, case_type, status, stage, court_name, opened_at, clients ( id, national_id, users ( full_name ) ), lawyers ( id, users ( full_name ) )')
-    .order('opened_at', { ascending: false })
-
-  /**
-   * القضايا المؤرشفة: المغلقة التي انتقلت كل مستنداتها إلى R2 فعلاً.
-   * والقضية المغلقة التي تعثّرت أرشفتها تبقى في «القضايا» لا في «الأرشيف»،
-   * كي لا تختفي من بين يدي المدير وهي تنتظر إجراءً.
-   */
-  perf.mark('القضايا')
-  const closedCaseIds = (cases || [])
-    .filter((c: any) => c.status === 'closed')
-    .map((c: any) => c.id)
-
-  let archivedCaseIds: string[] = []
-
-  if (closedCaseIds.length > 0) {
-    const { data: closedDocs } = await supabase
-      .from('documents')
-      .select('case_id, storage_provider')
-      .in('case_id', closedCaseIds)
-
-    const pendingByCase: Record<string, number> = {}
-    ;(closedDocs || []).forEach((d: any) => {
-      if (d.storage_provider !== 'r2') {
-        pendingByCase[d.case_id] = (pendingByCase[d.case_id] || 0) + 1
-      }
-    })
-
-    archivedCaseIds = closedCaseIds.filter((id: string) => !pendingByCase[id])
-  }
+  // tech يدير الجميع (بما فيهم المدراء)، أي مدير آخر يدير فقط المحامين والموكلين
+  const managedRoles = isTech ? ['lawyer', 'client', 'manager'] : ['lawyer', 'client']
 
   /**
    * حالة وصول الإشعارات — للمدير التقني وحده.
    * تُقرأ بصلاحية الخادم عمداً: سياسة RLS تحصر كل مستخدم بإشعاراته،
    * وهذه الشاشة تعرض إشعارات الفريق كلّه لتشخيص ما لا يصل.
    */
-  let deliveryRows: any[] = []
+  const admin = isTech
+    ? createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+    : null
 
-  if (isTech) {
-    const admin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    const { data: notifRows } = await admin
-      .from('notifications')
-      .select('id, title, created_at, delivered_at, is_read, recipient_user_id')
+  /**
+   * الموجة الأولى: كل استعلام لا يتوقّف على نتيجة غيره.
+   *
+   * كانت هذه أحد عشر استعلاماً متتابعاً، ينتظر كلٌّ منها الذي قبله بلا سبب.
+   * والخادم في Oregon وقاعدة البيانات في Frankfurt، فكل انتظار يكلّف
+   * ربع ثانية إلى ثلث. فصار الانتظار واحداً لا أحد عشر.
+   */
+  const [
+    casesResult,
+    clientsResult,
+    lawyersResult,
+    auditResult,
+    sessionsResult,
+    deadlinesResult,
+    courtsResult,
+    clientsCountResult,
+    lawyersCountResult,
+    accountsResult,
+    notifResult,
+  ] = await Promise.all([
+    supabase
+      .from('cases')
+      .select('id, case_number, title, case_type, status, stage, court_name, opened_at, clients ( id, national_id, users ( full_name ) ), lawyers ( id, users ( full_name ) )')
+      .order('opened_at', { ascending: false }),
+    supabase.from('clients').select('id, users ( full_name )'),
+    supabase.from('lawyers').select('id, user_id, users ( full_name )'),
+    supabase
+      .from('audit_log')
+      .select('id, action, metadata, created_at, users ( full_name )')
       .order('created_at', { ascending: false })
-      .limit(30)
+      .limit(80),
+    supabase
+      .from('sessions')
+      .select('id, session_date, title, case_id, cases ( title, case_number )'),
+    supabase
+      .from('critical_deadlines')
+      .select('id, deadline_type, deadline_date, case_id, cases ( title, case_number )')
+      .eq('is_resolved', false),
+    supabase.from('yemen_courts').select('id, name').order('name', { ascending: true }),
+    supabase.from('clients').select('*', { count: 'exact', head: true }),
+    supabase.from('lawyers').select('*', { count: 'exact', head: true }),
+    supabase
+      .from('users')
+      .select('id, full_name, username, role')
+      .in('role', managedRoles)
+      .order('role', { ascending: true }),
+    admin
+      ? admin
+          .from('notifications')
+          .select('id, title, created_at, delivered_at, is_read, recipient_user_id')
+          .order('created_at', { ascending: false })
+          .limit(30)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
 
-    const recipientIds = Array.from(
-      new Set((notifRows || []).map((n: any) => n.recipient_user_id).filter(Boolean))
-    )
+  perf.mark('الموجة-الأولى')
 
-    const { data: recipients } = recipientIds.length > 0
-      ? await admin.from('users').select('id, full_name').in('id', recipientIds)
-      : { data: [] as any[] }
+  const cases = casesResult.data
+  const allClients = clientsResult.data
+  const allLawyers = lawyersResult.data
+  const auditLogs = auditResult.data
+  const allSessions = sessionsResult.data
+  const allDeadlines = deadlinesResult.data
+  const yemenCourts = courtsResult.data
+  const clientsCount = clientsCountResult.count
+  const lawyersCount = lawyersCountResult.count
+  const notifRows = notifResult.data || []
 
-    const nameById: Record<string, string> = {}
-    ;(recipients || []).forEach((u: any) => { nameById[u.id] = u.full_name })
+  /**
+   * القضايا المؤرشفة: المغلقة التي انتقلت كل مستنداتها إلى R2 فعلاً.
+   * والقضية المغلقة التي تعثّرت أرشفتها تبقى في «القضايا» لا في «الأرشيف»،
+   * كي لا تختفي من بين يدي المدير وهي تنتظر إجراءً.
+   */
+  const closedCaseIds = (cases || [])
+    .filter((c: any) => c.status === 'closed')
+    .map((c: any) => c.id)
 
-    deliveryRows = (notifRows || []).map((n: any) => ({
-      ...n,
-      recipientName: nameById[n.recipient_user_id] || 'مستخدم',
-    }))
-  }
+  const recipientIds = Array.from(
+    new Set(notifRows.map((n: any) => n.recipient_user_id).filter(Boolean))
+  )
 
-  perf.mark('الأرشفة+حالة-الإشعارات')
-  const { data: allClients } = await supabase
-    .from('clients')
-    .select('id, users ( full_name )')
+  // الموجة الثانية: ما لا يُعرف إلا بعد الأولى
+  const [closedDocsResult, recipientsResult] = await Promise.all([
+    closedCaseIds.length > 0
+      ? supabase.from('documents').select('case_id, storage_provider').in('case_id', closedCaseIds)
+      : Promise.resolve({ data: [] as any[] }),
+    admin && recipientIds.length > 0
+      ? admin.from('users').select('id, full_name').in('id', recipientIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
 
-  const { data: allLawyers } = await supabase
-    .from('lawyers')
-    .select('id, user_id, users ( full_name )')
+  perf.mark('الموجة-الثانية')
 
-  const { data: auditLogs } = await supabase
-    .from('audit_log')
-    .select('id, action, metadata, created_at, users ( full_name )')
-    .order('created_at', { ascending: false })
-    .limit(80)
+  const pendingByCase: Record<string, number> = {}
+  ;(closedDocsResult.data || []).forEach((d: any) => {
+    if (d.storage_provider !== 'r2') {
+      pendingByCase[d.case_id] = (pendingByCase[d.case_id] || 0) + 1
+    }
+  })
 
-  const { data: allSessions } = await supabase
-    .from('sessions')
-    .select('id, session_date, title, case_id, cases ( title, case_number )')
+  const archivedCaseIds = closedCaseIds.filter((id: string) => !pendingByCase[id])
 
-  const { data: allDeadlines } = await supabase
-    .from('critical_deadlines')
-    .select('id, deadline_type, deadline_date, case_id, cases ( title, case_number )')
-    .eq('is_resolved', false)
+  const nameById: Record<string, string> = {}
+  ;(recipientsResult.data || []).forEach((u: any) => { nameById[u.id] = u.full_name })
 
-  perf.mark('الموكلون+المحامون+السجل+الجلسات+المواعيد')
+  const deliveryRows = notifRows.map((n: any) => ({
+    ...n,
+    recipientName: nameById[n.recipient_user_id] || 'مستخدم',
+  }))
+
   const calendarEvents = [
     ...(allSessions || []).map((s) => ({
       date: new Date(s.session_date).toISOString().slice(0, 10),
@@ -144,35 +175,10 @@ export default async function ManagerDashboardPage() {
     })),
   ]
 
-  const { data: yemenCourts } = await supabase
-    .from('yemen_courts')
-    .select('id, name')
-    .order('name', { ascending: true })
-
-  const { count: clientsCount } = await supabase
-    .from('clients')
-    .select('*', { count: 'exact', head: true })
-
-  const { count: lawyersCount } = await supabase
-    .from('lawyers')
-    .select('*', { count: 'exact', head: true })
-
-  perf.mark('المحاكم+الأعداد')
-  // tech يدير الجميع (بما فيهم المدراء)، أي مدير آخر يدير فقط المحامين والموكلين
-  const managedRoles = isTech ? ['lawyer', 'client', 'manager'] : ['lawyer', 'client']
-
-  const { data: manageableAccountsRaw } = await supabase
-    .from('users')
-    .select('id, full_name, username, role')
-    .in('role', managedRoles)
-    .order('role', { ascending: true })
-
   // استبعاد حساب tech نفسه من القائمة حتى بلوحة tech (لا يغيّر كلمة مروره من هنا، بل من زر "تغيير كلمة المرور" الذاتي)
-  const manageableAccounts = manageableAccountsRaw
-    ? manageableAccountsRaw.filter((a) => a.username !== 'tech')
-    : []
+  const manageableAccounts = (accountsResult.data || []).filter((a: any) => a.username !== 'tech')
 
-  perf.mark('الحسابات')
+  perf.mark('التجميع')
   perf.end()
 
   return (

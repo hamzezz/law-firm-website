@@ -37,58 +37,31 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
   perf.mark('تحقق-الهوية')
   if (!user) redirect('/portal.html')
 
-  const { data: appUser } = await supabase
-    .from('users')
-    .select('id, role')
-    .eq('auth_id', user.id)
-    .single()
-
-  perf.mark('المستخدم')
-  if (!appUser || appUser.role !== 'lawyer') redirect('/portal.html')
-
-  const { data: lawyerRow } = await supabase
-    .from('lawyers')
-    .select('id')
-    .eq('user_id', appUser.id)
-    .single()
-
-  perf.mark('المحامي')
-  if (!lawyerRow) redirect('/lawyer/dashboard')
-
-  // القضية وصلاحية الوصول إليها — لا ينتظر أحدهما الآخر
-  const [caseResult, accessResult] = await Promise.all([
+  /**
+   * موجة واحدة لكلّ ما لا يتوقّف على غيره.
+   *
+   * كانت الصفحة ستّ موجات متتابعة: المستخدم، ثم المحامي، ثم القضية
+   * والصلاحية، ثم البيانات، ثم اسم الموكّل. والخادم في Oregon وقاعدة
+   * البيانات في Frankfurt، فكل موجة ربع ثانية إلى ثلث. وصارت ثلاثاً.
+   *
+   * وصلاحية الوصول تُقرأ الآن بصفوف القضية كلّها ثم تُطابق في الذاكرة،
+   * فلم تعد تنتظر معرّف المحامي.
+   */
+  const [
+    userResult,
+    caseResult,
+    accessResult,
+    deadlinesResult,
+    sessionsResult,
+    documentsResult,
+  ] = await Promise.all([
+    supabase.from('users').select('id, role').eq('auth_id', user.id).single(),
     supabase
       .from('cases')
-      .select('id, case_number, title, case_type, status, court_name, opened_at, primary_lawyer_id, client_id')
+      .select('id, case_number, title, case_type, status, court_name, opened_at, primary_lawyer_id, client_id, clients ( users ( full_name ) )')
       .eq('id', id)
       .single(),
-    supabase
-      .from('case_lawyer_access')
-      .select('id')
-      .eq('case_id', id)
-      .eq('lawyer_id', lawyerRow.id)
-      .maybeSingle(),
-  ])
-
-  perf.mark('القضية+الصلاحية')
-  const caseRow = caseResult.data
-  const accessRow = accessResult.data
-
-  if (!caseRow) notFound()
-
-  const hasAccess =
-    caseRow.primary_lawyer_id === lawyerRow.id ||
-    caseRow.primary_lawyer_id === null ||
-    !!accessRow
-
-  if (!hasAccess) notFound()
-
-  /**
-   * الموكّل والمواعيد والجلسات والمستندات — أربعة استعلامات مستقلّة
-   * كانت تنتظر بعضها بلا سبب، وصارت موجة واحدة.
-   */
-  const [clientResult, deadlinesResult, sessionsResult, documentsResult] = await Promise.all([
-    supabase.from('clients').select('user_id').eq('id', caseRow.client_id).single(),
+    supabase.from('case_lawyer_access').select('lawyer_id').eq('case_id', id),
     supabase
       .from('critical_deadlines')
       .select('id, deadline_type, description, deadline_date, is_resolved')
@@ -107,20 +80,41 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
       .order('uploaded_at', { ascending: false }),
   ])
 
-  perf.mark('المواعيد+الجلسات+المستندات')
+  perf.mark('الموجة-الأولى')
+
+  const appUser = userResult.data
+  if (!appUser || appUser.role !== 'lawyer') redirect('/portal.html')
+
+  const { data: lawyerRow } = await supabase
+    .from('lawyers')
+    .select('id')
+    .eq('user_id', appUser.id)
+    .single()
+
+  perf.mark('المحامي')
+  if (!lawyerRow) redirect('/lawyer/dashboard')
+
+  const caseRow = caseResult.data
+  if (!caseRow) notFound()
+
+  const hasAccess =
+    caseRow.primary_lawyer_id === lawyerRow.id ||
+    caseRow.primary_lawyer_id === null ||
+    (accessResult.data || []).some((r: any) => r.lawyer_id === lawyerRow.id)
+
+  if (!hasAccess) notFound()
+
   const deadlines = deadlinesResult.data
   const sessionsRaw = sessionsResult.data
   const documents = documentsResult.data
 
-  let clientName = 'غير محدد'
-  if (clientResult.data) {
-    const { data: clientUser } = await supabase
-      .from('users')
-      .select('full_name')
-      .eq('id', clientResult.data.user_id)
-      .single()
-    if (clientUser) clientName = clientUser.full_name
-  }
+  // اسم الموكّل جاء مع القضية في الاستعلام نفسه، فلا موجة ثالثة له
+  const clientJoin: any = (caseRow as any).clients
+  const clientUserJoin: any = clientJoin
+    ? (Array.isArray(clientJoin) ? clientJoin[0]?.users : clientJoin.users)
+    : null
+  const clientUserRow: any = Array.isArray(clientUserJoin) ? clientUserJoin[0] : clientUserJoin
+  const clientName: string = clientUserRow?.full_name || 'غير محدد'
 
   /**
    * الترتيب والترقيم من التاريخ لا من عمود session_order.
@@ -141,7 +135,6 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
   // المستندات الحيّة في Supabase، والمؤرشفة (قضايا مغلقة) على R2
   const docsWithUrls = documentLinks(documents as any)
 
-  perf.mark('اسم-الموكّل')
   perf.end()
 
   const caseClosed = caseRow.status === 'closed'
