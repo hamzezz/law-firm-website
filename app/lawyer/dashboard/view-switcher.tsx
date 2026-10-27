@@ -59,7 +59,27 @@ function CaseCard({ c }: { c: any }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="font-display font-bold text-base sm:text-lg text-slate-900 leading-snug">{c.title}</h2>
-          <p className="text-slate-400 text-xs mt-1.5">رقم القضية: {c.case_number}</p>
+
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[11px] text-slate-400">
+            <span className="tabular-nums">رقم القضية: {c.case_number}</span>
+
+            {c.court_name && (
+              <>
+                <span className="basis-full h-0" aria-hidden="true" />
+                <span className="inline-flex items-center gap-1 min-w-0 text-slate-500">
+                  <svg
+                    className="w-3 h-3 shrink-0 text-slate-400"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 21h18M5 21V10m4.5 11V10m5 11V10M19 21V10M2.5 10 12 4l9.5 6" />
+                  </svg>
+                  <span className="truncate">{c.court_name}</span>
+                </span>
+              </>
+            )}
+          </div>
         </div>
         <span className={'px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ' + statusBadge(c.status)}>
           {statusLabel(c.status)}

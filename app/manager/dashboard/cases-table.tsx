@@ -255,11 +255,39 @@ export default function CasesTable({ cases, allLawyers }: any) {
         {visible.map((c: any) => (
           <div key={c.id} className="p-4 hover:bg-slate-50 transition">
             <div className="flex items-start justify-between mb-2">
-              <Link href={`/manager/cases/${c.id}`} className="flex-1">
-                <h4 className="font-bold text-slate-900 text-sm hover:text-amber-600 transition">{c.title}</h4>
-                <p className="text-slate-400 text-xs mt-1">
-                  {c.case_number} — الموكل: {c.clients?.users?.full_name || 'غير محدد'}
-                </p>
+              <Link href={`/manager/cases/${c.id}`} className="flex-1 min-w-0">
+                <h4 className="font-bold text-slate-900 text-sm hover:text-amber-600 transition leading-snug">{c.title}</h4>
+
+                {/* سطر البيانات: رقم القضية · الموكل · المحكمة — يلتفّ على الشاشات الضيّقة */}
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[11px] text-slate-500">
+                  <span className="tabular-nums text-slate-600 font-medium">{c.case_number}</span>
+
+                  <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+
+                  <span className="min-w-0">
+                    الموكل:{' '}
+                    <span className="text-slate-700 font-medium">
+                      {c.clients?.users?.full_name || 'غير محدد'}
+                    </span>
+                  </span>
+
+                  {c.court_name && (
+                    <>
+                      <span className="basis-full h-0" aria-hidden="true" />
+                      <span className="inline-flex items-center gap-1 min-w-0 text-slate-600">
+                        <svg
+                          className="w-3 h-3 shrink-0 text-slate-400"
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 21h18M5 21V10m4.5 11V10m5 11V10M19 21V10M2.5 10 12 4l9.5 6" />
+                        </svg>
+                        <span className="truncate">{c.court_name}</span>
+                      </span>
+                    </>
+                  )}
+                </div>
               </Link>
               <div className="flex flex-col gap-1 items-end">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadge(c.status)}`}>{statusLabel(c.status)}</span>
