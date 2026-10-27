@@ -31,6 +31,10 @@ export function ArticleSchema({
   image,
   publishedAt,
   updatedAt,
+  section,
+  citations,
+  wordCount,
+  sections,
 }: {
   title: string
   description: string
@@ -38,6 +42,13 @@ export function ArticleSchema({
   image?: string | null
   publishedAt?: string | null
   updatedAt?: string | null
+  /** تصنيف المقال في المكتبة */
+  section?: string | null
+  /** القوانين التي استُشهد بها — تُؤخذ من قسم المراجع في المقال */
+  citations?: string[]
+  wordCount?: number
+  /** عناوين مباحث المقال، تُعين محرّكات الإجابة على استخراج الجواب من موضعه */
+  sections?: { id: string; text: string }[]
 }) {
   const url = `${BASE}/articles/${encodeURIComponent(slug)}`
 
@@ -47,6 +58,7 @@ export function ArticleSchema({
     headline: title,
     description,
     inLanguage: 'ar',
+    isAccessibleForFree: true,
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     url,
     image: image || `${BASE}/og-image.png`,
@@ -54,6 +66,49 @@ export function ArticleSchema({
     publisher: { '@id': ORG_ID },
     ...(publishedAt ? { datePublished: publishedAt } : {}),
     ...(updatedAt || publishedAt ? { dateModified: updatedAt || publishedAt } : {}),
+    ...(section ? { articleSection: section, keywords: [section, 'القانون اليمني'].join('، ') } : {}),
+    ...(wordCount ? { wordCount } : {}),
+    ...(citations && citations.length > 0
+      ? { citation: citations.map((c) => ({ '@type': 'CreativeWork', name: c })) }
+      : {}),
+    ...(sections && sections.length > 0
+      ? {
+          hasPart: sections.map((s) => ({
+            '@type': 'WebPageElement',
+            name: s.text,
+            url: url + '#' + s.id,
+          })),
+        }
+      : {}),
+  }
+
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
+}
+
+/** قائمة المقالات: تُعين على تعداد المكتبة وفهرستها */
+export function ArticleListSchema({
+  items,
+}: {
+  items: { slug: string; title: string; excerpt?: string | null }[]
+}) {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    '@id': `${BASE}/articles`,
+    url: `${BASE}/articles`,
+    name: 'المكتبة القانونية — مكتب وليد الكثيري للمحاماة',
+    inLanguage: 'ar',
+    isPartOf: { '@id': ORG_ID },
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: items.length,
+      itemListElement: items.map((a, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `${BASE}/articles/${encodeURIComponent(a.slug)}`,
+        name: a.title,
+      })),
+    },
   }
 
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />

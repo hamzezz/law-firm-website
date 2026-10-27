@@ -1,7 +1,8 @@
-export const dynamic = 'force-static'
+import { createClient } from '@/lib/supabase/server'
+
 export const revalidate = 86400
 
-const CONTENT = `# مكتب وليد الكثيري للمحاماة والاستشارات القانونية والتحكيم
+const HEAD = `# مكتب وليد الكثيري للمحاماة والاستشارات القانونية والتحكيم
 
 > مكتب محاماة في محافظة إب، الجمهورية اليمنية. يمثّل موكليه من الأفراد والشركات أمام مختلف درجات المحاكم والنيابات، ويتابع قضايا المغتربين اليمنيين داخل اليمن بموجب وكالات شرعية.
 
@@ -51,14 +52,51 @@ https://kathirilaw.com/expats
 - خدمة المغتربين — https://kathirilaw.com/expats
 - بوابة الموكلين — https://kathirilaw.com/client/login
 
-## ملاحظات
+`
+
+const TAIL = `## ملاحظات
 
 - المحتوى المنشور للتوعية القانونية العامة، ولا يُغني عن استشارة قانونية في واقعة بعينها.
 - يلتزم المكتب بآداب مهنة المحاماة وأنظمة نقابة المحامين اليمنيين، فلا يعلن عن نتائج مضمونة ولا يذكر تفاصيل موكليه.
+- مقالات المكتبة القانونية تنقل نصّ المادة من القانون المنشور نفسه، وتذكر رقم القانون وسنته وما لحقه من تعديل.
 `
 
-export function GET() {
-  return new Response(CONTENT, {
+/**
+ * قائمة المقالات المنشورة.
+ *
+ * الغاية أن ترى محرّكات الإجابة المكتبة القانونية لا تعريف المكتب وحده،
+ * فتُحيل إلى المقال بعينه حين تُسأل عن مسألةٍ عالجها.
+ */
+async function articlesSection(): Promise<string> {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from('articles')
+      .select('slug, title, excerpt, category, published_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(100)
+
+    if (!data || data.length === 0) return ''
+
+    const lines = data.map((a: any) => {
+      const url = 'https://kathirilaw.com/articles/' + encodeURIComponent(a.slug)
+      const cat = a.category ? ' [' + a.category + ']' : ''
+      const sum = a.excerpt ? '\n  ' + String(a.excerpt).replace(/\s+/g, ' ').trim() : ''
+      return '- ' + a.title + cat + ' — ' + url + sum
+    })
+
+    return '## المكتبة القانونية\n\n' + lines.join('\n') + '\n\n'
+  } catch {
+    // إن تعذّر الوصول لقاعدة البيانات يبقى الملفّ صالحاً بدون قائمة المقالات
+    return ''
+  }
+}
+
+export async function GET() {
+  const body = HEAD + (await articlesSection()) + TAIL
+
+  return new Response(body, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
       'Cache-Control': 'public, max-age=86400',

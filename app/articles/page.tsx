@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { Breadcrumbs } from '../components/page-schema'
+import { Breadcrumbs, ArticleListSchema } from '../components/page-schema'
 import { parseArticle, formatArabicDate } from '@/lib/articles/parse'
 import { ARTICLE_CATEGORIES } from '@/lib/articles/categories'
 import ArticlesBrowser, { type BrowseArticle } from './articles-browser'
@@ -46,6 +46,7 @@ export default async function ArticlesListPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
       <Breadcrumbs items={[{ name: 'الرئيسية', path: '/' }, { name: 'المكتبة القانونية', path: '/articles' }]} />
+      <ArticleListSchema items={articles.map((a) => ({ slug: a.slug, title: a.title, excerpt: a.excerpt }))} />
 
       <header className="bg-slate-900 border-b-4 border-amber-500 px-6 py-7">
         <div className="max-w-5xl mx-auto">

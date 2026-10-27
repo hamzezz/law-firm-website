@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const { data: article } = await supabase
     .from('articles')
-    .select('title, excerpt, cover_image')
+    .select('title, excerpt, cover_image, category, published_at, updated_at')
     .eq('slug', decodedSlug)
     .eq('status', 'published')
     .single()
@@ -26,11 +26,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     article.excerpt || 'مقال قانوني من مكتب وليد الكثيري للمحاماة والاستشارات القانونية'
   const url = 'https://kathirilaw.com/articles/' + encodeURIComponent(decodedSlug)
   const image = article.cover_image || '/og-image.png'
+  const category = (article as any).category as string | null
 
   return {
     title: article.title,
     description,
     alternates: { canonical: url },
+    authors: [{ name: 'مكتب وليد الكثيري للمحاماة والاستشارات القانونية' }],
+    ...(category ? { keywords: [category, 'القانون اليمني', 'محامي إب'] } : {}),
     openGraph: {
       title: article.title,
       description,
@@ -39,6 +42,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       siteName: 'مكتب وليد الكثيري للمحاماة',
       locale: 'ar_YE',
       images: [{ url: image, width: 1200, height: 630, alt: article.title }],
+      ...((article as any).published_at ? { publishedTime: (article as any).published_at } : {}),
+      ...((article as any).updated_at ? { modifiedTime: (article as any).updated_at } : {}),
+      ...(category ? { section: category, tags: [category, 'القانون اليمني'] } : {}),
+      authors: ['مكتب وليد الكثيري للمحاماة والاستشارات القانونية'],
     },
     twitter: {
       card: 'summary_large_image',
@@ -63,7 +70,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
   if (!article) notFound()
 
-  const { minutes, headings } = parseArticle(article.content || '')
+  const { minutes, headings, references, words } = parseArticle(article.content || '')
   const pageUrl = 'https://kathirilaw.com/articles/' + encodeURIComponent(decodedSlug)
 
   /**
@@ -108,6 +115,10 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
         image={article.cover_image}
         publishedAt={article.published_at}
         updatedAt={(article as any).updated_at}
+        section={(article as any).category}
+        citations={references}
+        wordCount={words}
+        sections={headings}
       />
       <Breadcrumbs
         items={[

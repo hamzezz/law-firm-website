@@ -21,6 +21,8 @@ export type Block =
 export type ParsedArticle = {
   blocks: Block[]
   headings: { id: string; text: string }[]
+  /** أسطر قسم المراجع — القوانين التي استُشهد بها */
+  references: string[]
   /** عدد الكلمات في متن المقال دون المراجع */
   words: number
   /** زمن القراءة بالدقائق، بحدٍّ أدنى دقيقة واحدة */
@@ -179,6 +181,7 @@ export function parseArticle(content: string): ParsedArticle {
   return {
     blocks,
     headings,
+    references: refs,
     words,
     minutes: Math.max(1, Math.round(words / 200)),
   }
