@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ArticleSchema, Breadcrumbs } from '@/app/components/page-schema'
 import ArticleBody from '../article-body'
+import ArticleToc from '../article-toc'
+import ArticleShare from '../article-share'
 import { parseArticle, formatArabicDate, minutesLabel } from '@/lib/articles/parse'
 
 /** بيانات المشاركة لكل مقال على حدة: عنوانه ومقتطفه وصورته */
@@ -54,14 +56,48 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
   const { data: article } = await supabase
     .from('articles')
-    .select('title, excerpt, content, published_at, updated_at, status, cover_image')
+    .select('title, excerpt, content, published_at, updated_at, status, cover_image, category')
     .eq('slug', decodedSlug)
     .eq('status', 'published')
     .single()
 
   if (!article) notFound()
 
-  const { minutes } = parseArticle(article.content || '')
+  const { minutes, headings } = parseArticle(article.content || '')
+  const pageUrl = 'https://kathirilaw.com/articles/' + encodeURIComponent(decodedSlug)
+
+  /**
+   * مقالات ذات صلة: من التصنيف نفسه أولاً. فإن لم يكفِ العدد
+   * كُمّل بأحدث المقالات، كي لا يقف القارئ عند نهايةٍ مسدودة.
+   */
+  const related: any[] = []
+
+  if ((article as any).category) {
+    const { data } = await supabase
+      .from('articles')
+      .select('slug, title, excerpt, cover_image, category')
+      .eq('status', 'published')
+      .eq('category', (article as any).category)
+      .neq('slug', decodedSlug)
+      .order('published_at', { ascending: false })
+      .limit(3)
+    related.push(...(data || []))
+  }
+
+  if (related.length < 3) {
+    const { data } = await supabase
+      .from('articles')
+      .select('slug, title, excerpt, cover_image, category')
+      .eq('status', 'published')
+      .neq('slug', decodedSlug)
+      .order('published_at', { ascending: false })
+      .limit(6)
+
+    for (const r of data || []) {
+      if (related.length >= 3) break
+      if (!related.some((x) => x.slug === r.slug)) related.push(r)
+    }
+  }
 
   return (
     <div dir="rtl" className="min-h-screen bg-white">
@@ -92,7 +128,18 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      <main className="max-w-[46rem] mx-auto px-6 py-12">
+      <div className="max-w-6xl mx-auto px-6 py-12 lg:flex lg:gap-12 lg:items-start">
+        {/* جدول المحتويات — عمودٌ لاصق على الشاشات الواسعة وحدها */}
+        <aside className="hidden lg:block w-56 shrink-0 order-2 sticky top-8">
+          <ArticleToc headings={headings} />
+        </aside>
+
+        <main className="max-w-[46rem] mx-auto lg:mx-0 min-w-0 flex-1 order-1">
+        {(article as any).category && (
+          <span className="inline-block text-amber-700 text-xs font-bold mb-3">
+            {(article as any).category}
+          </span>
+        )}
         <h1 className="font-display text-[26px] md:text-3xl font-bold text-slate-900 mb-3 leading-snug text-balance">{article.title}</h1>
 
         {article.excerpt && (
@@ -126,7 +173,42 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
         </div>
 
         <ArticleBody content={article.content || ''} />
-      </main>
+
+        <div className="mt-12 pt-6 border-t border-slate-100">
+          <ArticleShare url={pageUrl} title={article.title} />
+        </div>
+
+        {related.length > 0 && (
+          <section className="mt-14">
+            <h2 className="font-display font-bold text-slate-900 text-lg mb-5 flex items-center gap-3">
+              <span className="w-7 h-[3px] bg-amber-500 rounded-full" />
+              اقرأ أيضاً
+            </h2>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {related.map((r) => (
+                <Link
+                  key={r.slug}
+                  href={'/articles/' + r.slug}
+                  className="flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-amber-300 hover:shadow-md transition"
+                >
+                  {r.cover_image && (
+                    <img src={r.cover_image} alt={r.title} className="w-full h-28 object-cover" />
+                  )}
+                  <div className="p-4 flex flex-col flex-1 min-w-0">
+                    {r.category && (
+                      <span className="text-amber-700 text-[10px] font-bold mb-1">{r.category}</span>
+                    )}
+                    <h3 className="font-display font-bold text-slate-900 text-sm leading-snug">
+                      {r.title}
+                    </h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+        </main>
+      </div>
     </div>
   )
 }
