@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { ARTICLE_CATEGORIES } from '@/lib/articles/categories'
 
 function slugify(text: string) {
   return text
@@ -23,6 +24,8 @@ function AddArticleForm({ authorId, onSuccess }: { authorId: string; onSuccess: 
   const [title, setTitle] = useState('')
   const [excerpt, setExcerpt] = useState('')
   const [content, setContent] = useState('')
+  const [category, setCategory] = useState('')
+  const [isFeatured, setIsFeatured] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -54,11 +57,18 @@ function AddArticleForm({ authorId, onSuccess }: { authorId: string; onSuccess: 
         coverImageUrl = publicUrlResult.data.publicUrl
       }
 
+      // المقال المختار واحدٌ في الصدارة، فإن مُيّز هذا نُزع التمييز عمّا سبقه
+      if (isFeatured) {
+        await supabase.from('articles').update({ is_featured: false }).eq('is_featured', true)
+      }
+
       const { error } = await supabase.from('articles').insert({
         slug,
         title,
         excerpt: excerpt || null,
         content,
+        category: category || null,
+        is_featured: isFeatured,
         cover_image: coverImageUrl,
         author_id: authorId,
         status: 'draft',
@@ -74,6 +84,8 @@ function AddArticleForm({ authorId, onSuccess }: { authorId: string; onSuccess: 
       setTitle('')
       setExcerpt('')
       setContent('')
+      setCategory('')
+      setIsFeatured(false)
       setImageFile(null)
       onSuccess()
     } catch (err) {
@@ -95,6 +107,35 @@ function AddArticleForm({ authorId, onSuccess }: { authorId: string; onSuccess: 
       <input type="text" placeholder="عنوان المقال" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500" required />
       <textarea placeholder="مقتطف قصير يظهر في المعاينة" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 h-20 resize-none" />
       <textarea placeholder="محتوى المقال الكامل" value={content} onChange={(e) => setContent(e.target.value)} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 h-40 resize-none" required />
+
+      <div>
+        <label className="text-xs text-slate-500 block mb-1">التصنيف</label>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 bg-white text-sm"
+        >
+          <option value="">بلا تصنيف</option>
+          {ARTICLE_CATEGORIES.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </div>
+
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={isFeatured}
+          onChange={(e) => setIsFeatured(e.target.checked)}
+          className="mt-1 w-4 h-4 accent-amber-500"
+        />
+        <span className="text-sm text-slate-700">
+          مقالٌ مختار
+          <span className="block text-xs text-slate-400 mt-0.5">
+            يظهر في صدارة المكتبة. ولا يكون المختار إلا واحداً، فتمييز هذا ينزع التمييز عمّا سبقه.
+          </span>
+        </span>
+      </label>
 
       <div>
         <label className="text-xs text-slate-500 block mb-1">صورة الغلاف (اختياري)</label>
@@ -151,6 +192,16 @@ export default function ArticlesManager({ initialArticles, authorId }: any) {
               )}
               <div className="flex-1 min-w-[200px]">
                 <p className="font-bold text-slate-900 text-sm">{a.title}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {a.category && (
+                    <span className="text-[11px] text-amber-700 font-bold">{a.category}</span>
+                  )}
+                  {a.is_featured && (
+                    <span className="text-[11px] bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
+                      مختار
+                    </span>
+                  )}
+                </div>
                 {a.excerpt && <p className="text-slate-400 text-xs mt-1">{a.excerpt}</p>}
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadge(a.status)}`}>
