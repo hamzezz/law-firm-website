@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useHashTab } from '@/app/components/use-hash-tab'
 import Link from 'next/link'
 
 /**
@@ -43,7 +44,7 @@ export default function ClientShell({
   accountActions: React.ReactNode
   headerActions: React.ReactNode
 }) {
-  const [view, setView] = useState<'cases' | 'account'>('cases')
+  const [view, setView] = useHashTab(['cases', 'account'] as const, 'cases')
 
   return (
     <div>

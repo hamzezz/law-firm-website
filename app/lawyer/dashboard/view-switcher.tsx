@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import CalendarView from './calendar-view'
 import { matchesArabic } from '@/lib/text/arabic'
+import { useHashTab } from '@/app/components/use-hash-tab'
 
 /**
  * واجهة لوحة المحامي.
@@ -161,7 +162,7 @@ export default function ViewSwitcher({
   headerActions: React.ReactNode
   accountActions: React.ReactNode
 }) {
-  const [view, setView] = useState<'cases' | 'calendar' | 'account' | 'archive'>('cases')
+  const [view, setView] = useHashTab(['cases', 'calendar', 'account', 'archive'] as const, 'cases')
   const [q, setQ] = useState('')
 
   const archive = archivedCases || []

@@ -127,17 +127,17 @@ export default async function ManagerDashboardPage() {
     .filter((c: any) => c.status === 'closed')
     .map((c: any) => c.id)
 
-  const recipientIds = Array.from(
+  /** الموجة الثانية: ما لا يُعرف إلا بعد الأولى */
+  const missingNameIds = Array.from(
     new Set(notifRows.map((n: any) => n.recipient_user_id).filter(Boolean))
   )
 
-  // الموجة الثانية: ما لا يُعرف إلا بعد الأولى
   const [closedDocsResult, recipientsResult] = await Promise.all([
     closedCaseIds.length > 0
       ? supabase.from('documents').select('case_id, storage_provider').in('case_id', closedCaseIds)
       : Promise.resolve({ data: [] as any[] }),
-    admin && recipientIds.length > 0
-      ? admin.from('users').select('id, full_name').in('id', recipientIds)
+    admin && missingNameIds.length > 0
+      ? admin.from('users').select('id, full_name').in('id', missingNameIds)
       : Promise.resolve({ data: [] as any[] }),
   ])
 
@@ -155,10 +155,13 @@ export default async function ManagerDashboardPage() {
   const nameById: Record<string, string> = {}
   ;(recipientsResult.data || []).forEach((u: any) => { nameById[u.id] = u.full_name })
 
-  const deliveryRows = notifRows.map((n: any) => ({
-    ...n,
-    recipientName: nameById[n.recipient_user_id] || 'مستخدم',
-  }))
+  const deliveryRows = notifRows.map((n: any) => {
+    const joined = Array.isArray(n.users) ? n.users[0] : n.users
+    return {
+      ...n,
+      recipientName: joined?.full_name || nameById[n.recipient_user_id] || 'مستخدم',
+    }
+  })
 
   const calendarEvents = [
     ...(allSessions || []).map((s) => ({

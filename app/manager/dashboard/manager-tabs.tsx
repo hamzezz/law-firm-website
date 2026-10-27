@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useHashTab } from '@/app/components/use-hash-tab'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CasesTable from './cases-table'
@@ -457,7 +458,11 @@ export default function ManagerTabs({
   calendarEvents, auditLogs, allSessions, manageableAccounts, isTech,
   backupPanel, uploadPanel, accountActions,
 }: any) {
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useHashTab(
+    ['overview', 'calendar', 'add', 'clients-cases', 'archive', 'team',
+     'permissions', 'accounts', 'upload', 'backup', 'more'] as const,
+    'overview'
+  )
   const [open, setOpen] = useState<Record<string, boolean>>({ reports: true, predict: false, audit: false })
 
   const router = useRouter()
