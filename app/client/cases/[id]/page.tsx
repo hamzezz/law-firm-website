@@ -133,7 +133,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
         <div className="max-w-3xl mx-auto">
           <div className="flex items-start gap-3 md:block">
             <Link
-              href="/client/dashboard"
+              href="/client/dashboard#cases"
               aria-label="رجوع لقضاياي"
               className="md:hidden shrink-0 w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-700"
             >
@@ -142,7 +142,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
               </svg>
             </Link>
 
-            <Link href="/client/dashboard" className="hidden md:inline-flex text-blue-200 text-sm hover:text-white transition items-center gap-1">
+            <Link href="/client/dashboard#cases" className="hidden md:inline-flex text-blue-200 text-sm hover:text-white transition items-center gap-1">
               <span>رجوع لقضاياي</span>
             </Link>
 

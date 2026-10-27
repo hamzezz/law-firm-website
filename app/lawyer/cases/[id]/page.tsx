@@ -146,7 +146,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
       <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 md:static md:bg-slate-900 md:border-b-4 md:border-emerald-600 md:px-6 md:py-5">
         <div className="flex items-start gap-3 md:block">
           <Link
-            href="/lawyer/dashboard"
+            href="/lawyer/dashboard#cases"
             aria-label="رجوع لقضاياي"
             className="md:hidden shrink-0 w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-700"
           >
@@ -155,7 +155,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
             </svg>
           </Link>
 
-          <Link href="/lawyer/dashboard" className="hidden md:inline text-slate-300 text-sm hover:text-white transition">
+          <Link href="/lawyer/dashboard#cases" className="hidden md:inline text-slate-300 text-sm hover:text-white transition">
             رجوع لقضاياي
           </Link>
 

@@ -122,7 +122,7 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
         <div className="max-w-3xl mx-auto">
           <div className="flex items-start gap-3 md:block">
             <Link
-              href="/manager/dashboard"
+              href="/manager/dashboard#clients-cases"
               aria-label="رجوع للوحة التحكم"
               className="md:hidden shrink-0 w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-700"
             >
@@ -131,7 +131,7 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
               </svg>
             </Link>
 
-            <Link href="/manager/dashboard" className="hidden md:inline text-amber-200 text-sm hover:text-white transition">رجوع للوحة التحكم</Link>
+            <Link href="/manager/dashboard#clients-cases" className="hidden md:inline text-amber-200 text-sm hover:text-white transition">رجوع للوحة التحكم</Link>
 
             <div className="min-w-0 flex-1 md:flex md:items-start md:justify-between md:mt-4 md:flex-wrap md:gap-3">
               <div className="min-w-0">
