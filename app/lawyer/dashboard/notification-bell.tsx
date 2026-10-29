@@ -69,8 +69,16 @@ export default function NotificationBell({ userId }: { userId: string }) {
       </button>
 
       {open && (
+        {/*
+          على الهاتف تُثبَّت اللوحة داخل الشاشة بهامشين، فعرضها الثابت
+          (٣٢٠ بكسل) من حافة الزرّ كان يتجاوز حدّ الشاشة فيُقتطع نصفها.
+          وعلى الشاشات الأوسع تبقى منسدلةً من الزرّ كما كانت.
+        */}
         <div
-          className="absolute left-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50"
+          className={
+            'fixed inset-x-3 top-[4.5rem] z-50 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden ' +
+            'sm:absolute sm:inset-auto sm:top-full sm:left-0 sm:mt-2 sm:w-80'
+          }
           dir="rtl"
         >
           <div className="p-3 border-b border-slate-100 font-bold text-slate-900 text-sm">
