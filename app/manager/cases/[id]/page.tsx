@@ -10,6 +10,7 @@ import CaseAdmin from './case-admin'
 import PrintRequestButton from '@/app/components/print-request-button'
 import PrintRequests, { type CasePrintRequest } from './print-requests'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { fetchPrintRequests } from '@/lib/print/fetch'
 
 function statusBadge(status: string) {
   const s = status ? status.toLowerCase() : ''
@@ -79,17 +80,11 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
         .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
         .eq('case_id', id)
         .order('uploaded_at', { ascending: false }),
-      printAdmin
-        .from('print_requests')
-        .select(
-          'id, doc_type, note, due_date, status, created_at, ' +
-          'print_request_pages ( id, page_order ), ' +
-          'print_drafts ( id, draft_no, word_path, pdf_path ), ' +
-          'print_notes ( id, body, is_resolved )'
-        )
-        .eq('case_id', id)
-        .neq('status', 'cancelled')
-        .order('created_at', { ascending: false }),
+      fetchPrintRequests(
+        printAdmin,
+        (q) => q.eq('case_id', id).neq('status', 'cancelled').order('created_at', { ascending: false }),
+        false
+      ),
     ])
 
   const appUser = userResult.data
@@ -102,17 +97,7 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
   const sessionsRaw = sessionsResult.data
   const documents = documentsResult.data
 
-  const printRequests: CasePrintRequest[] = ((printResult as any).data || []).map((r: any) => ({
-    id: r.id,
-    docType: r.doc_type || 'مذكّرة',
-    note: r.note || '',
-    dueDate: r.due_date,
-    status: r.status,
-    createdAt: r.created_at,
-    pages: (r.print_request_pages || []).slice().sort((a: any, b: any) => a.page_order - b.page_order),
-    drafts: (r.print_drafts || []).slice().sort((a: any, b: any) => a.draft_no - b.draft_no),
-    notes: r.print_notes || [],
-  }))
+  const printRequests: CasePrintRequest[] = printResult as CasePrintRequest[]
 
   /** الاسم المضموم قد يأتي كائناً أو مصفوفة بحسب العلاقة، فيُقرأ على الوجهين */
   function joinedName(rel: any): string | null {

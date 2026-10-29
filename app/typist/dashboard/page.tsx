@@ -6,6 +6,7 @@ import ChangePassword from '@/app/components/change-password'
 import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
 import RequestCard, { type TypistRequest } from './request-card'
+import { fetchPrintRequests } from '@/lib/print/fetch'
 
 /**
  * لوحة الطبّاع.
@@ -31,36 +32,12 @@ export default async function TypistDashboardPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: rows } = await admin
-    .from('print_requests')
-    .select(
-      'id, doc_type, note, due_date, status, created_at, ' +
-      'cases ( case_number, title, court_name, other_party ), ' +
-      'print_request_pages ( id, page_order ), ' +
-      'print_drafts ( id, draft_no, word_path, pdf_path ), ' +
-      'print_notes ( id, body, is_resolved, draft_id )'
-    )
-    .or('assigned_to.eq.' + appUser.id + ',assigned_to.is.null')
-    .neq('status', 'cancelled')
-    .order('created_at', { ascending: false })
-
-  const requests: TypistRequest[] = (rows || []).map((r: any) => {
-    const c = Array.isArray(r.cases) ? r.cases[0] : r.cases
-    return {
-      id: r.id,
-      docType: r.doc_type || 'مذكّرة',
-      note: r.note || '',
-      dueDate: r.due_date,
-      status: r.status,
-      caseNumber: c?.case_number || '',
-      caseTitle: c?.title || '',
-      courtName: c?.court_name || '',
-      otherParty: c?.other_party || '',
-      pages: (r.print_request_pages || []).slice().sort((a: any, b: any) => a.page_order - b.page_order),
-      drafts: (r.print_drafts || []).slice().sort((a: any, b: any) => a.draft_no - b.draft_no),
-      notes: r.print_notes || [],
-    }
-  })
+  const requests: TypistRequest[] = await fetchPrintRequests(admin, (q) =>
+    q
+      .or('assigned_to.eq.' + appUser.id + ',assigned_to.is.null')
+      .neq('status', 'cancelled')
+      .order('created_at', { ascending: false })
+  )
 
   const open = requests.filter((r) => r.status !== 'approved')
   const doneList = requests.filter((r) => r.status === 'approved')
@@ -83,9 +60,7 @@ export default async function TypistDashboardPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-5 md:px-6 md:py-6 space-y-5">
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm px-5 py-4">
-          <EnableNotifications userId={appUser.id} />
-        </div>
+        <EnableNotifications userId={appUser.id} />
 
         <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
