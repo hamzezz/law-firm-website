@@ -5,6 +5,7 @@ import LogoutButton from '@/app/staff/logout-button'
 import ChangePassword from '@/app/components/change-password'
 import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
+import NotificationBell from '@/app/lawyer/dashboard/notification-bell'
 import RequestCard, { type TypistRequest } from './request-card'
 import { fetchPrintRequests } from '@/lib/print/fetch'
 
@@ -53,6 +54,7 @@ export default async function TypistDashboardPage() {
             <p className="text-slate-300 text-[12px] md:text-sm mt-1">مرحباً {appUser.full_name}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <NotificationBell userId={appUser.id} />
             <ChangePassword />
             <LogoutButton />
           </div>
