@@ -16,6 +16,7 @@ function normalizeForCompare(text: string): string {
 function roleLabel(role: string) {
   if (role === 'lawyer') return 'محامي'
   if (role === 'manager') return 'مدير'
+  if (role === 'typist') return 'طبّاع'
   return 'موكل'
 }
 

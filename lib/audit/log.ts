@@ -14,6 +14,7 @@ export type AuditAction =
   // الحسابات والصلاحيات
   | 'lawyer_created'
   | 'client_created'
+  | 'typist_created'
   | 'account_deleted'
   | 'password_changed'
   | 'case_access_granted'
@@ -33,6 +34,11 @@ export type AuditAction =
   // المستندات
   | 'document_opened'
   | 'document_access_denied'
+  // مكتب الطباعة
+  | 'print_request_created'
+  | 'print_draft_uploaded'
+  | 'print_request_approved'
+  | 'print_request_cancelled'
   // النظام
   | 'reminders_sent'
 

@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import CasesTable from './cases-table'
 import TeamTab from './team-tab'
 import PermissionsTab from './permissions-tab'
+import AddTypist from './add-typist'
 import CalendarView from './calendar-view'
 import AuditLog from './audit-log'
 import ReportsPanel from './reports-panel'
@@ -673,7 +674,10 @@ export default function ManagerTabs({
 
       {/* ═══════════ إدارة الحسابات ═══════════ */}
       {activeTab === 'accounts' && (
-        <AccountsTab accounts={manageableAccounts} isTech={isTech} />
+        <div className="space-y-5">
+          <AddTypist onSuccess={handleRefresh} />
+          <AccountsTab accounts={manageableAccounts} isTech={isTech} />
+        </div>
       )}
 
       {/* ═══════════ أدوات التقني ═══════════ */}

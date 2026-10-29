@@ -49,12 +49,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'لم يتم العثور على حساب موظف مرتبط بهذا المستخدم' }, { status: 403 })
   }
 
-  if (appUser.role === 'lawyer' || appUser.role === 'manager') {
-    const roleLabel = appUser.role === 'lawyer' ? 'محامٍ' : 'مدير'
-    await logAudit(auditClient(), appUser.id, 'login_success', 'دخول ' + roleLabel + ': ' + username, { portal })
-    return NextResponse.json({
-      redirect: appUser.role === 'lawyer' ? '/lawyer/dashboard' : '/manager/dashboard',
-    })
+  /**
+   * بوابة الموظفين: المحامي والمدير والطبّاع.
+   * والطبّاع أُضيف هنا وحده دون المساس بشرط المحامي والمدير، فسلوكهما
+   * كما كان حرفاً بحرف.
+   */
+  const STAFF_PORTALS: Record<string, { label: string; redirect: string }> = {
+    lawyer: { label: 'محامٍ', redirect: '/lawyer/dashboard' },
+    manager: { label: 'مدير', redirect: '/manager/dashboard' },
+    typist: { label: 'طبّاع', redirect: '/typist/dashboard' },
+  }
+
+  const staff = STAFF_PORTALS[appUser.role as string]
+  if (staff) {
+    await logAudit(auditClient(), appUser.id, 'login_success', 'دخول ' + staff.label + ': ' + username, { portal })
+    return NextResponse.json({ redirect: staff.redirect })
   }
 
   await supabase.auth.signOut()

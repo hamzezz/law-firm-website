@@ -36,7 +36,9 @@ export default async function ManagerDashboardPage() {
   const isTech = appUser.username === 'tech'
 
   // tech يدير الجميع (بما فيهم المدراء)، أي مدير آخر يدير فقط المحامين والموكلين
-  const managedRoles = isTech ? ['lawyer', 'client', 'manager'] : ['lawyer', 'client']
+  const managedRoles = isTech
+    ? ['lawyer', 'client', 'manager', 'typist']
+    : ['lawyer', 'client', 'typist']
 
   /**
    * حالة وصول الإشعارات — للتقني وحده.
