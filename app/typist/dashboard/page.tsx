@@ -51,13 +51,20 @@ export default async function TypistDashboardPage() {
 
   const { data: rows } = await admin
     .from('print_requests')
-    .select('id, doc_type, note, due_date, status, created_at, cases ( case_number, title, court_name )')
+    .select(
+      'id, doc_type, note, due_date, status, created_at, ' +
+      'cases ( case_number, title, court_name, other_party, case_type ), ' +
+      'print_request_pages ( id, page_order )'
+    )
     .or('assigned_to.eq.' + appUser.id + ',assigned_to.is.null')
     .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
 
   const requests = (rows || []).map((r: any) => {
     const c = Array.isArray(r.cases) ? r.cases[0] : r.cases
+    const pages = (r.print_request_pages || [])
+      .slice()
+      .sort((a: any, b: any) => (a.page_order || 0) - (b.page_order || 0))
     return {
       id: r.id,
       docType: r.doc_type || 'مذكّرة',
@@ -68,6 +75,9 @@ export default async function TypistDashboardPage() {
       caseNumber: c?.case_number || '',
       caseTitle: c?.title || '',
       courtName: c?.court_name || '',
+      otherParty: c?.other_party || '',
+      caseType: c?.case_type || '',
+      pages: pages as { id: string; page_order: number }[],
     }
   })
 
@@ -128,8 +138,33 @@ export default async function TypistDashboardPage() {
                     </span>
                   </div>
 
+                  {r.otherParty && (
+                    <p className="text-[11px] text-slate-400 mt-1">الطرف الآخر: {r.otherParty}</p>
+                  )}
+
+                  {r.pages.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-[11px] text-slate-400 mb-1.5">
+                        الأوراق المرسلة — {r.pages.length} صفحة
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {r.pages.map((p) => (
+                          <a
+                            key={p.id}
+                            href={'/api/print-pages/' + p.id}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 active:scale-95 transition text-[12px] font-bold text-slate-700"
+                          >
+                            صفحة {p.page_order}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {r.dueDate && (
-                    <p className="text-[11px] text-amber-700 mt-2">المطلوب قبل {fmt(r.dueDate)}</p>
+                    <p className="text-[11px] text-amber-700 mt-2.5">المطلوب قبل {fmt(r.dueDate)}</p>
                   )}
                 </div>
               )

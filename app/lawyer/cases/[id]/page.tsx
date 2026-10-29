@@ -5,6 +5,7 @@ import { startTimer } from '@/lib/perf/timer'
 import { documentLinks } from '@/lib/documents/signed-urls'
 import SessionCard from './session-card'
 import CriticalDeadlines from './critical-deadlines'
+import PrintRequestButton from '@/app/components/print-request-button'
 
 function statusLabel(status: string) {
   const map: Record<string, string> = { active: 'نشطة', postponed: 'مؤجلة', closed: 'مغلقة' }
@@ -200,6 +201,11 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
             </div>
           </div>
         </section>
+
+        <PrintRequestButton
+          caseId={id}
+          caseLabel={caseRow.case_number + ' — ' + caseRow.title}
+        />
 
         <CriticalDeadlines caseId={id} deadlines={deadlines || []} caseClosed={caseClosed} />
 

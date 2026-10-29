@@ -11,7 +11,21 @@ const DEFAULT_QUAD: Quad = [
   { x: 6, y: 6 }, { x: 94, y: 6 }, { x: 94, y: 94 }, { x: 6, y: 94 },
 ]
 
-export default function DocumentScanner({ onCapture }: { onCapture: (file: File) => void }) {
+/**
+ * autoOpen: تفتح الكاميرا فور ظهور المكوّن، بلا ضغطة ثانية.
+ * label: نصّ الزرّ حين يختلف السياق عن تصوير المحضر.
+ *
+ * كلاهما اختياري، فاستعمالا بطاقتَي الجلسة القائمان لم يتغيّر فيهما شيء.
+ */
+export default function DocumentScanner({
+  onCapture,
+  autoOpen = false,
+  label = '📷 تصوير المحضر بالكاميرا',
+}: {
+  onCapture: (file: File) => void
+  autoOpen?: boolean
+  label?: string
+}) {
   const [open, setOpen] = useState(false)
   const [stage, setStage] = useState<'camera' | 'crop'>('camera')
   const [error, setError] = useState('')
@@ -73,6 +87,15 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
   }
 
   useEffect(() => () => stopCamera(), [])
+
+  // فتحٌ تلقائي للكاميرا حين يطلبه السياق — مرّة واحدة عند الظهور
+  const autoOpenedRef = useRef(false)
+  useEffect(() => {
+    if (!autoOpen || autoOpenedRef.current) return
+    autoOpenedRef.current = true
+    openScanner()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen])
 
   function stopCamera() {
     if (streamRef.current) {
@@ -458,7 +481,7 @@ export default function DocumentScanner({ onCapture }: { onCapture: (file: File)
     <>
       <button type="button" onClick={openScanner}
         className="text-xs font-bold px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition w-full">
-        📷 تصوير المحضر بالكاميرا
+        {label}
       </button>
 
       {nativeError && (

@@ -7,6 +7,7 @@ import CriticalDeadlines from './critical-deadlines'
 import CloseCase from './close-case'
 import ArchiveRetry from './archive-retry'
 import CaseAdmin from './case-admin'
+import PrintRequestButton from '@/app/components/print-request-button'
 
 function statusBadge(status: string) {
   const s = status ? status.toLowerCase() : ''
@@ -189,6 +190,12 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
             </div>
           </div>
         </div>
+
+        <PrintRequestButton
+          caseId={id}
+          caseLabel={(caseRow.case_number || '') + ' — ' + (caseRow.title || '')}
+        />
+
         <CriticalDeadlines caseId={id} deadlines={deadlines || []} caseClosed={caseClosed} />
 
         <ArchiveRetry caseId={id} pending={pendingArchive} />
