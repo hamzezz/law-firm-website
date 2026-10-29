@@ -8,6 +8,8 @@ import CloseCase from './close-case'
 import ArchiveRetry from './archive-retry'
 import CaseAdmin from './case-admin'
 import PrintRequestButton from '@/app/components/print-request-button'
+import PrintRequests, { type CasePrintRequest } from './print-requests'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 function statusBadge(status: string) {
   const s = status ? status.toLowerCase() : ''
@@ -44,7 +46,16 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
    * كانت خمس موجات متتابعة. والخادم في Oregon وقاعدة البيانات في
    * Frankfurt، فكل موجة ربع ثانية إلى ثلث.
    */
-  const [userResult, caseResult, deadlinesResult, sessionsResult, documentsResult] =
+  /**
+   * جداول مكتب الطباعة محميّة بلا سياسات، فلا تصلها صلاحية المستخدم.
+   * وتُقرأ بالعميل الإداري داخل الموجة نفسها، فلا تضيف انتظاراً.
+   */
+  const printAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const [userResult, caseResult, deadlinesResult, sessionsResult, documentsResult, printResult] =
     await Promise.all([
       supabase.from('users').select('id, role, username').eq('auth_id', user.id).single(),
       supabase
@@ -68,6 +79,17 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
         .select('id, file_name, session_id, storage_path, storage_provider, uploaded_at')
         .eq('case_id', id)
         .order('uploaded_at', { ascending: false }),
+      printAdmin
+        .from('print_requests')
+        .select(
+          'id, doc_type, note, due_date, status, created_at, ' +
+          'print_request_pages ( id, page_order ), ' +
+          'print_drafts ( id, draft_no, word_path, pdf_path ), ' +
+          'print_notes ( id, body, is_resolved )'
+        )
+        .eq('case_id', id)
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false }),
     ])
 
   const appUser = userResult.data
@@ -79,6 +101,18 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
   const deadlines = deadlinesResult.data
   const sessionsRaw = sessionsResult.data
   const documents = documentsResult.data
+
+  const printRequests: CasePrintRequest[] = ((printResult as any).data || []).map((r: any) => ({
+    id: r.id,
+    docType: r.doc_type || 'مذكّرة',
+    note: r.note || '',
+    dueDate: r.due_date,
+    status: r.status,
+    createdAt: r.created_at,
+    pages: (r.print_request_pages || []).slice().sort((a: any, b: any) => a.page_order - b.page_order),
+    drafts: (r.print_drafts || []).slice().sort((a: any, b: any) => a.draft_no - b.draft_no),
+    notes: r.print_notes || [],
+  }))
 
   /** الاسم المضموم قد يأتي كائناً أو مصفوفة بحسب العلاقة، فيُقرأ على الوجهين */
   function joinedName(rel: any): string | null {
@@ -195,6 +229,8 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
           caseId={id}
           caseLabel={(caseRow.case_number || '') + ' — ' + (caseRow.title || '')}
         />
+
+        <PrintRequests requests={printRequests} />
 
         <CriticalDeadlines caseId={id} deadlines={deadlines || []} caseClosed={caseClosed} />
 
