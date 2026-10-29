@@ -15,7 +15,10 @@ export const dynamic = 'force-dynamic'
  * مسودّتان في وقتٍ متقارب.
  */
 
-const MAX_BYTES = 15 * 1024 * 1024
+/** حدّ المستودع نفسه عشرة ميجابايت، فلا نَعِد بأكثر مما يقبله */
+const MAX_BYTES = 10 * 1024 * 1024
+
+const WORD_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 export async function POST(
   request: Request,
@@ -70,7 +73,7 @@ export async function POST(
 
   for (const f of [wordFile, pdfFile]) {
     if (f && f.size > MAX_BYTES) {
-      return NextResponse.json({ error: 'حجم الملف يتجاوز ١٥ ميجابايت' }, { status: 400 })
+      return NextResponse.json({ error: 'حجم الملف يتجاوز عشرة ميجابايت' }, { status: 400 })
     }
   }
 
@@ -95,12 +98,22 @@ export async function POST(
   async function put(file: File, ext: string): Promise<{ path?: string; error?: string }> {
     const path = base + '.' + ext
     const buf = Buffer.from(await file.arrayBuffer())
+
+    /**
+     * النوع يُفرض من الحقل لا من الملف.
+     *
+     * بعض الهواتف ترسل الملف بلا نوع، أو بنوعٍ عام، فيصير
+     * application/octet-stream ويردّه المستودع. والحقل الذي اختير منه
+     * الملف يعرّفنا بنوعه يقيناً.
+     */
+    const contentType =
+      ext === 'docx' ? WORD_MIME :
+      ext === 'doc'  ? 'application/msword' :
+      'application/pdf'
+
     const { error } = await admin.storage
       .from('case-documents')
-      .upload(path, buf, {
-        contentType: file.type || 'application/octet-stream',
-        upsert: true,
-      })
+      .upload(path, buf, { contentType, upsert: true })
     if (error) {
       console.log('[print-draft] تعذّر الرفع | ' + path + ' | ' + file.type + ' | ' + error.message)
       return { error: error.message }
@@ -112,7 +125,9 @@ export async function POST(
   let pdfPath: string | null = null
 
   if (wordFile) {
-    const r = await put(wordFile, 'docx')
+    // الصيغة القديمة .doc تبقى على امتدادها، فلا يُفتح ملفٌ باسمٍ يكذب عليه
+    const wordExt = (wordFile.name || '').toLowerCase().endsWith('.doc') ? 'doc' : 'docx'
+    const r = await put(wordFile, wordExt)
     if (!r.path) {
       return NextResponse.json({ error: 'تعذّر رفع ملف Word: ' + (r.error || '') }, { status: 500 })
     }
