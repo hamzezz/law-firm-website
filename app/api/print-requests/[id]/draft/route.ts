@@ -86,7 +86,13 @@ export async function POST(
   const draftNo = ((top && top.draft_no) || 0) + 1
   const base = req.case_id + '/print/' + id + '/draft-' + draftNo
 
-  async function put(file: File, ext: string): Promise<string | null> {
+  /**
+   * يُعيد المسار، أو رسالة الخطأ كما وردت من التخزين.
+   *
+   * كانت الدالة تبتلع الرسالة وتعيد «تعذّر الرفع» وحدها، فضاع السبب —
+   * وقيد نوع الملف على المستودع يبدو حينها كعطلٍ مجهول.
+   */
+  async function put(file: File, ext: string): Promise<{ path?: string; error?: string }> {
     const path = base + '.' + ext
     const buf = Buffer.from(await file.arrayBuffer())
     const { error } = await admin.storage
@@ -95,19 +101,29 @@ export async function POST(
         contentType: file.type || 'application/octet-stream',
         upsert: true,
       })
-    return error ? null : path
+    if (error) {
+      console.log('[print-draft] تعذّر الرفع | ' + path + ' | ' + file.type + ' | ' + error.message)
+      return { error: error.message }
+    }
+    return { path }
   }
 
   let wordPath: string | null = null
   let pdfPath: string | null = null
 
   if (wordFile) {
-    wordPath = await put(wordFile, 'docx')
-    if (!wordPath) return NextResponse.json({ error: 'تعذّر رفع ملف Word' }, { status: 500 })
+    const r = await put(wordFile, 'docx')
+    if (!r.path) {
+      return NextResponse.json({ error: 'تعذّر رفع ملف Word: ' + (r.error || '') }, { status: 500 })
+    }
+    wordPath = r.path
   }
   if (pdfFile) {
-    pdfPath = await put(pdfFile, 'pdf')
-    if (!pdfPath) return NextResponse.json({ error: 'تعذّر رفع ملف PDF' }, { status: 500 })
+    const r = await put(pdfFile, 'pdf')
+    if (!r.path) {
+      return NextResponse.json({ error: 'تعذّر رفع ملف PDF: ' + (r.error || '') }, { status: 500 })
+    }
+    pdfPath = r.path
   }
 
   const { data: draft, error: draftError } = await admin
