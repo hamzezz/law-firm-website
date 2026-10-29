@@ -6,7 +6,8 @@ import ChangePassword from '@/app/components/change-password'
 import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
 import NotificationBell from '@/app/lawyer/dashboard/notification-bell'
-import RequestCard, { type TypistRequest } from './request-card'
+import TypistShell from './typist-shell'
+import type { TypistRequest } from './request-card'
 import { fetchPrintRequests } from '@/lib/print/fetch'
 
 /**
@@ -40,19 +41,11 @@ export default async function TypistDashboardPage() {
       .order('created_at', { ascending: false })
   )
 
-  const open = requests.filter((r) => r.status !== 'approved')
-  const doneList = requests.filter((r) => r.status === 'approved')
-
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
       <RegisterDeviceToken />
 
       <header className="bg-slate-900 border-b-4 border-amber-500 px-4 py-4 md:px-6 md:py-5">
-        {/*
-          الترويسة عنصران فقط: الاسم والجرس. وأزرار الحساب نُقلت إلى
-          المتن، لأن ازدحام الترويسة على الهاتف لم يترك للوحة الإشعارات
-          موضعاً تظهر فيه.
-        */}
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="font-display font-bold text-white text-base md:text-xl">مكتب الطباعة</h1>
@@ -62,51 +55,27 @@ export default async function TypistDashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-5 md:px-6 md:py-6 space-y-5">
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <EnableNotifications userId={appUser.id} />
-          <div className="flex items-center gap-2 mr-auto">
-            <ChangePassword />
-            <LogoutButton />
-          </div>
-        </div>
-
-        <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-[12px] font-bold text-slate-500">الطلبات الجارية</span>
-            <span className="text-[12px] text-slate-400">{open.length}</span>
-          </div>
-
-          {open.length === 0 && (
-            <p className="text-slate-400 text-sm py-12 text-center">لا توجد طلبات طباعة الآن.</p>
-          )}
-
-          <div className="divide-y divide-slate-100">
-            {open.map((r) => <RequestCard key={r.id} request={r} />)}
-          </div>
-        </section>
-
-        {doneList.length > 0 && (
-          <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100">
-              <span className="text-[12px] font-bold text-slate-500">ما اعتُمد ({doneList.length})</span>
+      <TypistShell
+        requests={requests}
+        account={
+          <>
+            <div>
+              <p className="text-sm font-bold text-slate-800">{appUser.full_name}</p>
+              <p className="text-[12px] text-slate-500 mt-1">طبّاع — مكتب وليد الكثيري للمحاماة</p>
             </div>
-            <div className="divide-y divide-slate-100">
-              {doneList.slice(0, 10).map((r) => (
-                <div key={r.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm text-slate-700 truncate">{r.docType} — {r.caseTitle}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{r.caseNumber}</p>
-                  </div>
-                  <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
-                    معتمد
-                  </span>
-                </div>
-              ))}
+
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-[11px] text-slate-400 mb-2">الإشعارات الفورية</p>
+              <EnableNotifications userId={appUser.id} />
             </div>
-          </section>
-        )}
-      </main>
+
+            <div className="border-t border-slate-100 pt-4 flex items-center gap-2">
+              <ChangePassword />
+              <LogoutButton />
+            </div>
+          </>
+        }
+      />
     </div>
   )
 }

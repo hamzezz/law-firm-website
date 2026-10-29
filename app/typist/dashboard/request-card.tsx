@@ -12,6 +12,7 @@ export type TypistRequest = {
   note: string
   dueDate: string | null
   status: string
+  createdAt: string
   caseNumber: string
   caseTitle: string
   courtName: string
@@ -29,12 +30,40 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'ملغى',             cls: 'bg-slate-200 text-slate-600' },
 }
 
+const STRIPE: Record<string, string> = {
+  new: 'border-amber-400',
+  typing: 'border-blue-400',
+  review: 'border-violet-400',
+  approved: 'border-emerald-400',
+  cancelled: 'border-slate-300',
+}
+
 function fmt(value: string | null) {
   if (!value) return ''
   const d = new Date(value)
   if (isNaN(d.getTime())) return ''
   return String(d.getDate()).padStart(2, '0') + '/' +
          String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear()
+}
+
+/**
+ * قُرب الميعاد بالأيام، محسوباً على التاريخ المحلي لا على UTC —
+ * وإلا تبدّل «اليوم» بـ«غداً» عند منتصف الليل بتوقيت غرينتش.
+ */
+export function dueInfo(due: string | null): { label: string; cls: string } | null {
+  if (!due) return null
+  const today = new Date()
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const parts = due.slice(0, 10).split('-').map(Number)
+  if (parts.length !== 3) return null
+  const d = new Date(parts[0], parts[1] - 1, parts[2])
+  const days = Math.round((d.getTime() - t.getTime()) / 86400000)
+
+  if (days < 0) return { label: 'فات الميعاد', cls: 'bg-red-100 text-red-700' }
+  if (days === 0) return { label: 'الميعاد اليوم', cls: 'bg-red-100 text-red-700' }
+  if (days === 1) return { label: 'الميعاد غداً', cls: 'bg-orange-100 text-orange-700' }
+  if (days <= 3) return { label: 'بعد ' + days + ' أيام', cls: 'bg-amber-100 text-amber-800' }
+  return { label: fmt(due), cls: 'bg-slate-100 text-slate-500' }
 }
 
 export default function RequestCard({ request }: { request: TypistRequest }) {
@@ -89,11 +118,25 @@ export default function RequestCard({ request }: { request: TypistRequest }) {
     }
   }
 
+  const due = dueInfo(r.dueDate)
+
   return (
-    <div className="px-5 py-4">
+    <div className={'px-5 py-4 border-r-4 ' + (STRIPE[r.status] || STRIPE.new)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-slate-800">{r.docType}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-bold text-slate-800">{r.docType}</p>
+            {due && (
+              <span className={'px-2 py-0.5 rounded-full text-[10px] font-bold ' + due.cls}>
+                {due.label}
+              </span>
+            )}
+            {openNotes.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                {openNotes.length} ملاحظة
+              </span>
+            )}
+          </div>
           <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">
             {r.caseTitle}{r.caseNumber ? ' — ' + r.caseNumber : ''}
           </p>
@@ -124,7 +167,6 @@ export default function RequestCard({ request }: { request: TypistRequest }) {
         </div>
       )}
 
-      {r.dueDate && <p className="text-[11px] text-amber-700 mt-2.5">المطلوب قبل {fmt(r.dueDate)}</p>}
 
       {/* ملاحظات المدير — ما لم يُعالَج منها أولاً */}
       {openNotes.length > 0 && (
