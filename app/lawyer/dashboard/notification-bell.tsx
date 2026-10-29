@@ -76,7 +76,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
         */}
         <div
           className={
-            'fixed inset-x-3 top-[4.5rem] z-50 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden ' +
+            'fixed inset-x-3 top-20 z-50 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden ' +
             'sm:absolute sm:inset-auto sm:top-full sm:left-0 sm:mt-2 sm:w-80'
           }
           dir="rtl"

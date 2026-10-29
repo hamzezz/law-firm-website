@@ -48,21 +48,28 @@ export default async function TypistDashboardPage() {
       <RegisterDeviceToken />
 
       <header className="bg-slate-900 border-b-4 border-amber-500 px-4 py-4 md:px-6 md:py-5">
-        <div className="max-w-4xl mx-auto flex items-start justify-between gap-3">
+        {/*
+          الترويسة عنصران فقط: الاسم والجرس. وأزرار الحساب نُقلت إلى
+          المتن، لأن ازدحام الترويسة على الهاتف لم يترك للوحة الإشعارات
+          موضعاً تظهر فيه.
+        */}
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="font-display font-bold text-white text-base md:text-xl">مكتب الطباعة</h1>
             <p className="text-slate-300 text-[12px] md:text-sm mt-1">مرحباً {appUser.full_name}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <NotificationBell userId={appUser.id} />
-            <ChangePassword />
-            <LogoutButton />
-          </div>
+          <NotificationBell userId={appUser.id} />
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-5 md:px-6 md:py-6 space-y-5">
-        <EnableNotifications userId={appUser.id} />
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <EnableNotifications userId={appUser.id} />
+          <div className="flex items-center gap-2 mr-auto">
+            <ChangePassword />
+            <LogoutButton />
+          </div>
+        </div>
 
         <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
