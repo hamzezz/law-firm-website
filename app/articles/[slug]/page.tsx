@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ArticleSchema, Breadcrumbs } from '@/app/components/page-schema'
@@ -129,7 +130,35 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
       />
       <header className="bg-slate-900 border-b-4 border-amber-500 px-6 py-6">
         <div className="max-w-3xl mx-auto">
-          <Link href="/articles" className="text-amber-200 text-sm hover:text-white transition">رجوع لكل المقالات</Link>
+          {/*
+            هوية المكتب في أقصى اليسار، ورابط الرجوع في اليمين — نفس ترتيب
+            صفحة المكتبة القانونية، كي لا تختلف الترويستان على القارئ.
+          */}
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/articles" className="text-amber-200 text-sm hover:text-white transition shrink-0">رجوع لكل المقالات</Link>
+
+            <Link
+              href="/"
+              aria-label="مكتب وليد الكثيري للمحاماة والاستشارات القانونية"
+              className="flex items-center gap-2 sm:gap-3 shrink-0 group"
+            >
+              <div className="text-right leading-tight">
+                <span className="block font-display text-white font-bold text-xs sm:text-sm group-hover:text-amber-100 transition">
+                  مكتب وليد الكثيري
+                </span>
+                <span className="block text-amber-200/80 text-[9px] sm:text-[10px] mt-0.5">
+                  للمحاماة والاستشارات القانونية
+                </span>
+              </div>
+              <Image
+                src="/logo.png"
+                alt="شعار مكتب وليد الكثيري"
+                width={38}
+                height={38}
+                className="rounded-full bg-white p-1 shrink-0"
+              />
+            </Link>
+          </div>
         </div>
       </header>
 
