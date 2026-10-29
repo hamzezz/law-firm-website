@@ -64,8 +64,33 @@ export default function EnableNotifications({ userId }: { userId: string }) {
     setStatus('subscribed')
   }
 
-  if (status === 'unsupported') return null
   if (status === 'subscribed') return null
+
+  /**
+   * كان المكوّن يختفي حين لا يدعم المتصفّح الإشعارات، فيبقى المستخدم
+   * لا يرى زرّاً ولا سبباً — وظنّ أن الإشعارات معطّلة في النظام.
+   *
+   * وصمتٌ كهذا أسوأ من رسالة: الإشعارات تُكتب له في النظام ولا تصل
+   * هاتفه، ولا شيء يدلّه على الطريق.
+   */
+  if (status === 'unsupported') {
+    return (
+      <p className="text-[11px] text-slate-500 leading-relaxed">
+        هذا المتصفّح لا يسلّم الإشعارات الفورية. افتح النظام من تطبيق المكتب،
+        أو — على الآيفون — من Safari: «مشاركة» ثم «إضافة إلى الشاشة الرئيسية»،
+        وافتحه من الأيقونة، ثم فعّل الإشعارات من هنا.
+      </p>
+    )
+  }
+
+  if (status === 'denied') {
+    return (
+      <p className="text-[11px] text-amber-700 leading-relaxed">
+        الإشعارات ممنوعة لهذا الموقع في إعدادات متصفّحك. اسمح بها من إعدادات
+        الموقع، ثم أعد فتح الصفحة.
+      </p>
+    )
+  }
 
   return (
     <button
