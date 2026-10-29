@@ -43,6 +43,7 @@ export default function PrintRequestButton({
   const [sent, setSent] = useState(false)
 
   const batchRef = useRef<string>('')
+  const galleryRef = useRef<HTMLInputElement | null>(null)
   const uploadsRef = useRef<Map<string, Promise<void>>>(new Map())
   const counterRef = useRef(0)
 
@@ -59,12 +60,21 @@ export default function PrintRequestButton({
     setOpen(true)
   }
 
-  /** الرفع يبدأ لحظة الالتقاط، لا عند الإرسال */
+  /** امتداد الملف من نوعه أو اسمه — فصور المعرض ليست كلّها jpg */
+  function extOf(file: File): string {
+    const fromName = (file.name || '').split('.').pop()
+    if (fromName && fromName.length <= 5 && /^[a-zA-Z0-9]+$/.test(fromName)) return fromName.toLowerCase()
+    const t = (file.type || '').split('/').pop()
+    return t && /^[a-zA-Z0-9]+$/.test(t) ? t.toLowerCase() : 'jpg'
+  }
+
+  /** الرفع يبدأ لحظة الالتقاط أو الاختيار، لا عند الإرسال */
   function addPage(file: File) {
     counterRef.current += 1
     const n = counterRef.current
     const id = String(n) + '-' + Date.now()
-    const path = caseId + '/print/' + batchRef.current + '/' + String(n).padStart(2, '0') + '.jpg'
+    const path =
+      caseId + '/print/' + batchRef.current + '/' + String(n).padStart(2, '0') + '.' + extOf(file)
 
     setPages((prev) => [...prev, { id, preview: URL.createObjectURL(file), path, status: 'uploading' }])
 
@@ -232,11 +242,39 @@ export default function PrintRequestButton({
                   </div>
                 )}
 
-                <DocumentScanner
-                  onCapture={addPage}
-                  autoOpen={pages.length === 0}
-                  label={pages.length === 0 ? '📷 ابدأ التصوير' : '📷 صفحة أخرى'}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <DocumentScanner
+                    onCapture={addPage}
+                    autoOpen={pages.length === 0}
+                    label={pages.length === 0 ? '📷 ابدأ التصوير' : '📷 صفحة أخرى'}
+                  />
+
+                  {/*
+                    اختيار عدّة صور دفعةً واحدة من المعرض — لمن صوّر الأوراق
+                    قبل أن يفتح النظام، أو أراد إرسال ما في هاتفه بلا إعادة تصوير.
+                    وكلّها تدخل الطلب نفسه، فتصل الطبّاع ملفاً واحداً.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => galleryRef.current?.click()}
+                    className="text-xs font-bold px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition w-full"
+                  >
+                    🖼️ من المعرض
+                  </button>
+
+                  <input
+                    ref={galleryRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const list = e.target.files
+                      if (list) Array.from(list).forEach((f) => addPage(f))
+                      e.target.value = ''
+                    }}
+                  />
+                </div>
 
                 <button
                   type="button"
