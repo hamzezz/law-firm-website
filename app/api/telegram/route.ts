@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       reply += '\n' + result.needsReview
         .map((r: any) => `• ${r.caseNumber} — ${r.courtName}`)
         .join('\n')
-      reply += '\n\nافتح لوحة المدير التقني في الموقع لتأكيدها.'
+      reply += '\n\nافتح لوحة التقني في الموقع لتأكيدها.'
     }
 
     if (result.matchedCases.length > 0) {

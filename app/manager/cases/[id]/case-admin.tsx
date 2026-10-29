@@ -82,7 +82,7 @@ export default function CaseAdmin({ caseId, caseNumber, initial }: Props) {
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mt-5">
       <div className="flex items-center justify-between gap-2">
         <h4 className="font-bold text-slate-900 text-sm">إدارة بيانات القضية</h4>
-        <span className="text-[11px] text-slate-400">للمدير التقني</span>
+        <span className="text-[11px] text-slate-400">للتقني</span>
       </div>
 
       {msg && <p className="text-xs mt-2 font-bold text-slate-700">{msg}</p>}

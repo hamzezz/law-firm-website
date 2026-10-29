@@ -15,7 +15,7 @@ async function requireTech() {
     .single()
 
   if (!appUser || appUser.role !== 'manager' || appUser.username !== 'tech') {
-    return { error: 'هذا الإجراء متاح للمدير التقني فقط', status: 403 as const }
+    return { error: 'هذا الإجراء متاح للتقني فقط', status: 403 as const }
   }
   return { ok: true as const, userId: appUser.id }
 }

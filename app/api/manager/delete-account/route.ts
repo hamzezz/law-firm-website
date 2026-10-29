@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   const requester = requesterRes.data
 
   if (!requester || requester.role !== 'manager' || requester.username !== 'tech') {
-    return NextResponse.json({ error: 'هذا الإجراء متاح للمدير التقني فقط' }, { status: 403 })
+    return NextResponse.json({ error: 'هذا الإجراء متاح للتقني فقط' }, { status: 403 })
   }
 
   const targetUser = targetRes.data

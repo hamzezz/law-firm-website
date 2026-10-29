@@ -511,7 +511,7 @@ export default function ManagerTabs({
 
   return (
     <div>
-      {/* أدوات المدير التقني على الحاسوب — فوق التبويبات كما كانت */}
+      {/* أدوات التقني على الحاسوب — فوق التبويبات كما كانت */}
       {isTech && (backupPanel || uploadPanel) && (
         <div className="hidden md:block space-y-6 mb-6">
           {backupPanel}
@@ -676,7 +676,7 @@ export default function ManagerTabs({
         <AccountsTab accounts={manageableAccounts} isTech={isTech} />
       )}
 
-      {/* ═══════════ أدوات المدير التقني ═══════════ */}
+      {/* ═══════════ أدوات التقني ═══════════ */}
       {activeTab === 'upload' && <div>{uploadPanel}</div>}
       {activeTab === 'backup' && <div>{backupPanel}</div>}
 

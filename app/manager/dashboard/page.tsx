@@ -39,7 +39,7 @@ export default async function ManagerDashboardPage() {
   const managedRoles = isTech ? ['lawyer', 'client', 'manager'] : ['lawyer', 'client']
 
   /**
-   * حالة وصول الإشعارات — للمدير التقني وحده.
+   * حالة وصول الإشعارات — للتقني وحده.
    * تُقرأ بصلاحية الخادم عمداً: سياسة RLS تحصر كل مستخدم بإشعاراته،
    * وهذه الشاشة تعرض إشعارات الفريق كلّه لتشخيص ما لا يصل.
    */
@@ -191,7 +191,7 @@ export default async function ManagerDashboardPage() {
         <span className="w-1 self-stretch rounded bg-amber-500 shrink-0 md:hidden" />
         <div className="min-w-0 flex-1">
           <h1 className="font-display font-bold text-base leading-tight text-slate-900 md:royal-title md:text-2xl">
-            {isTech ? 'لوحة المدير التقني' : 'لوحة تحكم المدير'}
+            {isTech ? 'لوحة التقني' : 'لوحة تحكم المدير'}
           </h1>
           <p className="text-[11px] mt-1 truncate text-slate-500 md:text-slate-300 md:text-xs">
             مرحباً {appUser.full_name}

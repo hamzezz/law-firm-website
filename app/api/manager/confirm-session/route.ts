@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     .single()
 
   if (!appUser || appUser.role !== 'manager' || appUser.username !== 'tech') {
-    return NextResponse.json({ error: 'هذا الإجراء متاح للمدير التقني فقط' }, { status: 403 })
+    return NextResponse.json({ error: 'هذا الإجراء متاح للتقني فقط' }, { status: 403 })
   }
 
   const body = await request.json().catch(() => null)

@@ -321,7 +321,7 @@ export async function processSessionsText(
     }
  
     // تطابق الرقم والمحكمة ولم يتطابق الاسم: لا إشعار، ولا تجاهل صامت.
-    // تُعرض على المدير التقني ومعها زرّ تأكيد لكل قضية مرشّحة.
+    // تُعرض على التقني ومعها زرّ تأكيد لكل قضية مرشّحة.
     if (!matchedCase) {
       const key = item.caseNumber + '|' + item.courtName + '|' + (item.rawLine || '')
       if (!reviewKeys.has(key)) {

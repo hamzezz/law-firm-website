@@ -6,7 +6,7 @@ import { sendPushToUser } from '@/lib/push/send-push'
 export const dynamic = 'force-dynamic'
 
 /**
- * إشعار تجريبي — للمدير التقني وحده.
+ * إشعار تجريبي — للتقني وحده.
  *
  * وُضع لإنهاء التخمين حين يقول محامٍ إن الإشعارات لا تصله: يُرسَل إليه
  * إشعار واحد، ويقول سجلّ Render في سطر واحد أين توقّف — عند الخادم، أم
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     .single()
 
   if (!appUser || appUser.role !== 'manager' || appUser.username !== 'tech') {
-    return NextResponse.json({ error: 'هذا الإجراء متاح للمدير التقني فقط' }, { status: 403 })
+    return NextResponse.json({ error: 'هذا الإجراء متاح للتقني فقط' }, { status: 403 })
   }
 
   const body = await request.json().catch(() => null)
