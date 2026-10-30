@@ -10,6 +10,7 @@ import CasesTable from './cases-table'
 import TeamTab from './team-tab'
 import PermissionsTab from './permissions-tab'
 import AddTypist from './add-typist'
+import PrintRequestButton from '@/app/components/print-request-button'
 import CalendarView from './calendar-view'
 import AuditLog from './audit-log'
 import ReportsPanel from './reports-panel'
@@ -510,6 +511,18 @@ export default function ManagerTabs({
   const archivedCases = (cases || []).filter((c: any) => archivedSet.has(c.id))
   const activeCases = (cases || []).filter((c: any) => !archivedSet.has(c.id))
 
+  /** قائمة مختصرة لاختيار القضية في طلب الطباعة السريع */
+  const printableCases = activeCases.map((c: any) => {
+    const cl = Array.isArray(c.clients) ? c.clients[0] : c.clients
+    const u = cl ? (Array.isArray(cl.users) ? cl.users[0] : cl.users) : null
+    return {
+      id: c.id,
+      label:
+        (c.case_number || '') + ' — ' + (c.title || '') +
+        (u?.full_name ? ' — ' + u.full_name : ''),
+    }
+  })
+
   return (
     <div>
       {/* أدوات التقني على الحاسوب — فوق التبويبات كما كانت */}
@@ -629,6 +642,15 @@ export default function ManagerTabs({
       {/* ═══════════ القضايا الجارية ═══════════ */}
       {activeTab === 'clients-cases' && (
         <div className="space-y-5">
+          {/*
+            طلب طباعة من خارج القضية — لمن هو في عجلة: ضغطة، فاختيار
+            القضية، فالكاميرا. ولا يحتاج الدخول إلى القضية أولاً.
+          */}
+          <PrintRequestButton
+            cases={printableCases}
+            label="طلب طباعة سريع"
+          />
+
           <div>
             <h2 className="font-display font-bold text-slate-900 mb-3 text-base sm:text-lg">
               القضايا الجارية

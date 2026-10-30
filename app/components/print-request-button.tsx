@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { matchesArabic } from '@/lib/text/arabic'
 import DocumentScanner from './document-scanner'
 
 /**
@@ -23,16 +24,26 @@ type Page = {
 
 const DOC_TYPES = ['دعوى', 'طعن', 'ردّ', 'دفع', 'مذكّرة', 'عريضة']
 
+export type PickableCase = { id: string; label: string }
+
 export default function PrintRequestButton({
   caseId,
   caseLabel,
+  cases,
+  label = 'طلب طباعة',
   className = '',
 }: {
-  caseId: string
+  /** القضية حين يُفتح الزرّ من داخلها — فلا يُسأل عنها */
+  caseId?: string
   caseLabel?: string
+  /** القضايا حين يُفتح من خارجها، فتُختار من قائمة */
+  cases?: PickableCase[]
+  label?: string
   className?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [picked, setPicked] = useState<PickableCase | null>(null)
+  const [search, setSearch] = useState('')
   const [pages, setPages] = useState<Page[]>([])
   const [details, setDetails] = useState(false)
   const [docType, setDocType] = useState('')
@@ -57,8 +68,13 @@ export default function PrintRequestButton({
     setPages([])
     setDocType(''); setNote(''); setDueDate('')
     setDetails(false); setError(''); setSent(false)
+    setPicked(caseId ? { id: caseId, label: caseLabel || '' } : null)
+    setSearch('')
     setOpen(true)
   }
+
+  const activeCaseId = picked?.id || ''
+  const activeLabel = picked?.label || caseLabel || ''
 
   /** امتداد الملف من نوعه أو اسمه — فصور المعرض ليست كلّها jpg */
   function extOf(file: File): string {
@@ -74,7 +90,7 @@ export default function PrintRequestButton({
     const n = counterRef.current
     const id = String(n) + '-' + Date.now()
     const path =
-      caseId + '/print/' + batchRef.current + '/' + String(n).padStart(2, '0') + '.' + extOf(file)
+      activeCaseId + '/print/' + batchRef.current + '/' + String(n).padStart(2, '0') + '.' + extOf(file)
 
     setPages((prev) => [...prev, { id, preview: URL.createObjectURL(file), path, status: 'uploading' }])
 
@@ -129,7 +145,7 @@ export default function PrintRequestButton({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          caseId,
+          caseId: activeCaseId,
           pages: ready,
           docType: docType || null,
           note: note.trim() || null,
@@ -168,7 +184,7 @@ export default function PrintRequestButton({
           <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
           <path d="M6 14h12v8H6z" />
         </svg>
-        طلب طباعة
+        {label}
       </button>
 
       {open && (
@@ -178,12 +194,46 @@ export default function PrintRequestButton({
             <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-3.5 flex items-center justify-between">
               <div className="min-w-0">
                 <h3 className="font-display font-bold text-slate-900 text-sm">طلب طباعة</h3>
-                {caseLabel && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{caseLabel}</p>}
+                {activeLabel && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{activeLabel}</p>}
               </div>
               <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-700 text-lg px-2 shrink-0">✕</button>
             </div>
 
-            {sent ? (
+            {!sent && !picked ? (
+              /*
+                اختيار القضية — حين يُفتح الزرّ من خارجها.
+                القائمة كلّها ظاهرة من أول لحظة، والبحث يختصرها؛ فمن
+                يعرف قضيته يراها، ومن لا يعرفها يكتب حرفين.
+              */
+              <div className="p-5">
+                <p className="text-[13px] text-slate-500 mb-3">اختر القضية</p>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="ابحث بالرقم أو العنوان أو اسم الموكّل…"
+                  className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500/60 focus:border-amber-400 focus:bg-white transition"
+                />
+
+                <div className="mt-3 border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-[55vh] overflow-y-auto">
+                  {(cases || [])
+                    .filter((c) => !search.trim() || matchesArabic(c.label, search))
+                    .slice(0, 60)
+                    .map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => setPicked(c)}
+                        className="w-full text-right px-4 py-3 hover:bg-slate-50 active:bg-slate-100 transition text-[13px] text-slate-700"
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+
+                  {(cases || []).filter((c) => !search.trim() || matchesArabic(c.label, search)).length === 0 && (
+                    <p className="px-4 py-8 text-center text-slate-400 text-[13px]">لا توجد قضية مطابقة.</p>
+                  )}
+                </div>
+              </div>
+            ) : sent ? (
               <div className="p-8 text-center">
                 <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-2xl">✓</div>
                 <p className="font-bold text-slate-800 mt-4">أُرسل إلى الطبّاع</p>

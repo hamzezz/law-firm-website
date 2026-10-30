@@ -223,6 +223,22 @@ export default function RequestCard({ request }: { request: TypistRequest }) {
           ) : (
             <>
               {error && <p className="text-[12px] text-red-700 mb-2">{error}</p>}
+              {/*
+                ترويسة القضية جاهزة في ملف Word: المحكمة ورقم القضية
+                والأطراف منقولة من بيانات القضية، فلا تُكتب باليد ولا
+                يقع فيها خطأ.
+              */}
+              <a
+                href={'/api/print-requests/' + r.id + '/header-docx'}
+                className="flex items-center justify-center gap-2 w-full mb-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[13px] rounded-xl px-4 py-2.5 transition"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <path d="M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                ابدأ من ملف Word بترويسة القضية
+              </a>
+
               <p className="text-[11px] text-slate-400 mb-2">ارفع المسودّة — Word أو PDF أو كليهما</p>
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-[12px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 cursor-pointer hover:border-slate-300 transition truncate">

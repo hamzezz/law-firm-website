@@ -5,6 +5,7 @@ import Link from 'next/link'
 import CalendarView from './calendar-view'
 import { matchesArabic, shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
 import { useHashTab } from '@/app/components/use-hash-tab'
+import PrintRequestButton from '@/app/components/print-request-button'
 
 /**
  * واجهة لوحة المحامي.
@@ -206,6 +207,14 @@ export default function ViewSwitcher({
   /** جلسات الغد: القضايا التي أقرب جلسةٍ مجدولة لها تقع غداً */
   const tKey = tomorrowKey()
   const tomorrowCases = (cases || []).filter((c) => localDateKey(c.nextSessionDate) === tKey)
+
+  /** قائمة مختصرة لاختيار القضية في طلب الطباعة السريع */
+  const printableCases = (cases || []).map((c: any) => ({
+    id: c.id,
+    label:
+      (c.case_number || '') + ' — ' + (c.title || '') +
+      (c.clientName && c.clientName !== 'غير محدد' ? ' — ' + c.clientName : ''),
+  }))
   const tomorrowDay = tomorrowWeekday()
 
   const tabBase = 'px-5 py-3 text-sm font-bold border-b-2 transition'
@@ -266,6 +275,11 @@ export default function ViewSwitcher({
       <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 md:px-6 md:pt-6 md:pb-12">
         {view !== 'calendar' && view !== 'archive' && (
           <div className={view === 'account' ? 'hidden md:block' : ''}>
+            {/* طلب طباعة من خارج القضية — ضغطة فاختيار القضية فالكاميرا */}
+            <div className="mb-4">
+              <PrintRequestButton cases={printableCases} label="طلب طباعة سريع" />
+            </div>
+
             <SearchBox value={q} onChange={setQ} placeholder="ابحث برقم القضية أو اسم الموكّل أو المحكمة…" />
 
             {tomorrowCases.length > 0 && !q.trim() && (
