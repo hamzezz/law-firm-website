@@ -15,9 +15,19 @@ export const metadata: Metadata = {
     title: "الكثيري",
     statusBarStyle: "black-translucent",
   },
+  /**
+   * أيقونة الاختصار على الشاشة الرئيسية.
+   *
+   * iOS لا يقرأ أيقونات manifest حين يُضاف الموقع من Safari، بل يقرأ
+   * apple-touch-icon وحدها، ومقاسها ١٨٠×١٨٠ مربّعة بلا شفافية. وكانت
+   * المشار إليها ١٤٨×١٩٢ — غير مربّعة — فظهرت على غير وجهها.
+   */
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
     title: "مكتب وليد الكثيري للمحاماة",
