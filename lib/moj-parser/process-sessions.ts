@@ -1,6 +1,7 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { parseSessionsReport, deduplicateCases, normalizeArabic } from '@/lib/moj-parser/parser'
 import { sendPushToUser } from '@/lib/push/send-push'
+import { shortArabicName } from '@/lib/text/arabic'
  
 const STOP_WORDS = new Set([
   'ورثه','واخرين','واخر','وهم','زوجته','زوجه','شركه','بن','بنت','عبد','ابو','السيد','الاستاذ',
@@ -80,6 +81,19 @@ const ARABIC_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأ
 function getArabicDayName(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00')
   return ARABIC_DAYS[date.getDay()]
+}
+
+/**
+ * اسم المحكمة كما يُعرض في الإشعار.
+ *
+ * أسماء المحاكم مخزَّنة في القضايا بصيغتين: «محكمة المشنة» و«المشنة».
+ * وكان الكود يضيف «في محكمة » أمامها دائماً، فظهر في الإشعار
+ * «محكمة محكمة المشنة». فلا تُضاف الكلمة إلا إن لم تكن موجودة أصلاً.
+ */
+function courtLabel(name: string | null | undefined): string {
+  const v = String(name || '').trim()
+  if (!v) return ''
+  return v.startsWith('محكمة') ? v : 'محكمة ' + v
 }
  
 /**
@@ -170,11 +184,18 @@ export async function createSessionAndNotify(
   tomorrowDate.setDate(tomorrowDate.getDate() + 1)
   const dayName = getArabicDayName(tomorrowDate.toISOString().slice(0, 10))
  
-  const notificationTitle = 'جلسة يوم غداً ' + dayName + ' - قضية الموكل ' + clientName
+  /**
+   * العنوان قصير عمداً: إشعار الهاتف يبتر ما تجاوز نحو أربعين حرفاً،
+   * وكان المبتور اسم الموكّل — وهو أنفع ما في العنوان. ويُختصر الاسم
+   * بـ shortArabicName لأن الأسماء عندنا رباعية وخماسية فتكسر السطر.
+   */
+  const notificationTitle = 'جلسة ' + dayName + ' — ' + shortArabicName(clientName)
+
+  const court = courtLabel(caseRow.court_name)
   const notificationBody =
     caseRow.title +
-    '\nقضية رقم ' + caseRow.case_number +
-    ' في محكمة ' + caseRow.court_name
+    '\nقضية ' + caseRow.case_number +
+    (court ? ' • ' + court : '')
  
   const recipientUserIds: string[] = []
  
