@@ -141,8 +141,10 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
       <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 md:static md:bg-gradient-to-l md:from-slate-900 md:to-amber-950 md:border-b-4 md:border-amber-500 md:px-6 md:py-8">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-start gap-3 md:block">
+            {/* prefetch: يُجهَّز هيكل اللوحة في الخلفية أثناء قراءة القضية */}
             <Link
               href="/manager/dashboard#clients-cases"
+              prefetch
               aria-label="رجوع للوحة التحكم"
               className="md:hidden shrink-0 w-11 h-11 rounded-full active:scale-95 transition bg-slate-100 flex items-center justify-center text-slate-700"
             >
@@ -151,7 +153,7 @@ export default async function ManagerCaseDetailPage({ params }: { params: Promis
               </svg>
             </Link>
 
-            <Link href="/manager/dashboard#clients-cases" className="hidden md:inline text-amber-200 text-sm hover:text-white transition">رجوع للوحة التحكم</Link>
+            <Link href="/manager/dashboard#clients-cases" prefetch className="hidden md:inline text-amber-200 text-sm hover:text-white transition">رجوع للوحة التحكم</Link>
 
             <div className="min-w-0 flex-1 md:flex md:items-start md:justify-between md:mt-4 md:flex-wrap md:gap-3">
               <div className="min-w-0">
