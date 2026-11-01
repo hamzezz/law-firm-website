@@ -3,13 +3,42 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+const ROLE_LABEL: Record<string, string> = {
+  lawyer: 'محامي',
+  manager: 'مدير',
+  typist: 'طبّاع',
+  client: 'موكل',
+}
+
+async function authHeaders() {
+  const supabase = createClient()
+  const sessionResult = await supabase.auth.getSession()
+  const token = sessionResult.data.session ? sessionResult.data.session.access_token : ''
+  return { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
+}
+
 function ChangeRow({ account }: { account: any }) {
-  const [open, setOpen] = useState(false)
+  /** null = مغلق، 'password' = تغيير كلمة المرور، 'username' = تغيير الاسم */
+  const [mode, setMode] = useState<null | 'password' | 'username'>(null)
   const [newPassword, setNewPassword] = useState('')
+  const [newUsername, setNewUsername] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  async function handleChange() {
+  /**
+   * الاسم المعروض يُحفظ في الحالة لا يُقرأ من account مباشرة، كي يتحدّث
+   * السطر فور نجاح التغيير دون انتظار إعادة تحميل الصفحة.
+   */
+  const [username, setUsername] = useState(account.username)
+
+  function close() {
+    setMode(null)
+    setMessage(null)
+    setNewPassword('')
+    setNewUsername('')
+  }
+
+  async function handleChangePassword() {
     if (newPassword.length < 6) {
       setMessage({ type: 'error', text: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' })
       return
@@ -18,13 +47,9 @@ function ChangeRow({ account }: { account: any }) {
     setMessage(null)
 
     try {
-      const supabase = createClient()
-      const sessionResult = await supabase.auth.getSession()
-      const token = sessionResult.data.session ? sessionResult.data.session.access_token : ''
-
       const res = await fetch('/api/manager/change-user-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        headers: await authHeaders(),
         body: JSON.stringify({ targetUserId: account.id, newPassword }),
       })
 
@@ -38,7 +63,50 @@ function ChangeRow({ account }: { account: any }) {
 
       setMessage({ type: 'success', text: 'تم تغيير كلمة المرور بنجاح' })
       setNewPassword('')
-      setTimeout(() => { setOpen(false); setMessage(null) }, 1500)
+      setTimeout(() => { close() }, 1500)
+    } catch (err) {
+      setMessage({ type: 'error', text: 'حدث خطأ في الاتصال' })
+    }
+    setLoading(false)
+  }
+
+  async function handleChangeUsername() {
+    const value = newUsername.trim().toLowerCase()
+
+    if (value.length < 3) {
+      setMessage({ type: 'error', text: 'اسم المستخدم ثلاثة أحرف فأكثر' })
+      return
+    }
+    if (!/^[a-z0-9._-]+$/.test(value)) {
+      setMessage({ type: 'error', text: 'حروف لاتينية وأرقام فقط، بلا مسافات' })
+      return
+    }
+    if (value === username) {
+      setMessage({ type: 'error', text: 'هذا هو الاسم الحالي' })
+      return
+    }
+
+    setLoading(true)
+    setMessage(null)
+
+    try {
+      const res = await fetch('/api/manager/change-username', {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({ targetUserId: account.id, newUsername: value }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || 'فشل تغيير اسم المستخدم' })
+        setLoading(false)
+        return
+      }
+
+      setUsername(value)
+      setMessage({ type: 'success', text: 'تمّ. اسم الدخول الآن: ' + value })
+      setTimeout(() => { close() }, 2500)
     } catch (err) {
       setMessage({ type: 'error', text: 'حدث خطأ في الاتصال' })
     }
@@ -49,14 +117,21 @@ function ChangeRow({ account }: { account: any }) {
     <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0 flex-wrap gap-2">
       <div>
         <p className="font-bold text-slate-800 text-sm">{account.full_name}</p>
-        <p className="text-xs text-slate-400">@{account.username} - {account.role === 'lawyer' ? 'محامي' : account.role === 'manager' ? 'مدير' : 'موكل'}</p>
+        <p className="text-xs text-slate-400">@{username} - {ROLE_LABEL[account.role] || account.role}</p>
       </div>
 
-      {!open ? (
-        <button onClick={() => setOpen(true)} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold">
-          تغيير كلمة المرور
-        </button>
-      ) : (
+      {mode === null && (
+        <div className="flex items-center gap-2">
+          <button onClick={() => setMode('password')} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold">
+            تغيير كلمة المرور
+          </button>
+          <button onClick={() => { setMode('username'); setNewUsername(username) }} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold">
+            تغيير اسم المستخدم
+          </button>
+        </div>
+      )}
+
+      {mode === 'password' && (
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <input
             type="text"
@@ -65,11 +140,34 @@ function ChangeRow({ account }: { account: any }) {
             onChange={(e) => setNewPassword(e.target.value)}
             className="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 flex-1"
           />
-          <button onClick={handleChange} disabled={loading} className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition font-bold disabled:opacity-50">
+          <button onClick={handleChangePassword} disabled={loading} className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition font-bold disabled:opacity-50">
             {loading ? '...' : 'حفظ'}
           </button>
-          <button onClick={() => { setOpen(false); setMessage(null) }} className="text-xs text-slate-400 hover:text-slate-600">إلغاء</button>
+          <button onClick={close} className="text-xs text-slate-400 hover:text-slate-600">إلغاء</button>
         </div>
+      )}
+
+      {mode === 'username' && (
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <input
+            type="text"
+            dir="ltr"
+            placeholder="اسم مستخدم جديد"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            className="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 flex-1 text-left"
+          />
+          <button onClick={handleChangeUsername} disabled={loading} className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition font-bold disabled:opacity-50">
+            {loading ? '...' : 'حفظ'}
+          </button>
+          <button onClick={close} className="text-xs text-slate-400 hover:text-slate-600">إلغاء</button>
+        </div>
+      )}
+
+      {mode === 'username' && !message && (
+        <p className="w-full text-[11px] text-slate-400">
+          الاسم القديم يتوقّف فور الحفظ، فليجرّب صاحب الحساب الدخول بالاسم الجديد قبل أن يغادر.
+        </p>
       )}
 
       {message && (
@@ -84,7 +182,7 @@ function ChangeRow({ account }: { account: any }) {
 export default function UserPasswordManager({ accounts }: { accounts: any[] }) {
   return (
     <div className="bg-white rounded-2xl shadow p-6 border border-slate-100">
-      <h3 className="font-bold text-slate-900 mb-3">إدارة كلمات مرور الحسابات</h3>
+      <h3 className="font-bold text-slate-900 mb-3">إدارة الحسابات</h3>
       {(!accounts || accounts.length === 0) && (
         <p className="text-slate-400 text-sm text-center py-4">لا توجد حسابات.</p>
       )}

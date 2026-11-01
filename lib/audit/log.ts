@@ -17,6 +17,7 @@ export type AuditAction =
   | 'typist_created'
   | 'account_deleted'
   | 'password_changed'
+  | 'username_changed'
   | 'case_access_granted'
   | 'case_access_revoked'
   // القضايا والجلسات
