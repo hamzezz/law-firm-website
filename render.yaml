@@ -1,0 +1,70 @@
+# مخطّط Render — خدمة فرانكفورت
+#
+# سببه: قاعدة البيانات (Supabase) في فرانكفورت والخادم في أوريغون، فكل
+# نداء يعبر الأطلسي. ونقل الخادم إليها يُقصّر النداء من نحو ١٦٠ms إلى
+# أقل من ١٠ms، ويقرّب الخادم من المستخدمين في اليمن في الوقت نفسه.
+#
+# Render لا تسمح بتغيير منطقة خدمة قائمة، فالطريق إنشاء خدمة جديدة.
+#
+# الاسم هنا يختلف عن اسم الخدمة القائمة (law-firm-website) عمداً، فلا
+# يمسّ هذا المخطّط خدمة أوريغون ولا يغيّر فيها شيئاً.
+#
+# الاستعمال: New → Blueprint → اختيار هذا المستودع. ثم تطلب Render
+# قيم المتغيّرات المعلَّمة بـ sync:false ولا تكمل حتى تُملأ.
+
+services:
+  - type: web
+    name: law-firm-website-eu
+    runtime: docker
+    # Docker وليس node: الصورة تثبّت poppler-utils، وعليها يقوم
+    # تحليل كشوف جلسات المحاكم. وبدونها يفشل الرفع بلا رسالة مفهومة.
+    dockerfilePath: ./Dockerfile
+    region: frankfurt
+    branch: main
+
+    # ⚠️ غيّرها إلى free إن كانت الخدمة الحالية على الخطة المجانية
+    plan: starter
+
+    healthCheckPath: /
+
+    envVars:
+      # ── Supabase ──
+      # القيم العامة مضمَّنة في Dockerfile أصلاً، وتُكرَّر هنا للوضوح
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://crpjulgnywcbsvdgehiw.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # ── إشعارات المتصفح (Web Push) ──
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+
+      # ── إشعارات التطبيق (FCM) ──
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
+
+      # ── تخزين المستندات (Cloudflare R2) ──
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+
+      # ── بوت تيليجرام ──
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: TELEGRAM_ALLOWED_IDS
+        sync: false
+
+      # ── المهام المجدولة ──
+      - key: CRON_SECRET
+        sync: false
+
+      # ── قياس الأداء: اتركها فارغة لإطفائه ──
+      - key: PERF_LOG
+        sync: false
