@@ -211,6 +211,7 @@ export default async function HomePage() {
           </div>
           <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <p>© 2026 مكتب وليد الكثيري للمحاماة والاستشارات القانونية. جميع الحقوق محفوظة.</p>
+            <Link href="/privacy" className="text-slate-400 hover:text-amber-400 transition">سياسة الخصوصية</Link>
           </div>
         </div>
       </footer>
