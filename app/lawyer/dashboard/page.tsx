@@ -7,6 +7,7 @@ import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
 import ViewSwitcher from './view-switcher'
 import { localDateKey, dayMonthYear, daysBetweenKeys } from '@/lib/text/arabic'
+import { ROW_LIMIT, warnIfNearLimit } from '@/lib/db/limits'
 
 export default async function LawyerDashboardPage() {
   const supabase = await createClient()
@@ -109,7 +110,18 @@ export default async function LawyerDashboardPage() {
           .from('sessions')
           .select('id, session_date, title, case_id, status')
           .in('case_id', caseIds)
+          /**
+           * الترتيب تصاعديّ لأن «أقرب جلسة لكل قضية» تعتمد عليه:
+           * أوّل ما يُصادَف هو الأقرب.
+           *
+           * وفيه خطرٌ مؤجَّل: لو بلغت الصفوف سقف Supabase لوقع القطع
+           * على الأحدث لا الأقدم — أي تختفي جلسات الغد. والصفوف هنا
+           * محصورة بقضايا هذا المحامي فهي بعيدة عن السقف، والتحذير
+           * أدناه يُشعل الضوء قبل أن يقترب. فإن اشتعل، فالعلاج تقسيم
+           * الاستعلام لا رفع الحدّ.
+           */
           .order('session_date', { ascending: true })
+          .limit(ROW_LIMIT)
       : Promise.resolve({ data: [] as any[] }),
     caseIds.length > 0
       ? supabase
@@ -128,6 +140,8 @@ export default async function LawyerDashboardPage() {
 
   const lawyerSessions = sessionsResult.data
   const lawyerDeadlines = deadlinesResult.data
+
+  warnIfNearLimit('جلسات لوحة المحامي', lawyerSessions)
 
   // أسماء الموكّلين جاءت مضمومة مع صفوفهم، فلا استعلام ثانٍ لها
   const clientNameById: Record<string, string> = {}
@@ -177,7 +191,8 @@ export default async function LawyerDashboardPage() {
 
   const calendarEvents = [
     ...(lawyerSessions || []).map((s) => ({
-      date: new Date(s.session_date).toISOString().slice(0, 10),
+      // بالتاريخ المحلّي لا بغرينتش، وإلا ظهرت الجلسة في التقويم على اليوم السابق
+      date: localDateKey(s.session_date),
       title: (caseTitleMap[s.case_id] || s.title) + ' - جلسة',
       caseId: s.case_id,
       type: 'session',

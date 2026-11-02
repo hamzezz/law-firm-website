@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { startTimer } from '@/lib/perf/timer'
+import { ROW_LIMIT, warnIfNearLimit } from '@/lib/db/limits'
+import { localDateKey } from '@/lib/text/arabic'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import LogoutButton from '@/app/staff/logout-button'
 import ChangePassword from '@/app/components/change-password'
@@ -75,9 +77,10 @@ export default async function ManagerDashboardPage() {
     supabase
       .from('cases')
       .select('id, case_number, title, case_type, status, stage, court_name, opened_at, other_party, clients ( id, national_id, users ( full_name ) ), lawyers ( id, users ( full_name ) )')
-      .order('opened_at', { ascending: false }),
-    supabase.from('clients').select('id, users ( full_name )'),
-    supabase.from('lawyers').select('id, user_id, users ( full_name )'),
+      .order('opened_at', { ascending: false })
+      .limit(ROW_LIMIT),
+    supabase.from('clients').select('id, users ( full_name )').limit(ROW_LIMIT),
+    supabase.from('lawyers').select('id, user_id, users ( full_name )').limit(ROW_LIMIT),
     supabase
       .from('audit_log')
       .select('id, action, metadata, created_at, users ( full_name )')
@@ -86,12 +89,21 @@ export default async function ManagerDashboardPage() {
     supabase
       .from('sessions')
       // status لازم: «جلسات الغد» تُرشّح المجدولة وحدها، فلا تعرض جلسةً سُجّل قرارها
-      .select('id, session_date, title, case_id, status, cases ( title, case_number )'),
+      .select('id, session_date, title, case_id, status, cases ( title, case_number )')
+      /**
+       * الترتيب صريحٌ عمداً: بلا ترتيبٍ يكون القطع عند السقف عشوائياً،
+       * فقد تختفي جلسة الغد وتبقى جلسة من سنتين. وبالتنازلي يقع القطع
+       * على الأقدم — وهو أقلّ ما يضرّ.
+       */
+      .order('session_date', { ascending: false })
+      .limit(ROW_LIMIT),
     supabase
       .from('critical_deadlines')
       .select('id, deadline_type, deadline_date, case_id, cases ( title, case_number )')
-      .eq('is_resolved', false),
-    supabase.from('yemen_courts').select('id, name').order('name', { ascending: true }),
+      .eq('is_resolved', false)
+      .order('deadline_date', { ascending: true })
+      .limit(ROW_LIMIT),
+    supabase.from('yemen_courts').select('id, name').order('name', { ascending: true }).limit(ROW_LIMIT),
     supabase.from('clients').select('*', { count: 'exact', head: true }),
     supabase.from('lawyers').select('*', { count: 'exact', head: true }),
     supabase
@@ -117,6 +129,14 @@ export default async function ManagerDashboardPage() {
   const allSessions = sessionsResult.data
   const allDeadlines = deadlinesResult.data
   const yemenCourts = courtsResult.data
+
+  /**
+   * كشف القطع الصامت: حين تقترب الصفوف من سقف Supabase تُقطَع البيانات
+   * بلا رسالة. والتحذير هنا يُشعل الضوء قبل أن يختفي شيء من اللوحة.
+   */
+  warnIfNearLimit('جلسات لوحة المدير', allSessions)
+  warnIfNearLimit('قضايا لوحة المدير', cases)
+
   const clientsCount = clientsCountResult.count
   const lawyersCount = lawyersCountResult.count
   const notifRows = notifResult.data || []
@@ -168,7 +188,8 @@ export default async function ManagerDashboardPage() {
 
   const calendarEvents = [
     ...(allSessions || []).map((s) => ({
-      date: new Date(s.session_date).toISOString().slice(0, 10),
+      // بالتاريخ المحلّي لا بغرينتش، وإلا ظهرت الجلسة في التقويم على اليوم السابق
+      date: localDateKey(s.session_date),
       title: (s.cases ? s.cases.title : s.title) + ' - جلسة',
       caseId: s.case_id,
       type: 'session',
