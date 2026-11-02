@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import CalendarView from './calendar-view'
-import { matchesArabic, shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
+import { matchesArabic, shortArabicName, localDateKey, dateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
 import PendingSessions from '@/app/components/pending-sessions'
 import { useHashTab } from '@/app/components/use-hash-tab'
 import PrintRequestButton from '@/app/components/print-request-button'
@@ -209,7 +209,7 @@ export default function ViewSwitcher({
 
   /** جلسات الغد: القضايا التي أقرب جلسةٍ مجدولة لها تقع غداً */
   const tKey = tomorrowKey()
-  const tomorrowCases = (cases || []).filter((c) => localDateKey(c.nextSessionDate) === tKey)
+  const tomorrowCases = (cases || []).filter((c) => dateKey(c.nextSessionDate) === tKey)
 
   /** قائمة مختصرة لاختيار القضية في طلب الطباعة السريع */
   const printableCases = (cases || []).map((c: any) => ({

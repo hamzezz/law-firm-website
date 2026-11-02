@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useHashTab } from '@/app/components/use-hash-tab'
-import { shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday, daysBetweenKeys, dayMonthYear } from '@/lib/text/arabic'
+import { shortArabicName, localDateKey, dateKey, tomorrowKey, tomorrowWeekday, daysBetweenKeys, dayMonthYear } from '@/lib/text/arabic'
 import PendingSessions from '@/app/components/pending-sessions'
 import { sessionTitleFor } from '@/lib/sessions/title'
 import { useRouter } from 'next/navigation'
@@ -481,7 +481,7 @@ export default function ManagerTabs({
   const pendingSessions = (allSessions || [])
     .filter((s: any) => {
       if (s.status !== 'scheduled') return false
-      if (localDateKey(s.session_date) > todayK) return false
+      if (dateKey(s.session_date) > todayK) return false
       /**
        * القضية المغلقة لا يُطلب فيها قرار جلسة. وكان الترشيح على حالة
        * الجلسة وحدها، فظهرت قضايا مؤرشفة في التنبيه — وهو غير منطقي.
@@ -492,7 +492,7 @@ export default function ManagerTabs({
     })
     .map((s: any) => {
       const c = caseById[s.case_id]
-      const key = localDateKey(s.session_date)
+      const key = dateKey(s.session_date)
       return {
         sessionId: s.id,
         caseId: s.case_id,
@@ -507,7 +507,7 @@ export default function ManagerTabs({
 
   const tomorrowSessions = (allSessions || [])
     // المجدولة وحدها: الجلسة التي سُجّل قرارها لا تُعرض ولو وقع تاريخها غداً
-    .filter((s: any) => localDateKey(s.session_date) === tKey && s.status === 'scheduled')
+    .filter((s: any) => dateKey(s.session_date) === tKey && s.status === 'scheduled')
     .map((s: any) => {
       const c = caseById[s.case_id]
       return {

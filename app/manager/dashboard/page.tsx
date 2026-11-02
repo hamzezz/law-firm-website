@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { startTimer } from '@/lib/perf/timer'
 import { ROW_LIMIT, warnIfNearLimit } from '@/lib/db/limits'
-import { localDateKey } from '@/lib/text/arabic'
+import { localDateKey, dateKey } from '@/lib/text/arabic'
 import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import LogoutButton from '@/app/staff/logout-button'
@@ -192,7 +192,7 @@ export default async function ManagerDashboardPage() {
   const calendarEvents = [
     ...(allSessions || []).map((s) => ({
       // بالتاريخ المحلّي لا بغرينتش، وإلا ظهرت الجلسة في التقويم على اليوم السابق
-      date: localDateKey(s.session_date),
+      date: dateKey(s.session_date),
       title: (s.cases ? s.cases.title : s.title) + ' - جلسة',
       caseId: s.case_id,
       type: 'session',

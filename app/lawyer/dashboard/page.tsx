@@ -6,7 +6,7 @@ import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
 import ViewSwitcher from './view-switcher'
-import { localDateKey, dayMonthYear, daysBetweenKeys } from '@/lib/text/arabic'
+import { localDateKey, dateKey, dayMonthYear, daysBetweenKeys } from '@/lib/text/arabic'
 import { ROW_LIMIT, warnIfNearLimit } from '@/lib/db/limits'
 import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 
@@ -175,7 +175,7 @@ export default async function LawyerDashboardPage() {
   const pendingSessions = (lawyerSessions || [])
     .filter((s: any) => {
       if (s.status !== 'scheduled') return false
-      if (localDateKey(s.session_date) > todayK) return false
+      if (dateKey(s.session_date) > todayK) return false
       /**
        * القضية المغلقة لا يُطلب فيها قرار جلسة. وكان الترشيح على حالة
        * الجلسة وحدها، فظهرت قضايا مؤرشفة في التنبيه — وهو غير منطقي.
@@ -186,7 +186,7 @@ export default async function LawyerDashboardPage() {
     })
     .map((s: any) => {
       const c = caseMetaById[s.case_id]
-      const key = localDateKey(s.session_date)
+      const key = dateKey(s.session_date)
       return {
         sessionId: s.id,
         caseId: s.case_id,
@@ -205,7 +205,7 @@ export default async function LawyerDashboardPage() {
   const calendarEvents = [
     ...(lawyerSessions || []).map((s) => ({
       // بالتاريخ المحلّي لا بغرينتش، وإلا ظهرت الجلسة في التقويم على اليوم السابق
-      date: localDateKey(s.session_date),
+      date: dateKey(s.session_date),
       title: (caseTitleMap[s.case_id] || s.title) + ' - جلسة',
       caseId: s.case_id,
       type: 'session',

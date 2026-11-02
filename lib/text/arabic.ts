@@ -38,6 +38,33 @@ export function shortArabicName(full: string | null | undefined): string {
   return parts[0] + ' ' + parts[parts.length - 1]
 }
 
+/**
+ * مفتاح تاريخ من عمودٍ في قاعدة البيانات.
+ *
+ * والفرق بينها وبين `localDateKey` جوهريّ: تلك تُحوّل النصّ إلى `Date`
+ * ثم تقرأ بالتوقيت المحلّي للخادم — فـ «2026-11-03T00:00:00+00» تصير
+ * «2026-11-02» في أيّ منطقةٍ سالبة. وهذه تأخذ العشرة الأوائل كما هي،
+ * بلا تحويلٍ ولا منطقةٍ زمنية.
+ *
+ * وكان العمودان يُقرآن بأسلوبين متناقضين في أربعة عشر موضعاً: سبعة
+ * بـ`localDateKey` وسبعة بـ`.slice(0,10)`. ولا يختلفان ما دام الخادم
+ * على غرينتش أو شرقَها — فإن نُقل غرباً يوماً عادت «جلسة الأمس تظهر
+ * اليوم».
+ *
+ * وتصلح للعمود قبل تحويله إلى `date` وبعده: «2026-11-03T00:00:00+00»
+ * و«2026-11-03» كلاهما يعطي المفتاح نفسه.
+ *
+ * ويبقى `localDateKey` لما هو `Date` حقيقيّ — تاريخ اليوم مثلاً.
+ */
+export function dateKey(value: string | Date | null | undefined): string {
+  if (!value) return ''
+  if (typeof value === 'string') {
+    const head = value.slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(head)) return head
+  }
+  return localDateKey(value)
+}
+
 /** مفتاح تاريخ محلّي (لا بتوقيت غرينتش)، كي لا تنزلق الجلسة يوماً */
 export function localDateKey(value: string | Date | null | undefined): string {
   if (!value) return ''
