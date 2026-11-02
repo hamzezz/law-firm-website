@@ -69,8 +69,19 @@ export async function POST(request: Request) {
   const url = new URL(request.url)
   const secret = process.env.CRON_SECRET || ''
 
+  /**
+   * السرّ يُقبل من ترويسة `x-cron-secret` أو من `?s=` في الرابط.
+   *
+   * والترويسة هي المقصودة: السرّ في عنوان الرابط يُكتب في سجلّات
+   * الخادم، وفي جدول ردود pg_net داخل قاعدة البيانات — فيصير مقروءاً
+   * لكلّ من يرى سجلّاً أو صفّاً. والترويسة لا تُسجَّل.
+   *
+   * و`?s=` باقٍ لأن المسار كان يعمل به، فلا يُكسر نداءٌ قائم.
+   */
+  const presented = request.headers.get('x-cron-secret') || url.searchParams.get('s') || ''
+
   // بلا سرّ مضبوط لا يعمل المسار إطلاقاً — خير من أن يكون مفتوحاً للعالم
-  if (!secret || url.searchParams.get('s') !== secret) {
+  if (!secret || presented !== secret) {
     return NextResponse.json({ ok: true })
   }
 
