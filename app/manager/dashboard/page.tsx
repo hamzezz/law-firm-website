@@ -85,7 +85,8 @@ export default async function ManagerDashboardPage() {
       .limit(80),
     supabase
       .from('sessions')
-      .select('id, session_date, title, case_id, cases ( title, case_number )'),
+      // status لازم: «جلسات الغد» تُرشّح المجدولة وحدها، فلا تعرض جلسةً سُجّل قرارها
+      .select('id, session_date, title, case_id, status, cases ( title, case_number )'),
     supabase
       .from('critical_deadlines')
       .select('id, deadline_type, deadline_date, case_id, cases ( title, case_number )')

@@ -473,7 +473,8 @@ export default function ManagerTabs({
   ;(cases || []).forEach((c: any) => { caseById[c.id] = c })
 
   const tomorrowSessions = (allSessions || [])
-    .filter((s: any) => localDateKey(s.session_date) === tKey)
+    // المجدولة وحدها: الجلسة التي سُجّل قرارها لا تُعرض ولو وقع تاريخها غداً
+    .filter((s: any) => localDateKey(s.session_date) === tKey && s.status === 'scheduled')
     .map((s: any) => {
       const c = caseById[s.case_id]
       return {

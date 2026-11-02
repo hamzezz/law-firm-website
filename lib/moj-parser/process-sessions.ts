@@ -1,7 +1,7 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { parseSessionsReport, deduplicateCases, normalizeArabic } from '@/lib/moj-parser/parser'
 import { sendPushToUser } from '@/lib/push/send-push'
-import { shortArabicName } from '@/lib/text/arabic'
+import { shortArabicName, localDateKey } from '@/lib/text/arabic'
  
 const STOP_WORDS = new Set([
   'ورثه','واخرين','واخر','وهم','زوجته','زوجه','شركه','بن','بنت','عبد','ابو','السيد','الاستاذ',
@@ -291,7 +291,9 @@ export async function processSessionsText(
     }
   }
  
-  const today = new Date().toISOString().slice(0, 10)
+  // بالتاريخ المحلّي لا بتوقيت غرينتش: toISOString يعطي تاريخ أمس
+  // بين منتصف الليل والثالثة فجراً بتوقيت اليمن
+  const today = localDateKey(new Date())
  
   const matchedCases: any[] = []
   const needsReview: ReviewItem[] = []

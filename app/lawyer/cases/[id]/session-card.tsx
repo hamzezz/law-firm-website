@@ -44,7 +44,33 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [locked, setLocked] = useState(session.is_locked)
 
+  /**
+   * جلسات مجدولة أخرى لهذه القضية تصير بلا معنى بعد التأجيل.
+   * لا تُحذف تلقائياً — تُعرض ويقرّر المستخدم، فقد يكون للقضية جلستان فعلاً.
+   */
+  const [orphans, setOrphans] = useState<any[]>([])
+  const [cleaning, setCleaning] = useState(false)
+
   const sessionDateFormatted = bothCalendars(session.session_date)
+
+  async function removeOrphans() {
+    setCleaning(true)
+    try {
+      const supabase = createClient()
+      const ids = orphans.map((o: any) => o.id)
+      const { error } = await supabase.from('sessions').delete().in('id', ids)
+      if (error) {
+        setMessage({ type: 'error', text: 'تعذّر إلغاء الجلسات: ' + error.message })
+        setCleaning(false)
+        return
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'تعذّر الاتصال بالخادم' })
+      setCleaning(false)
+      return
+    }
+    window.location.reload()
+  }
 
   async function handleFinalSave() {
     if (!notes.trim()) {
@@ -139,8 +165,33 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
         }
       }
 
-      setMessage({ type: 'success', text: 'تم حفظ الجلسة بنجاح بشكل نهائي' })
       setLocked(true)
+
+      /**
+       * بعد التأجيل: هل بقيت للقضية جلسات مجدولة أخرى؟
+       *
+       * وقع هذا فعلاً — رُفع كشفان فأُنشئت جلستان لتاريخين، ثم عُقدت
+       * إحداهما وأُجّلت القضية، فبقيت الأخرى مجدولةً تظهر في «جلسات
+       * الغد» بلا جلسة حقيقية خلفها.
+       */
+      if (nextDate) {
+        const { data: others } = await supabase
+          .from('sessions')
+          .select('id, session_date')
+          .eq('case_id', caseId)
+          .eq('status', 'scheduled')
+          .neq('id', session.id)
+          .neq('session_date', nextDate)
+
+        if (others && others.length > 0) {
+          setOrphans(others)
+          setMessage({ type: 'success', text: 'حُفظ قرار الجلسة. وبقيت جلسات مجدولة تحتاج قرارك.' })
+          setSaving(false)
+          return
+        }
+      }
+
+      setMessage({ type: 'success', text: 'تم حفظ الجلسة بنجاح بشكل نهائي' })
       setTimeout(function () { window.location.reload() }, 1200)
     } catch (err) {
       setMessage({ type: 'error', text: 'حدث خطأ غير متوقع أثناء الحفظ' })
@@ -270,6 +321,32 @@ export default function SessionCard({ session, caseId, caseNumber, clientName, u
           (message.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')
         }>
           {message.text}
+        </div>
+      )}
+
+      {orphans.length > 0 && (
+        <div className="mt-3 border border-amber-300 bg-amber-50 rounded-xl p-3">
+          <p className="text-[12px] font-bold text-amber-900">
+            {orphans.length === 1 ? 'لهذه القضية جلسة مجدولة أخرى:' : 'لهذه القضية جلسات مجدولة أخرى:'}
+          </p>
+          <ul className="mt-1.5 space-y-0.5">
+            {orphans.map((o: any) => (
+              <li key={o.id} className="text-[12px] text-amber-900">— {gregorian(o.session_date)}</li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-amber-800 mt-2 leading-relaxed">
+            إن كانت القضية قد أُجّلت فهذه لم تعد قائمة، وستظهر في «جلسات الغد» بلا جلسة حقيقية خلفها.
+          </p>
+          <div className="flex items-center gap-2 mt-3">
+            <button onClick={removeOrphans} disabled={cleaning}
+                    className="text-[12px] bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg transition disabled:opacity-50">
+              {cleaning ? '...' : 'ألغِها'}
+            </button>
+            <button onClick={() => window.location.reload()} disabled={cleaning}
+                    className="text-[12px] text-amber-800 font-bold px-3 py-1.5">
+              اتركها
+            </button>
+          </div>
         </div>
       )}
 
