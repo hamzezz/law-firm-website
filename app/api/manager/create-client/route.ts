@@ -28,6 +28,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'الحقول المطلوبة ناقصة' }, { status: 400 })
   }
 
+  /**
+   * التحقّق كان في إنشاء الطبّاع وحده وفات هذا المسار.
+   *
+   * وأثره عمليّ: اسم مستخدم فيه مسافة أو @ يُنتج بريداً اصطناعياً فاسداً،
+   * فيُنشأ الحساب ولا يستطيع صاحبه الدخول أبداً ولا رسالة تشرح السبب.
+   * وكلمة مرور قصيرة تجعل تخمينها مُجدياً مهما أبطأنا المهاجم.
+   */
+  if (String(password).length < 8) {
+    return NextResponse.json({ error: 'كلمة المرور لا تقلّ عن ثمانية أحرف' }, { status: 400 })
+  }
+
+  if (!/^[a-z0-9._-]+$/.test(String(username).trim().toLowerCase())) {
+    return NextResponse.json(
+      { error: 'اسم المستخدم بالحروف اللاتينية والأرقام فقط، بلا مسافات' },
+      { status: 400 }
+    )
+  }
+
   const admin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
