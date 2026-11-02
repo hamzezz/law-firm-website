@@ -54,17 +54,29 @@ export default function StaffLoginPage() {
       return
     }
 
-    if (appUser.role === 'lawyer') {
-      router.push('/lawyer/dashboard')
-    } else if (appUser.role === 'manager') {
-      router.push('/manager/dashboard')
-    } else {
+    /**
+     * وجهة كلّ دور — ونسخةٌ مطابقة لما في `app/api/auth/login/route.ts`.
+     *
+     * وكان الطبّاع ساقطاً من هنا وحده: يدخل من `portal.html` ويُردّ من
+     * هذه الصفحة بـ«غير مخوَّل» — وهو مخوَّل، ولوحته تقبله. بابان
+     * لبوابةٍ واحدة، يفترقان لأن الشروط كُتبت مرّتين.
+     */
+    const STAFF_PORTALS: Record<string, string> = {
+      lawyer: '/lawyer/dashboard',
+      manager: '/manager/dashboard',
+      typist: '/typist/dashboard',
+    }
+
+    const destination = STAFF_PORTALS[appUser.role as string]
+
+    if (!destination) {
       setError('هذا الحساب غير مخوَّل بالدخول إلى بوابة الموظفين')
       await supabase.auth.signOut()
       setLoading(false)
       return
     }
 
+    router.push(destination)
     router.refresh()
   }
 

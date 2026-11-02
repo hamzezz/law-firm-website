@@ -170,6 +170,13 @@ export default function PrivacyPage() {
               وأنظمة نقابة المحامين، ولاحتمال الطعن أو الاستئناف أو الرجوع إليه. فلا يُتلَف
               بحذف حساب دخول.
             </p>
+            <p className="pt-1">
+              وتفصيل ذلك وطريقة إرسال الطلب في{' '}
+              <Link href="/delete-account" className="text-amber-700 hover:text-amber-900 hover:underline font-bold">
+                صفحة حذف الحساب
+              </Link>
+              .
+            </p>
           </Section>
 
           <Section title="حقوق الموكّل">
