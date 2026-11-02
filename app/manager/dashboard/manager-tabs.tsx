@@ -479,7 +479,17 @@ export default function ManagerTabs({
    */
   const todayK = localDateKey(new Date())
   const pendingSessions = (allSessions || [])
-    .filter((s: any) => s.status === 'scheduled' && localDateKey(s.session_date) <= todayK)
+    .filter((s: any) => {
+      if (s.status !== 'scheduled') return false
+      if (localDateKey(s.session_date) > todayK) return false
+      /**
+       * القضية المغلقة لا يُطلب فيها قرار جلسة. وكان الترشيح على حالة
+       * الجلسة وحدها، فظهرت قضايا مؤرشفة في التنبيه — وهو غير منطقي.
+       */
+      const row = caseById[s.case_id]
+      if (!row || row.status === 'closed') return false
+      return true
+    })
     .map((s: any) => {
       const c = caseById[s.case_id]
       const key = localDateKey(s.session_date)
