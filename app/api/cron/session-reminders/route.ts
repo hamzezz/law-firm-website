@@ -82,6 +82,25 @@ export async function POST(request: Request) {
 
   // بلا سرّ مضبوط لا يعمل المسار إطلاقاً — خير من أن يكون مفتوحاً للعالم
   if (!secret || presented !== secret) {
+    /**
+     * تشخيصٌ بلا كشف.
+     *
+     * يُعيد أطوالاً ومصدراً فحسب — لا حرفاً من السرّ ولا جزءاً منه.
+     * وبه يُعرف أيُّ الطرفين الخطأ: `seen = 0` يعني أن الترويسة لم تصل،
+     * و`expected = 0` يعني أن المتغيّر غير محمَّل في الحاوية، وتساوي
+     * الطولين مع عدم التطابق يعني اختلاف القيمة نفسها.
+     *
+     * ويُفتح بـ `?why=1` وحده. ولولا ذلك لأعطى المتسلّل طول السرّ مجّاناً.
+     */
+    if (url.searchParams.get('why') === '1') {
+      return NextResponse.json({
+        ok: true,
+        seen: presented.length,
+        expected: secret.length,
+        source: request.headers.get('x-cron-secret') ? 'header' : (url.searchParams.get('s') ? 'query' : 'none'),
+      })
+    }
+
     return NextResponse.json({ ok: true })
   }
 
