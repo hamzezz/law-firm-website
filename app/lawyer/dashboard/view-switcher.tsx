@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import CalendarView from './calendar-view'
-import { matchesArabic, shortArabicName, localDateKey, dateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
+import { matchesArabic, shortArabicName, dateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
 import PendingSessions from '@/app/components/pending-sessions'
 import { useHashTab } from '@/app/components/use-hash-tab'
 import PrintRequestButton from '@/app/components/print-request-button'
