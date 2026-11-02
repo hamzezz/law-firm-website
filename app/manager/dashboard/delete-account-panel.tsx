@@ -121,13 +121,35 @@ function DeleteRow({ account, onDeleted }: { account: any; onDeleted: (id: strin
         <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
           <p className="text-xs font-bold text-red-800">⚠️ تحذير: حذف نهائي لا يمكن التراجع عنه</p>
 
-          {impact !== null && (
+          {/*
+            التحذير يختلف باختلاف الدور، وكان واحداً للجميع.
+            حذف المحامي لا يحذف قضية واحدة — يحوّلها إلى «غير مخصّصة».
+            وكان النصّ يُنذر بإتلافٍ لا يقع، فيمتنع المدير عن إجراءٍ آمن
+            أو يظنّ أنه أتلف ما لم يُتلَف.
+          */}
+          {impact !== null && account.role === 'client' && (
             <p className="text-[11px] text-red-700 leading-relaxed">
               سيتم حذف الحساب نهائياً
               {impact.cases > 0 && (
-                <> مع <strong>{impact.cases}</strong> قضية مرتبطة به، وكل جلساتها ومحاضرها ومواعيدها الحرجة</>
+                <> ومعه <strong>{impact.cases}</strong> قضية مرتبطة به، وكل جلساتها ومحاضرها ومستنداتها ومواعيدها الحرجة. ملفّ القضية يُتلَف بالكامل ولا يُسترجع</>
               )}
               {impact.cases === 0 && <> (لا توجد قضايا مرتبطة به)</>}.
+            </p>
+          )}
+
+          {impact !== null && account.role === 'lawyer' && (
+            <p className="text-[11px] text-red-700 leading-relaxed">
+              سيتم حذف حساب المحامي نهائياً.
+              {impact.cases > 0 && (
+                <> و<strong>{impact.cases}</strong> قضية كان مسؤولاً عنها <strong>لن تُحذف</strong>، بل تتحوّل إلى «غير مخصّصة» ويبقى فيها كلّ شيء</>
+              )}
+              {impact.cases === 0 && <> ولا قضايا مسندة إليه</>}.
+            </p>
+          )}
+
+          {impact !== null && account.role !== 'client' && account.role !== 'lawyer' && (
+            <p className="text-[11px] text-red-700 leading-relaxed">
+              سيتم حذف الحساب نهائياً. ولا تُحذف معه قضايا.
             </p>
           )}
 
