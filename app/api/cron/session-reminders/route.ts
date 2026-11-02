@@ -67,7 +67,16 @@ type Line = { text: string }
 
 export async function POST(request: Request) {
   const url = new URL(request.url)
-  const secret = process.env.CRON_SECRET || ''
+  /**
+   * `.trim()` مقصود ولا يُحذف.
+   *
+   * وقع هذا فعلاً: لُصقت القيمة في Render ومعها سطرٌ جديد لم يُرَ،
+   * فصار المتوقَّع ٦٥ حرفاً والمُرسَل ٦٤ — ويُرفض النداء بلا رسالة
+   * مفهومة، ويُظنّ الخلل في مكانٍ آخر.
+   *
+   * والسرّ هنا ستّون خانة وأربع من `0-9a-f`، لا مسافة فيها لها معنى.
+   */
+  const secret = (process.env.CRON_SECRET || '').trim()
 
   /**
    * السرّ يُقبل من ترويسة `x-cron-secret` أو من `?s=` في الرابط.
@@ -78,7 +87,7 @@ export async function POST(request: Request) {
    *
    * و`?s=` باقٍ لأن المسار كان يعمل به، فلا يُكسر نداءٌ قائم.
    */
-  const presented = request.headers.get('x-cron-secret') || url.searchParams.get('s') || ''
+  const presented = (request.headers.get('x-cron-secret') || url.searchParams.get('s') || '').trim()
 
   // بلا سرّ مضبوط لا يعمل المسار إطلاقاً — خير من أن يكون مفتوحاً للعالم
   if (!secret || presented !== secret) {
