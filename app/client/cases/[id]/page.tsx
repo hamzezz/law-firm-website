@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
+import { sessionStatusLabel } from '@/lib/sessions/status'
 import { documentLinks } from '@/lib/documents/signed-urls'
 
 function statusBadge(status: string) {
@@ -14,11 +15,6 @@ function statusBadge(status: string) {
 
 function statusLabel(status: string) {
   const map: Record<string, string> = { active: 'نشطة', postponed: 'مؤجلة', closed: 'مغلقة' }
-  return map[status?.toLowerCase()] || status
-}
-
-function sessionStatusLabel(status: string) {
-  const map: Record<string, string> = { scheduled: 'مجدولة', held: 'منعقدة', postponed: 'مؤجلة' }
   return map[status?.toLowerCase()] || status
 }
 

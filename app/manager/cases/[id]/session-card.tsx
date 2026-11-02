@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { sessionTitleFor } from '@/lib/sessions/title'
+import { sessionStatusLabel } from '@/lib/sessions/status'
 import VoiceInput from '@/app/components/voice-input'
 import DocumentScanner from '@/app/components/document-scanner'
 
@@ -34,10 +35,6 @@ function bothCalendars(value: string) {
   return hijri ? hijri + ' — ' + gregorian(d) : gregorian(d)
 }
 
-function sessionStatusLabel(status: string) {
-  const map: Record<string, string> = { scheduled: 'مجدولة', held: 'منعقدة', postponed: 'مؤجلة' }
-  return map[status?.toLowerCase()] || status
-}
 
 export default function ManagerSessionCard({ session, caseId, caseNumber, clientName, uploadedBy, sessionDocs, isFuture, caseClosed }: any) {
   const [notes, setNotes] = useState('')
@@ -61,6 +58,10 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
    */
   const cardRef = useRef<HTMLDivElement | null>(null)
   const [flash, setFlash] = useState(false)
+
+  /** مسار «لم تُعقد»: مضى موعدها ولم تنعقد — عطلة أو إضراب أو غياب */
+  const [notHeldOpen, setNotHeldOpen] = useState(false)
+  const [notHeldReason, setNotHeldReason] = useState('')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -205,6 +206,100 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
       setTimeout(function () { window.location.reload() }, 1200)
     } catch (err) {
       setMessage({ type: 'error', text: 'حدث خطأ غير متوقع أثناء الحفظ' })
+    }
+    setSaving(false)
+  }
+
+  /**
+   * الجلسة لم تُعقد.
+   *
+   * كانت الحالات المتاحة اثنتين: «مجدولة» و«منعقدة». فجلسةٌ مضى موعدها
+   * ولم تنعقد — عطلة أو إضراب أو غياب هيئة — لا موضعَ لها: تبقى مجدولةً
+   * إلى الأبد في تنبيه «جلسات تنتظر تسجيل القرار»، أو تُسجَّل كأنها
+   * عُقدت فيكذب السجلّ.
+   *
+   * والسبب مطلوب لا اختياري: جلسةٌ لم تُعقد بلا سببٍ مكتوب سجلٌّ ناقص،
+   * ويُسأل عنه المحامي بعد سنة ولا يجد جواباً.
+   */
+  async function handleNotHeld() {
+    const reason = notHeldReason.trim()
+
+    if (reason.length < 3) {
+      setMessage({ type: 'error', text: 'اكتب سبب عدم الانعقاد — لا تُسجَّل جلسة لم تُعقد بلا سبب' })
+      return
+    }
+
+    setSaving(true)
+    setMessage(null)
+
+    try {
+      const supabase = createClient()
+
+      const updateResult = await supabase
+        .from('sessions')
+        .update({
+          notes: 'لم تُعقد — ' + reason,
+          status: 'not_held',
+          next_session_date: nextDate || null,
+          is_locked: true,
+        })
+        .eq('id', session.id)
+
+      if (updateResult.error) {
+        setMessage({ type: 'error', text: 'فشل التسجيل: ' + updateResult.error.message })
+        setSaving(false)
+        return
+      }
+
+      // الجلسة البديلة، إن حُدِّد لها تاريخ — بنفس احتياط مسار حفظ القرار
+      if (nextDate) {
+        const { data: already } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('case_id', caseId)
+          .eq('session_date', nextDate)
+          .maybeSingle()
+
+        const insertResult = already
+          ? { error: null }
+          : await supabase.from('sessions').insert({
+              case_id: caseId,
+              session_date: nextDate,
+              title: sessionTitleFor(nextDate),
+              status: 'scheduled',
+            })
+
+        if (insertResult.error) {
+          setMessage({ type: 'error', text: 'سُجّل عدم الانعقاد لكن فشل جدولة الجلسة البديلة: ' + insertResult.error.message })
+          setSaving(false)
+          return
+        }
+      }
+
+      setLocked(true)
+
+      // وجلساتٌ مجدولة أخرى بقيت؟ نفس فحص مسار حفظ القرار
+      if (nextDate) {
+        const { data: others } = await supabase
+          .from('sessions')
+          .select('id, session_date')
+          .eq('case_id', caseId)
+          .eq('status', 'scheduled')
+          .neq('id', session.id)
+          .neq('session_date', nextDate)
+
+        if (others && others.length > 0) {
+          setOrphans(others)
+          setMessage({ type: 'success', text: 'سُجّل عدم الانعقاد. وبقيت جلسات مجدولة تحتاج قرارك.' })
+          setSaving(false)
+          return
+        }
+      }
+
+      setMessage({ type: 'success', text: 'سُجّل أن الجلسة لم تُعقد.' })
+      setTimeout(function () { window.location.reload() }, 1200)
+    } catch (err) {
+      setMessage({ type: 'error', text: 'حدث خطأ غير متوقع' })
     }
     setSaving(false)
   }
@@ -407,6 +502,54 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
             {saving ? 'جارٍ الحفظ...' : 'حفظ الجلسة نهائياً (القرار + المحضر)'}
           </button>
           <p className="text-[10px] text-slate-400 text-center">لا يمكن تعديل هذه البيانات بعد الحفظ</p>
+          {/*
+            مخرجٌ ثالث للجلسة: لم تُعقد.
+            كان أمام المستخدم طريقان فقط — يسجّل قراراً لم يصدر، أو يتركها
+            مجدولةً إلى الأبد في تنبيه «تنتظر تسجيل القرار».
+          */}
+          {!notHeldOpen && (
+            <button
+              onClick={function () { setNotHeldOpen(true); setMessage(null) }}
+              disabled={saving}
+              className="w-full text-[12px] text-slate-500 hover:text-slate-800 py-2 font-bold transition disabled:opacity-50"
+            >
+              الجلسة لم تُعقد
+            </button>
+          )}
+
+          {notHeldOpen && (
+            <div className="border border-slate-200 bg-slate-50 rounded-xl p-3 space-y-2.5">
+              <p className="text-[12px] font-bold text-slate-700">الجلسة لم تُعقد</p>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                تُسجَّل الجلسة «لم تُعقد» فتخرج من قائمة ما ينتظر قراراً، ويبقى سببها في السجلّ.
+                وإن كان للمحكمة موعدٌ بديل فاكتبه في حقل «تاريخ الجلسة القادمة» أعلاه.
+              </p>
+              <textarea
+                placeholder="سبب عدم الانعقاد — عطلة، إضراب، غياب هيئة، تعذّر إحضار..."
+                value={notHeldReason}
+                onChange={function (e) { setNotHeldReason(e.target.value) }}
+                disabled={saving}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-slate-400 h-16 resize-none bg-white"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleNotHeld}
+                  disabled={saving}
+                  className="flex-1 text-[12px] bg-slate-700 hover:bg-slate-800 text-white font-bold px-3 py-2.5 rounded-lg transition disabled:opacity-50"
+                >
+                  {saving ? '...' : 'تسجيل أنها لم تُعقد'}
+                </button>
+                <button
+                  onClick={function () { setNotHeldOpen(false); setNotHeldReason(''); setMessage(null) }}
+                  disabled={saving}
+                  className="text-[12px] text-slate-500 font-bold px-3 py-2.5"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>

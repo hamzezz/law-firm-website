@@ -108,9 +108,19 @@ export async function POST(request: Request) {
 
   /* ═══════════ ١) جلسات الغد ═══════════ */
 
+  /**
+   * الحالة `scheduled` شرطٌ لا بدّ منه، ولم يكن موجوداً.
+   *
+   * فكان التذكير يُرسل عن جلسةٍ سُجّل قرارها بالفعل — ولو جُدولت جلسةٌ
+   * لتاريخٍ ثم عُقدت قبل موعدها لذُكّر بها بعد انقضائها. وكذلك الجلسة
+   * التي سُجّل أنها لم تُعقد: تُذكّر بشيءٍ لن يحدث.
+   *
+   * وهو الشرط نفسه القائم في اللوحات الستّ، وقد سقط من هنا وحده.
+   */
   const { data: tomorrowSessions } = await admin
     .from('sessions')
     .select('id, case_id, session_date')
+    .eq('status', 'scheduled')
     .gte('session_date', tomorrow)
     .lt('session_date', addDays(tomorrow, 1))
 
