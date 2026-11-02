@@ -213,6 +213,7 @@ export default async function HomePage() {
             <p>© 2026 مكتب وليد الكثيري للمحاماة والاستشارات القانونية. جميع الحقوق محفوظة.</p>
             <div className="flex items-center gap-4">
               <Link href="/privacy" className="text-slate-400 hover:text-amber-400 transition">سياسة الخصوصية</Link>
+              <Link href="/terms" className="text-slate-400 hover:text-amber-400 transition">شروط الاستخدام</Link>
               <Link href="/delete-account" className="text-slate-400 hover:text-amber-400 transition">حذف الحساب</Link>
             </div>
           </div>
