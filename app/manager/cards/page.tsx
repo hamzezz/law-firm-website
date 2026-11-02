@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 import { LEGAL_POSTS } from '@/lib/posts/legal-posts'
 import CardStudio from './card-studio'
 
@@ -16,11 +17,12 @@ export default async function CardsPage() {
 
   const { data: appUser } = await supabase
     .from('users')
-    .select('id, role')
+    .select('id, role, is_active')
     .eq('auth_id', user.id)
     .single()
 
   if (!appUser || appUser.role !== 'manager') redirect('/portal.html')
+  if (isSuspended(appUser)) redirect(SUSPENDED_PATH)
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">

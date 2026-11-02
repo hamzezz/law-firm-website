@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 import LogoutButton from '@/app/client/dashboard/logout-button'
 import ArticlesManager from './articles-manager'
 
@@ -10,11 +11,12 @@ export default async function ManagerArticlesPage() {
 
   const { data: appUser } = await supabase
     .from('users')
-    .select('id, role, full_name')
+    .select('id, role, full_name, is_active')
     .eq('auth_id', user.id)
     .single()
 
   if (!appUser || appUser.role !== 'manager') redirect('/portal.html')
+  if (isSuspended(appUser)) redirect(SUSPENDED_PATH)
 
   const { data: articles } = await supabase
     .from('articles')

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 import LogoutButton from './logout-button'
 import ChangePassword from '@/app/components/change-password'
 import ClientShell from './client-shell'
@@ -21,20 +22,22 @@ export default async function ClientDashboardPage() {
 
   const { data: joined } = await supabase
     .from('clients')
-    .select('id, users!inner ( id, full_name, auth_id )')
+    .select('id, users!inner ( id, full_name, auth_id, is_active )')
     .eq('users.auth_id', user.id)
     .maybeSingle()
 
   if (joined) {
     clientId = (joined as any).id
     const u: any = Array.isArray((joined as any).users) ? (joined as any).users[0] : (joined as any).users
+    if (isSuspended(u)) redirect(SUSPENDED_PATH)
     clientName = u?.full_name || ''
   } else {
     const { data: appUser } = await supabase
-      .from('users').select('id, full_name').eq('auth_id', user.id).single()
+      .from('users').select('id, full_name, is_active').eq('auth_id', user.id).single()
     if (!appUser) {
       return <div className="min-h-screen flex items-center justify-center p-4" dir="rtl"><p className="text-slate-600">لم يتم العثور على حساب مرتبط بالمصادقة.</p></div>
     }
+    if (isSuspended(appUser)) redirect(SUSPENDED_PATH)
     clientName = appUser.full_name
 
     const { data: clientRow } = await supabase

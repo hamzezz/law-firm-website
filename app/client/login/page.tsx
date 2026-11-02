@@ -32,6 +32,21 @@ export default function ClientLoginPage() {
       return
     }
 
+    // حساب موقوف: يُردّ هنا ولا يُترك ليرتدّ من اللوحة.
+    // وإن تعذّر الاستعلام مضى الدخول كما كان، فلا تنكسر البوابة.
+    const { data: appUser } = await supabase
+      .from('users')
+      .select('is_active')
+      .eq('auth_id', data.user.id)
+      .maybeSingle()
+
+    if (appUser && appUser.is_active === false) {
+      setError('هذا الحساب موقوف. للاستفسار تواصل مع إدارة المكتب.')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+
     router.push('/client/dashboard')
     router.refresh()
   }

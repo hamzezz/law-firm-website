@@ -50,16 +50,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' }, { status: 401 })
   }
 
+  /**
+   * الحساب الموقوف يُردّ هنا برسالةٍ مفهومة.
+   *
+   * وبوابة الموكّل كانت لا تقرأ جدول `users` إطلاقاً، فأُضيف لها
+   * استعلامٌ واحد — لا بدّ منه، إذ لا يُعرف الإيقاف من المصادقة وحدها.
+   */
+  const { data: appUser, error: appUserError } = await supabase
+    .from('users')
+    .select('id, role, is_active')
+    .eq('auth_id', data.user.id)
+    .single()
+
+  if (!appUserError && appUser && appUser.is_active === false) {
+    await supabase.auth.signOut()
+    await logAudit(auditClient(), appUser.id, 'login_failed',
+      'محاولة دخول بحساب موقوف: ' + username, { portal, username, suspended: true })
+    return NextResponse.json(
+      { error: 'هذا الحساب موقوف. للاستفسار تواصل مع إدارة المكتب.' },
+      { status: 403 }
+    )
+  }
+
   if (portal === 'client') {
     await logAudit(auditClient(), null, 'login_success', 'دخول موكّل: ' + username, { portal })
     return NextResponse.json({ redirect: '/client/dashboard' })
   }
-
-  const { data: appUser, error: appUserError } = await supabase
-    .from('users')
-    .select('id, role')
-    .eq('auth_id', data.user.id)
-    .single()
 
   if (appUserError || !appUser) {
     await supabase.auth.signOut()

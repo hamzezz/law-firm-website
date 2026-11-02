@@ -35,12 +35,20 @@ export default function StaffLoginPage() {
 
     const { data: appUser, error: appUserError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, is_active')
       .eq('auth_id', data.user.id)
       .single()
 
     if (appUserError || !appUser) {
       setError('لم يتم العثور على حساب موظف مرتبط بهذا المستخدم')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+
+    // حساب موقوف: يُردّ هنا ولا يُترك ليرتدّ من اللوحة
+    if (appUser.is_active === false) {
+      setError('هذا الحساب موقوف. للاستفسار تواصل مع إدارة المكتب.')
       await supabase.auth.signOut()
       setLoading(false)
       return

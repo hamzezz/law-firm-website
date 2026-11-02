@@ -18,6 +18,8 @@ export type AuditAction =
   | 'account_deleted'
   | 'password_changed'
   | 'username_changed'
+  | 'account_suspended'
+  | 'account_reactivated'
   | 'case_access_granted'
   | 'case_access_revoked'
   // القضايا والجلسات

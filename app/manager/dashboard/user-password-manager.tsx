@@ -31,6 +31,13 @@ function ChangeRow({ account }: { account: any }) {
    */
   const [username, setUsername] = useState(account.username)
 
+  /**
+   * حالة التفعيل تُحفظ هنا كذلك ليتحدّث السطر فور الإيقاف.
+   * والافتراض `true` لا `false`: صفٌّ لم تُقرأ حالته يُعدّ مفعّلاً،
+   * فلا يُوصم حسابٌ سليم بالإيقاف لأن استعلاماً نقص عموداً.
+   */
+  const [active, setActive] = useState(account.is_active !== false)
+
   function close() {
     setMode(null)
     setMessage(null)
@@ -113,20 +120,76 @@ function ChangeRow({ account }: { account: any }) {
     setLoading(false)
   }
 
+  async function handleToggleActive() {
+    const next = !active
+
+    if (!next && !confirm('إيقاف دخول «' + account.full_name + '»؟\n\nلن يستطيع الدخول، ويبقى ملفّ قضيّته كما هو. ويمكنك إعادة التفعيل في أي وقت.')) {
+      return
+    }
+
+    setLoading(true)
+    setMessage(null)
+
+    try {
+      const res = await fetch('/api/manager/toggle-active', {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({ targetUserId: account.id, active: next }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || 'فشل الإجراء' })
+        setLoading(false)
+        return
+      }
+
+      setActive(next)
+      setMessage({
+        type: 'success',
+        text: next ? 'أُعيد تفعيل الدخول.' : 'أُوقف الدخول. وملفّ القضية باقٍ كما هو.',
+      })
+      setTimeout(() => { setMessage(null) }, 3000)
+    } catch (err) {
+      setMessage({ type: 'error', text: 'حدث خطأ في الاتصال' })
+    }
+    setLoading(false)
+  }
+
   return (
     <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0 flex-wrap gap-2">
       <div>
-        <p className="font-bold text-slate-800 text-sm">{account.full_name}</p>
+        <p className="font-bold text-slate-800 text-sm">
+          {account.full_name}
+          {!active && (
+            <span className="mr-2 align-middle text-[10px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">
+              موقوف
+            </span>
+          )}
+        </p>
         <p className="text-xs text-slate-400">@{username} - {ROLE_LABEL[account.role] || account.role}</p>
       </div>
 
       {mode === null && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => setMode('password')} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold">
             تغيير كلمة المرور
           </button>
           <button onClick={() => { setMode('username'); setNewUsername(username) }} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold">
             تغيير اسم المستخدم
+          </button>
+          <button
+            onClick={handleToggleActive}
+            disabled={loading}
+            className={
+              'text-xs px-3 py-1.5 rounded-lg transition font-bold disabled:opacity-50 ' +
+              (active
+                ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100')
+            }
+          >
+            {loading ? '...' : active ? 'إيقاف الدخول' : 'إعادة التفعيل'}
           </button>
         </div>
       )}

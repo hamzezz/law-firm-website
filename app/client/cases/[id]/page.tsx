@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 import { documentLinks } from '@/lib/documents/signed-urls'
 
 function statusBadge(status: string) {
@@ -65,7 +66,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
   const [clientResult, caseResult, sessionsResult, documentsResult] = await Promise.all([
     supabase
       .from('clients')
-      .select('id, users!inner ( auth_id )')
+      .select('id, users!inner ( auth_id, is_active )')
       .eq('users.auth_id', user.id)
       .maybeSingle(),
     supabase
@@ -87,11 +88,19 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
 
   let clientId: string | null = clientResult.data ? (clientResult.data as any).id : null
 
+  if (clientResult.data) {
+    const u: any = Array.isArray((clientResult.data as any).users)
+      ? (clientResult.data as any).users[0]
+      : (clientResult.data as any).users
+    if (isSuspended(u)) redirect(SUSPENDED_PATH)
+  }
+
   // مسارٌ بديل إن تعذّرت الضمّة، فلا تنكسر البوابة
   if (!clientId) {
     const { data: appUser } = await supabase
-      .from('users').select('id').eq('auth_id', user.id).single()
+      .from('users').select('id, is_active').eq('auth_id', user.id).single()
     if (!appUser) redirect('/portal.html')
+    if (isSuspended(appUser)) redirect(SUSPENDED_PATH)
 
     const { data: clientRow } = await supabase
       .from('clients').select('id').eq('user_id', appUser.id).single()

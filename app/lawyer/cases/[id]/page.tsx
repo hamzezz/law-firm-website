@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { startTimer } from '@/lib/perf/timer'
+import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 import { documentLinks } from '@/lib/documents/signed-urls'
 import SessionCard from './session-card'
 import CriticalDeadlines from './critical-deadlines'
@@ -56,7 +57,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
     sessionsResult,
     documentsResult,
   ] = await Promise.all([
-    supabase.from('users').select('id, role').eq('auth_id', user.id).single(),
+    supabase.from('users').select('id, role, is_active').eq('auth_id', user.id).single(),
     supabase
       .from('cases')
       .select('id, case_number, title, case_type, status, court_name, opened_at, primary_lawyer_id, client_id, clients ( users ( full_name ) )')
@@ -85,6 +86,7 @@ export default async function LawyerCaseDetailPage({ params }: { params: Promise
 
   const appUser = userResult.data
   if (!appUser || appUser.role !== 'lawyer') redirect('/portal.html')
+  if (isSuspended(appUser)) redirect(SUSPENDED_PATH)
 
   const { data: lawyerRow } = await supabase
     .from('lawyers')

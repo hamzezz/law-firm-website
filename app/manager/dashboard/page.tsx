@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { startTimer } from '@/lib/perf/timer'
 import { ROW_LIMIT, warnIfNearLimit } from '@/lib/db/limits'
 import { localDateKey } from '@/lib/text/arabic'
+import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import LogoutButton from '@/app/staff/logout-button'
 import ChangePassword from '@/app/components/change-password'
@@ -26,13 +27,15 @@ export default async function ManagerDashboardPage() {
 
   const { data: appUser } = await supabase
     .from('users')
-    .select('id, role, full_name, username')
+    .select('id, role, full_name, username, is_active')
     .eq('auth_id', user.id)
     .single()
 
   if (!appUser || appUser.role !== 'manager') {
     redirect('/portal.html')
   }
+
+  if (isSuspended(appUser)) redirect(SUSPENDED_PATH)
 
   perf.mark('المستخدم')
   const isTech = appUser.username === 'tech'
@@ -108,7 +111,7 @@ export default async function ManagerDashboardPage() {
     supabase.from('lawyers').select('*', { count: 'exact', head: true }),
     supabase
       .from('users')
-      .select('id, full_name, username, role')
+      .select('id, full_name, username, role, is_active')
       .in('role', managedRoles)
       .order('role', { ascending: true }),
     admin

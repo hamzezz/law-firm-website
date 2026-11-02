@@ -136,7 +136,7 @@ function DeleteRow({ account, onDeleted }: { account: any; onDeleted: (id: strin
             <p className="text-[11px] text-red-700 leading-relaxed">
               لهذا الموكّل <strong>{impact.cases}</strong> قضية، و<strong>لا يمكن حذف حسابه</strong>.
               ملفّ القضية سجلٌّ مهنيّ لا يُتلف بحذف حساب دخول. وإن أردت منعه من الدخول،
-              فغيّر كلمة مروره من «إدارة الحسابات».
+              فاستعمل <strong>«إيقاف الدخول»</strong> من «إدارة الحسابات» — يُمنع الدخول ويبقى الملفّ.
             </p>
           )}
 

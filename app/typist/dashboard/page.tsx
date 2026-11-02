@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 import LogoutButton from '@/app/staff/logout-button'
 import ChangePassword from '@/app/components/change-password'
 import EnableNotifications from '@/app/components/enable-notifications'
@@ -23,11 +24,12 @@ export default async function TypistDashboardPage() {
 
   const { data: appUser } = await supabase
     .from('users')
-    .select('id, role, full_name')
+    .select('id, role, full_name, is_active')
     .eq('auth_id', user.id)
     .single()
 
   if (!appUser || appUser.role !== 'typist') redirect('/portal.html')
+  if (isSuspended(appUser)) redirect(SUSPENDED_PATH)
 
   const admin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

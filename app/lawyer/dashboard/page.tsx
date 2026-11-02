@@ -8,6 +8,7 @@ import RegisterDeviceToken from '@/app/components/register-device-token'
 import ViewSwitcher from './view-switcher'
 import { localDateKey, dayMonthYear, daysBetweenKeys } from '@/lib/text/arabic'
 import { ROW_LIMIT, warnIfNearLimit } from '@/lib/db/limits'
+import { isSuspended, SUSPENDED_PATH } from '@/lib/auth/active'
 
 export default async function LawyerDashboardPage() {
   const supabase = await createClient()
@@ -26,26 +27,28 @@ export default async function LawyerDashboardPage() {
 
   const { data: joined } = await supabase
     .from('lawyers')
-    .select('id, specialization, bar_number, users!inner ( id, role, full_name, auth_id )')
+    .select('id, specialization, bar_number, users!inner ( id, role, full_name, auth_id, is_active )')
     .eq('users.auth_id', user.id)
     .maybeSingle()
 
   if (joined) {
     const u: any = Array.isArray((joined as any).users) ? (joined as any).users[0] : (joined as any).users
     if (!u || u.role !== 'lawyer') redirect('/portal.html')
+    if (isSuspended(u)) redirect(SUSPENDED_PATH)
     lawyerRow = { id: (joined as any).id, specialization: (joined as any).specialization, bar_number: (joined as any).bar_number }
     lawyerName = u.full_name || ''
     appUserId = u.id
   } else {
     const { data: appUser } = await supabase
       .from('users')
-      .select('id, role, full_name')
+      .select('id, role, full_name, is_active')
       .eq('auth_id', user.id)
       .single()
 
     if (!appUser || appUser.role !== 'lawyer') {
       redirect('/portal.html')
     }
+    if (isSuspended(appUser)) redirect(SUSPENDED_PATH)
     lawyerName = appUser.full_name
     appUserId = appUser.id
 
