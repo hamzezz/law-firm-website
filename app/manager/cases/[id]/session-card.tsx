@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { sessionTitleFor } from '@/lib/sessions/title'
 import VoiceInput from '@/app/components/voice-input'
 import DocumentScanner from '@/app/components/document-scanner'
 
@@ -159,25 +160,13 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
           .eq('session_date', nextDate)
           .maybeSingle()
 
-        // الرقم الجديد = أعلى رقم في القضية + ١، لا رقم هذه الجلسة + ١
-        const { data: topRow } = await supabase
-          .from('sessions')
-          .select('session_order')
-          .eq('case_id', caseId)
-          .order('session_order', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        const nextOrder = ((topRow && topRow.session_order) || 0) + 1
-
         const insertResult = already
           ? { error: null }
           : await supabase.from('sessions').insert({
               case_id: caseId,
               session_date: nextDate,
-              title: 'الجلسة رقم ' + nextOrder,
+              title: sessionTitleFor(nextDate),
               status: 'scheduled',
-              session_order: nextOrder,
             })
         if (insertResult.error) {
           setMessage({ type: 'error', text: 'تم حفظ القرار لكن فشل جدولة الجلسة القادمة: ' + insertResult.error.message })

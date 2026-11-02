@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useHashTab } from '@/app/components/use-hash-tab'
 import { shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday, daysBetweenKeys, dayMonthYear } from '@/lib/text/arabic'
 import PendingSessions from '@/app/components/pending-sessions'
+import { sessionTitleFor } from '@/lib/sessions/title'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CasesTable from './cases-table'
@@ -256,9 +257,8 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
         const sessionResult = await supabase.from('sessions').insert({
           case_id: newCase.id,
           session_date: firstSessionDate,
-          title: 'الجلسة رقم 1',
+          title: sessionTitleFor(firstSessionDate),
           status: 'scheduled',
-          session_order: 1,
         })
         if (sessionResult.error) {
           setMessage({ type: 'error', text: 'تم إنشاء القضية لكن فشل جدولة الجلسة الأولى: ' + sessionResult.error.message })

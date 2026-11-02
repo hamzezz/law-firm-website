@@ -2,6 +2,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { parseSessionsReport, deduplicateCases, normalizeArabic } from '@/lib/moj-parser/parser'
 import { sendPushToUser } from '@/lib/push/send-push'
 import { shortArabicName, localDateKey } from '@/lib/text/arabic'
+import { sessionTitleFor } from '@/lib/sessions/title'
  
 const STOP_WORDS = new Set([
   'ورثه','واخرين','واخر','وهم','زوجته','زوجه','شركه','بن','بنت','عبد','ابو','السيد','الاستاذ',
@@ -149,26 +150,13 @@ export async function createSessionAndNotify(
     sessionId = existingSession.id
     isNewSession = false
   } else {
-    // أعلى رقم موجود + ١، لا عدد الجلسات + ١:
-    // العدّ يُعيد استعمال رقم مستهلك إن حُذفت جلسة يوماً ما
-    const { data: topRow } = await admin
-      .from('sessions')
-      .select('session_order')
-      .eq('case_id', caseRow.id)
-      .order('session_order', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    const nextOrder = ((topRow && topRow.session_order) || 0) + 1
- 
     const { data: newSession } = await admin
       .from('sessions')
       .insert({
         case_id: caseRow.id,
         session_date: sessionDate,
-        title: 'الجلسة رقم ' + nextOrder,
+        title: sessionTitleFor(sessionDate),
         status: 'scheduled',
-        session_order: nextOrder,
       })
       .select('id')
       .single()
