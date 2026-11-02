@@ -262,6 +262,12 @@ export type ProcessResult = {
   totalMatched: number
   matchedCases: any[]
   needsReview: ReviewItem[]
+  /** التاريخ المقروء من عنوان الكشف، أو null إن تعذّرت قراءته */
+  reportDate?: string | null
+  /** من أين جاء التاريخ المستعمل فعلاً */
+  dateSource?: 'file' | 'manual' | 'today'
+  /** يختلف التاريخ المقروء عمّا أدخله التقني — يُعرض عليه ولا يُكتم */
+  dateMismatch?: boolean
 }
  
 export async function processSessionsText(
@@ -319,7 +325,17 @@ export async function processSessionsText(
  
     if (courtMatches.length === 0) continue
  
-    const sessionDate = providedDate || item.sessionDate || today
+    /**
+     * الملفّ هو المصدر، والإدخال اليدويّ احتياط.
+     *
+     * كان العكس — ولولا ذلك لفسدت التواريخ كلّها، فالمستخرَج من الملفّ
+     * كان خاطئاً في كلّ كشف (انظر `extractReportDate`). وبعد إصلاحه صار
+     * الملفّ أوثق: الوزارة تكتب التاريخ في عنوان كلّ صفحة، والإدخال
+     * اليدويّ يُخطئ ليلةَ رفعٍ متأخّرة.
+     *
+     * ويبقى اليدويّ لكشفٍ لا يُقرأ عنوانه، ثم تاريخ اليوم آخر الحلول.
+     */
+    const sessionDate = item.sessionDate || providedDate || today
  
     let matchedCase: any = null
  
@@ -366,12 +382,28 @@ export async function processSessionsText(
     })
   }
  
+  /**
+   * التاريخ المستعمل يُعرض على التقني دائماً.
+   *
+   * فلو خالف الكشفُ ما أدخله لوجب أن يراه، لا أن يُكتم عنه ويُكتشف
+   * بعد شهرٍ في جلسةٍ فائتة.
+   */
+  const fileDate = extracted.length > 0 ? extracted[0].sessionDate : null
+  const usedSource: 'file' | 'manual' | 'today' = fileDate ? 'file' : (providedDate ? 'manual' : 'today')
+
+  if (fileDate && providedDate && fileDate !== providedDate) {
+    console.log('[رفع] ⚠️  تاريخ الكشف ' + fileDate + ' يخالف المُدخَل ' + providedDate + ' — اعتُمد تاريخ الكشف')
+  }
+
   return {
     success: true,
     totalExtracted: extracted.length,
     totalMatched: matchedCases.length,
     matchedCases,
     needsReview,
+    reportDate: fileDate,
+    dateSource: usedSource,
+    dateMismatch: Boolean(fileDate && providedDate && fileDate !== providedDate),
   }
 }
  

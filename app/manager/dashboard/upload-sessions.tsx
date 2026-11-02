@@ -88,6 +88,27 @@ export default function UploadSessions() {
       {result && (
         <div className="text-sm p-4 rounded-lg bg-emerald-50 text-emerald-800 space-y-2">
           <p className="font-bold">تم تحليل الملف بنجاح</p>
+
+          {/*
+            التاريخ المستعمل يُعرض دائماً، ويُنبَّه إن خالف المُدخَل.
+            فالكشف يذكر تاريخه في عنوان كل صفحة، وهو أوثق من إدخالٍ يدويّ
+            في ليلة رفعٍ متأخّرة — لكن لا يُستعمل خلافُ ما أدخله التقني
+            دون أن يراه.
+          */}
+          {result.reportDate && (
+            <p className={result.dateMismatch ? 'font-bold text-amber-800' : ''}>
+              {result.dateMismatch ? '⚠️ ' : ''}
+              تاريخ الكشف المقروء من الملف: <strong>{result.reportDate}</strong>
+              {result.dateMismatch ? ' — واعتُمد هو، لا التاريخ الذي أدخلتَه' : ''}
+            </p>
+          )}
+
+          {!result.reportDate && (
+            <p className="text-amber-800">
+              تعذّرت قراءة تاريخ الكشف من الملف، فاعتُمد التاريخ الذي أدخلتَه.
+            </p>
+          )}
+
           <p>إجمالي القضايا المستخرجة من الملف: {result.totalExtracted}</p>
           <p className="font-bold">القضايا التي تخص مكتبنا: {result.totalMatched}</p>
           {result.matchedCases && result.matchedCases.length > 0 && (

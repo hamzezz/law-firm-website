@@ -38,8 +38,77 @@ export interface ExtractedCase {
 const CASE_NUMBER_PATTERN_AR = /(١٤[٢٣٤٥][٠١٢٣٤٥٦٧٨٩])\/([٠١٢٣٤٥٦٧٨٩]+)/g
 const CASE_NUMBER_PATTERN_EN = /(14[2-5][0-9])\/([0-9]+)/g
 
-// تاريخ الجلسة بصيغة YYYY-MM-DD بالأرقام العربية، يظهر في جدول التواريخ أعلى الصفحة
-const SESSION_DATE_PATTERN = /([٠١٢٣٤٥٦٧٨٩]{4})-([٠١٢٣٤٥٦٧٨٩]{2})-([٠١٢٣٤٥٦٧٨٩]{2})/
+/**
+ * تاريخ الكشف الميلادي.
+ *
+ * كان يُلتقط بنمط `YYYY-MM-DD` من أعلى الصفحة — **وكان خطأً في كلّ ملفّ**.
+ * فأعلى كلّ صفحة جدولٌ صغير عنوانه «اليوم / التاريخ / عدد الجلسات» فيه
+ * مواعيد الجلسات القادمة بترتيبٍ غير مرتّب، فكان النمط يلتقط أوّل موعدٍ
+ * مستقبليّ فيه — ويختلف باختلاف الصفحة في الملفّ الواحد.
+ *
+ * اختُبر على ستّة كشوف من الوزارة: التقط ٢٠٢٦-١١-١٦ لكشف ٢٠٢٦-١١-٠٢،
+ * و٢٠٢٦-١٠-٠٤ لكشف ٢٠٢٦-٠٩-٢٠، وهكذا في الستّة كلّها بلا استثناء.
+ *
+ * والتاريخ الحقيقي مكتوبٌ صراحةً في عنوان الصفحة:
+ *   «قائمة الجلسات ليوم الإثنين/ ٢/نوفمبر/٢٠٢٦م»
+ * فالمرساة اسم الشهر — ولا يرد مكتوباً بالحروف إلا هناك. ولا تصلح كلمة
+ * «ليوم» مرساةً: كلمة «اليوم» في ترويسة الجدول الصغير تحتويها.
+ */
+const GREGORIAN_MONTHS: { name: string; num: number }[] = [
+  { name: 'يناير', num: 1 },
+  { name: 'فبراير', num: 2 },
+  { name: 'مارس', num: 3 },
+  { name: 'ابريل', num: 4 },
+  { name: 'أبريل', num: 4 },
+  { name: 'مايو', num: 5 },
+  { name: 'يونيو', num: 6 },
+  { name: 'يوليو', num: 7 },
+  { name: 'اغسطس', num: 8 },
+  { name: 'أغسطس', num: 8 },
+  { name: 'سبتمبر', num: 9 },
+  { name: 'اكتوبر', num: 10 },
+  { name: 'أكتوبر', num: 10 },
+  { name: 'نوفمبر', num: 11 },
+  { name: 'ديسمبر', num: 12 },
+]
+
+/**
+ * يستخرج تاريخ الكشف من أعلى الصفحة، أو `null` إن لم يجده.
+ *
+ * ولا يُخرج تاريخاً خارج ٢٠٢٠–٢١٠٠: فالعمود ميلاديّ، ولو تسرّب إليه
+ * تاريخٌ هجريّ (١٤٤٨) لقبِله Postgres بلا شكوى وفسد السجلّ صامتاً.
+ */
+export function extractReportDate(headerArea: string): string | null {
+  const text = normalizeDigits(headerArea)
+
+  for (const month of GREGORIAN_MONTHS) {
+    let from = 0
+    for (;;) {
+      const at = text.indexOf(month.name, from)
+      if (at === -1) break
+      from = at + 1
+
+      const before = text.slice(Math.max(0, at - 24), at)
+      const after = text.slice(at + month.name.length, at + month.name.length + 24)
+
+      const days = before.match(/\d{1,2}/g)
+      const years = after.match(/\d{4}/g)
+      if (!days || !years) continue
+
+      const day = parseInt(days[days.length - 1], 10)
+      const year = parseInt(years[0], 10)
+
+      if (day < 1 || day > 31) continue
+      if (year < 2020 || year > 2100) continue
+
+      const mm = String(month.num).padStart(2, '0')
+      const dd = String(day).padStart(2, '0')
+      return year + '-' + mm + '-' + dd
+    }
+  }
+
+  return null
+}
 
 // المحاكم الابتدائية تُسمّى "محكمة"، ومحاكم الاستئناف تُسمّى "الشعبة"
 const COURT_PATTERN = /(محكمة|الشعبة)\s+([\u0621-\u064A]+(?:\s+[\u0621-\u064A]+){0,2})/
@@ -166,13 +235,8 @@ export function parseSessionsReport(fullText: string): ExtractedCase[] {
       }
     }
 
-    // تاريخ جلسات هذا الملف: أول تاريخ في جدول التواريخ أعلى الصفحة
-    let sessionDate: string | null = null
-    const dateMatch = SESSION_DATE_PATTERN.exec(headerArea)
-    if (dateMatch) {
-      sessionDate =
-        normalizeDigits(dateMatch[1]) + '-' + normalizeDigits(dateMatch[2]) + '-' + normalizeDigits(dateMatch[3])
-    }
+    // تاريخ الكشف من عنوان الصفحة — لا من جدول المواعيد القادمة أعلاها
+    const sessionDate: string | null = extractReportDate(headerArea)
 
     const lines = searchArea.split('\n')
     for (let li = 0; li < lines.length; li++) {
