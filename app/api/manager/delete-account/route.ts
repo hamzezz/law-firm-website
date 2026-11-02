@@ -73,9 +73,34 @@ export async function POST(request: Request) {
         .maybeSingle()
 
       if (clientRow) {
-        // حذف كل القضايا المرتبطة أولاً (جلساتها ومستنداتها تُحذف تلقائياً بـ cascade)
-        const rCases = await admin.from('cases').delete().eq('client_id', clientRow.id)
-        if (rCases.error) return NextResponse.json({ error: 'فشل حذف قضايا الموكل: ' + rCases.error.message }, { status: 500 })
+        /**
+         * ملفّ الموكّل لا يُتلَف.
+         *
+         * كان الحذف يمحو قضايا الموكّل ومعها — بالتسلسل — جلساتها
+         * ومحاضرها ومستنداتها ومواعيدها الحرجة. وكان معلناً في الواجهة
+         * ومسبوقاً بتأكيد، لكنّه يخالف واجب المحامي في حفظ ملفّات
+         * موكّليه: ملفّ القضية سجلٌّ مهنيّ لا يُتلف بحذف حساب دخول.
+         *
+         * والقرار قرار المكتب: «لا يجوز تلف ملف موكّل أصلاً».
+         *
+         * ويُفرض هنا في الخادم لا في الشاشة وحدها، فالتحذير يُقرأ
+         * ويُتجاوز، والرفض لا يُتجاوز.
+         */
+        const { count: caseCount } = await admin
+          .from('cases')
+          .select('*', { count: 'exact', head: true })
+          .eq('client_id', clientRow.id)
+
+        if ((caseCount || 0) > 0) {
+          return NextResponse.json(
+            {
+              error:
+                'لا يمكن حذف حساب موكّل له ' + caseCount + ' قضية. ملفّ القضية سجلٌّ مهنيّ ' +
+                'لا يُتلف بحذف الحساب. وإن أردت منعه من الدخول فغيّر كلمة مروره من «إدارة الحسابات».',
+            },
+            { status: 409 }
+          )
+        }
       }
 
       const r1 = await admin.from('clients').delete().eq('user_id', targetUser.id)

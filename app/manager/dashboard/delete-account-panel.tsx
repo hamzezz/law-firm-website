@@ -20,6 +20,9 @@ function DeleteRow({ account, onDeleted }: { account: any; onDeleted: (id: strin
   const [message, setMessage] = useState('')
   const [impact, setImpact] = useState<any>(null)
 
+  // ملفّ الموكّل لا يُتلَف: الخادم يرفض، والشاشة تُقفل الزرّ قبل الضغط.
+  const blocked = impact !== null && account.role === 'client' && impact.cases > 0
+
   async function loadImpact() {
     const supabase = createClient()
 
@@ -119,7 +122,9 @@ function DeleteRow({ account, onDeleted }: { account: any; onDeleted: (id: strin
 
       {open && (
         <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
-          <p className="text-xs font-bold text-red-800">⚠️ تحذير: حذف نهائي لا يمكن التراجع عنه</p>
+          <p className="text-xs font-bold text-red-800">
+            {blocked ? '⛔ الحذف ممنوع' : '⚠️ تحذير: حذف نهائي لا يمكن التراجع عنه'}
+          </p>
 
           {/*
             التحذير يختلف باختلاف الدور، وكان واحداً للجميع.
@@ -127,13 +132,17 @@ function DeleteRow({ account, onDeleted }: { account: any; onDeleted: (id: strin
             وكان النصّ يُنذر بإتلافٍ لا يقع، فيمتنع المدير عن إجراءٍ آمن
             أو يظنّ أنه أتلف ما لم يُتلَف.
           */}
-          {impact !== null && account.role === 'client' && (
+          {impact !== null && account.role === 'client' && impact.cases > 0 && (
             <p className="text-[11px] text-red-700 leading-relaxed">
-              سيتم حذف الحساب نهائياً
-              {impact.cases > 0 && (
-                <> ومعه <strong>{impact.cases}</strong> قضية مرتبطة به، وكل جلساتها ومحاضرها ومستنداتها ومواعيدها الحرجة. ملفّ القضية يُتلَف بالكامل ولا يُسترجع</>
-              )}
-              {impact.cases === 0 && <> (لا توجد قضايا مرتبطة به)</>}.
+              لهذا الموكّل <strong>{impact.cases}</strong> قضية، و<strong>لا يمكن حذف حسابه</strong>.
+              ملفّ القضية سجلٌّ مهنيّ لا يُتلف بحذف حساب دخول. وإن أردت منعه من الدخول،
+              فغيّر كلمة مروره من «إدارة الحسابات».
+            </p>
+          )}
+
+          {impact !== null && account.role === 'client' && impact.cases === 0 && (
+            <p className="text-[11px] text-red-700 leading-relaxed">
+              سيتم حذف الحساب نهائياً (لا توجد قضايا مرتبطة به).
             </p>
           )}
 
@@ -153,38 +162,47 @@ function DeleteRow({ account, onDeleted }: { account: any; onDeleted: (id: strin
             </p>
           )}
 
-          <p className="text-[11px] text-red-700">
-            يُنصح بشدة بتنزيل نسخة احتياطية قبل المتابعة.
-          </p>
+          {!blocked && (
+            <p className="text-[11px] text-red-700">
+              يُنصح بشدة بتنزيل نسخة احتياطية قبل المتابعة.
+            </p>
+          )}
 
-          <div>
-            <label className="text-[11px] text-red-800 block mb-1">
-              للتأكيد، اكتب اسم الحساب بالضبط: <strong>{account.full_name}</strong>
-            </label>
-            <input
-              type="text"
-              value={confirmName}
-              onChange={(e) => setConfirmName(e.target.value)}
-              className="w-full px-3 py-2 border border-red-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-400"
-              placeholder="اكتب الاسم هنا"
-            />
-          </div>
+          {!blocked && (
+            <div>
+              <label className="text-[11px] text-red-800 block mb-1">
+                للتأكيد، اكتب اسم الحساب بالضبط: <strong>{account.full_name}</strong>
+              </label>
+              <input
+                type="text"
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                className="w-full px-3 py-2 border border-red-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-400"
+                placeholder="اكتب الاسم هنا"
+              />
+            </div>
+          )}
 
           {message && <p className="text-[11px] text-red-700 bg-red-100 p-2 rounded-lg">{message}</p>}
 
           <div className="flex gap-2">
-            <button
-              onClick={handleDelete}
-              disabled={loading || normalizeForCompare(confirmName) !== normalizeForCompare(account.full_name)}
-              className="flex-1 bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition text-xs disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {loading ? 'جارٍ الحذف...' : 'تأكيد الحذف النهائي'}
-            </button>
+            {!blocked && (
+              <button
+                onClick={handleDelete}
+                disabled={loading || normalizeForCompare(confirmName) !== normalizeForCompare(account.full_name)}
+                className="flex-1 bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {loading ? 'جارٍ الحذف...' : 'تأكيد الحذف النهائي'}
+              </button>
+            )}
             <button
               onClick={() => setOpen(false)}
-              className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition text-xs"
+              className={
+                (blocked ? 'flex-1 ' : 'px-4 ') +
+                'py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition text-xs'
+              }
             >
-              إلغاء
+              {blocked ? 'إغلاق' : 'إلغاء'}
             </button>
           </div>
         </div>
