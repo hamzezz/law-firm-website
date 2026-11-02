@@ -6,6 +6,7 @@ import NotificationBell from './notification-bell'
 import EnableNotifications from '@/app/components/enable-notifications'
 import RegisterDeviceToken from '@/app/components/register-device-token'
 import ViewSwitcher from './view-switcher'
+import { localDateKey, dayMonthYear, daysBetweenKeys } from '@/lib/text/arabic'
 
 export default async function LawyerDashboardPage() {
   const supabase = await createClient()
@@ -146,6 +147,31 @@ export default async function LawyerDashboardPage() {
     if (!nextSessionByCase[s.case_id]) nextSessionByCase[s.case_id] = s.session_date
   })
 
+  /**
+   * جلسات حان موعدها ولم يُسجَّل قرارها — اليوم فما قبله.
+   * بقاؤها بلا قرار هو ما يُنتج «جلسات الشبح» لاحقاً.
+   */
+  const todayK = localDateKey(new Date())
+  const caseMetaById: Record<string, any> = {}
+  casesRaw.forEach((c: any) => { caseMetaById[c.id] = c })
+
+  const pendingSessions = (lawyerSessions || [])
+    .filter((s: any) => s.status === 'scheduled' && localDateKey(s.session_date) <= todayK)
+    .map((s: any) => {
+      const c = caseMetaById[s.case_id]
+      const key = localDateKey(s.session_date)
+      return {
+        sessionId: s.id,
+        caseId: s.case_id,
+        caseTitle: (c && c.title) || s.title || 'قضية',
+        caseNumber: (c && c.case_number) || '',
+        dateKey: key,
+        dateLabel: dayMonthYear(key),
+        daysLate: daysBetweenKeys(key, todayK),
+      }
+    })
+    .sort((a: any, b: any) => (a.dateKey < b.dateKey ? -1 : 1))
+
   const caseTitleMap = {}
   casesRaw.forEach((c) => { caseTitleMap[c.id] = c.title })
 
@@ -210,6 +236,7 @@ export default async function LawyerDashboardPage() {
         cases={cases}
         archivedCases={archivedCases}
         calendarEvents={calendarEvents}
+        pendingSessions={pendingSessions}
         lawyerName={lawyerName}
         specialization={lawyerRow.specialization}
         bell={<NotificationBell userId={appUserId} />}

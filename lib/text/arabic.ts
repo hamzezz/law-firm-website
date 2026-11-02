@@ -48,6 +48,21 @@ export function localDateKey(value: string | Date | null | undefined): string {
   return d.getFullYear() + '-' + m + '-' + day
 }
 
+/** فرق الأيام بين مفتاحَي تاريخ (YYYY-MM-DD) — بلا مناطق زمنية */
+export function daysBetweenKeys(fromKey: string, toKey: string): number {
+  const a = String(fromKey || '').split('-').map(Number)
+  const b = String(toKey || '').split('-').map(Number)
+  if (a.length !== 3 || b.length !== 3) return 0
+  return Math.round((Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 86400000)
+}
+
+/** مفتاح تاريخ ← ٠٢/١١/٢٠٢٦ بأرقام إنجليزية */
+export function dayMonthYear(key: string): string {
+  const p = String(key || '').split('-')
+  if (p.length !== 3) return ''
+  return p[2] + '/' + p[1] + '/' + p[0]
+}
+
 /** تاريخ الغد بالمفتاح المحلّي */
 export function tomorrowKey(): string {
   const d = new Date()

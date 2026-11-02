@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useHashTab } from '@/app/components/use-hash-tab'
-import { shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
+import { shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday, daysBetweenKeys, dayMonthYear } from '@/lib/text/arabic'
+import PendingSessions from '@/app/components/pending-sessions'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CasesTable from './cases-table'
@@ -472,6 +473,28 @@ export default function ManagerTabs({
   const caseById: Record<string, any> = {}
   ;(cases || []).forEach((c: any) => { caseById[c.id] = c })
 
+  /**
+   * جلسات حان موعدها ولم يُسجَّل قرارها — اليوم فما قبله.
+   * بقاؤها بلا قرار هو ما يُنتج «جلسات الشبح» لاحقاً.
+   */
+  const todayK = localDateKey(new Date())
+  const pendingSessions = (allSessions || [])
+    .filter((s: any) => s.status === 'scheduled' && localDateKey(s.session_date) <= todayK)
+    .map((s: any) => {
+      const c = caseById[s.case_id]
+      const key = localDateKey(s.session_date)
+      return {
+        sessionId: s.id,
+        caseId: s.case_id,
+        caseTitle: (c && c.title) || s.title || 'قضية',
+        caseNumber: (c && c.case_number) || '',
+        dateKey: key,
+        dateLabel: dayMonthYear(key),
+        daysLate: daysBetweenKeys(key, todayK),
+      }
+    })
+    .sort((a: any, b: any) => (a.dateKey < b.dateKey ? -1 : 1))
+
   const tomorrowSessions = (allSessions || [])
     // المجدولة وحدها: الجلسة التي سُجّل قرارها لا تُعرض ولو وقع تاريخها غداً
     .filter((s: any) => localDateKey(s.session_date) === tKey && s.status === 'scheduled')
@@ -565,6 +588,8 @@ export default function ManagerTabs({
       {/* ═══════════ الإحصائيات ═══════════ */}
       {activeTab === 'overview' && (
         <div>
+          <PendingSessions items={pendingSessions} basePath="/manager/cases" accent="amber" />
+
           {tomorrowSessions.length > 0 && (
             <section className="mb-5">
               <div className="flex items-center gap-3 mb-3">

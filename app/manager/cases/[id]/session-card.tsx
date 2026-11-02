@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import VoiceInput from '@/app/components/voice-input'
 import DocumentScanner from '@/app/components/document-scanner'
@@ -52,6 +52,25 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
    */
   const [orphans, setOrphans] = useState<any[]>([])
   const [cleaning, setCleaning] = useState(false)
+
+  /**
+   * القدوم من تنبيه «جلسات تنتظر القرار»: الرابط يحمل #session-<id>،
+   * فننزل إلى البطاقة ونومضها. ولا نترك الأمر للمتصفّح وحده لأن الصفحة
+   * تُبنى على الخادم وقد تصل البطاقة بعد قفزة المرساة.
+   */
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const [flash, setFlash] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.location.hash !== '#session-' + session.id) return
+    const t = setTimeout(() => {
+      if (cardRef.current) cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlash(true)
+      setTimeout(() => setFlash(false), 2400)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [session.id])
 
   const sessionDateFormatted = bothCalendars(session.session_date)
 
@@ -305,7 +324,7 @@ export default function ManagerSessionCard({ session, caseId, caseNumber, client
 
   /* ═══ 3) جلسة اليوم — تُسجَّل مرة واحدة ═══ */
   return (
-    <div className="relative pr-10">
+    <div ref={cardRef} id={'session-' + session.id} className={'relative pr-10 scroll-mt-28 rounded-2xl transition ' + (flash ? 'ring-4 ring-amber-400/70' : '')}>
       <Rail tone="open" />
       <div className="rounded-xl border border-amber-200 border-r-[3px] border-r-amber-500 bg-amber-50/40 p-4">
         <div className="flex items-start justify-between gap-2">

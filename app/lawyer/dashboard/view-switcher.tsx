@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import CalendarView from './calendar-view'
 import { matchesArabic, shortArabicName, localDateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
+import PendingSessions from '@/app/components/pending-sessions'
 import { useHashTab } from '@/app/components/use-hash-tab'
 import PrintRequestButton from '@/app/components/print-request-button'
 
@@ -168,6 +169,7 @@ export default function ViewSwitcher({
   cases,
   archivedCases,
   calendarEvents,
+  pendingSessions,
   lawyerName,
   specialization,
   bell,
@@ -177,6 +179,7 @@ export default function ViewSwitcher({
   cases: any[]
   archivedCases?: any[]
   calendarEvents: any[]
+  pendingSessions?: any[]
   lawyerName: string
   specialization: string
   bell: React.ReactNode
@@ -281,6 +284,10 @@ export default function ViewSwitcher({
             </div>
 
             <SearchBox value={q} onChange={setQ} placeholder="ابحث برقم القضية أو اسم الموكّل أو المحكمة…" />
+
+            {!q.trim() && (
+              <PendingSessions items={pendingSessions || []} basePath="/lawyer/cases" accent="emerald" />
+            )}
 
             {tomorrowCases.length > 0 && !q.trim() && (
               <section className="mb-7">
