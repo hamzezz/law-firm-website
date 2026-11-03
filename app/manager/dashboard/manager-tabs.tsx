@@ -360,11 +360,30 @@ function AddCaseForm({ allClients, allLawyers, yemenCourts, onSuccess }: any) {
 
         <div>
           <FieldLabel>المحكمة</FieldLabel>
+          {/*
+            مجموعتان لا قائمة واحدة: المحاكم الابتدائية تبدأ بـ«محكمة»
+            والشُّعب الاستئنافية بـ«الشعبة». وسبعٌ وعشرون اسماً في قائمة
+            مسطّحة تُتصفَّح بالعين، وفي مجموعتين تُقصد مباشرةً.
+          */}
           <select value={courtName} onChange={function (e) { setCourtName(e.target.value) }} className={inputCls} required>
             <option value="">اختر المحكمة</option>
-            {yemenCourts ? yemenCourts.map(function (c: any) {
-              return <option key={c.id} value={c.name}>{c.name}</option>
-            }) : null}
+
+            <optgroup label="محاكم ابتدائية">
+              {(yemenCourts || [])
+                .filter(function (c: any) { return !String(c.name || '').startsWith('الشعبة') })
+                .map(function (c: any) {
+                  return <option key={c.id} value={c.name}>{c.name}</option>
+                })}
+            </optgroup>
+
+            <optgroup label="شُعب استئنافية">
+              {(yemenCourts || [])
+                .filter(function (c: any) { return String(c.name || '').startsWith('الشعبة') })
+                .map(function (c: any) {
+                  return <option key={c.id} value={c.name}>{c.name}</option>
+                })}
+            </optgroup>
+
             <option value="__custom__">محكمة أخرى (اكتبها يدوياً)</option>
           </select>
         </div>

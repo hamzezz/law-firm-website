@@ -1,5 +1,5 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { parseSessionsReport, deduplicateCases, normalizeArabic } from '@/lib/moj-parser/parser'
+import { parseSessionsReport, deduplicateCases, normalizeArabic, courtKey } from '@/lib/moj-parser/parser'
 import { sendPushToUser } from '@/lib/push/send-push'
 import { shortArabicName, localDateKey } from '@/lib/text/arabic'
 import { sessionTitleFor } from '@/lib/sessions/title'
@@ -318,9 +318,11 @@ export async function processSessionsText(
   for (const item of extracted) {
     const candidateCases = casesByNumber.get(item.caseNumber) || []
  
-    const normalizedFileCourtName = normalizeArabic(item.courtName)
+    // المقارنة بمفتاحٍ يُسقط أداة التعريف، فلا تنكسر مطابقة القضايا
+    // المسجَّلة باسمٍ بلا «ال» قبل إصلاح نمط المحلّل
+    const normalizedFileCourtName = courtKey(item.courtName)
     const courtMatches = (candidateCases || []).filter(
-      (c) => normalizeArabic(c.court_name || '') === normalizedFileCourtName
+      (c) => courtKey(c.court_name) === normalizedFileCourtName
     )
  
     if (courtMatches.length === 0) continue
