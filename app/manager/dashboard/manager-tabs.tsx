@@ -6,6 +6,7 @@ import { useHashTab } from '@/app/components/use-hash-tab'
 import { shortArabicName, localDateKey, dateKey, tomorrowKey, tomorrowWeekday, daysBetweenKeys, dayMonthYear } from '@/lib/text/arabic'
 import PendingSessions from '@/app/components/pending-sessions'
 import { sessionTitleFor } from '@/lib/sessions/title'
+import { generateUsername } from '@/lib/auth/username'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CasesTable from './cases-table'
@@ -133,7 +134,10 @@ function AddClientForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div>
           <FieldLabel>اسم المستخدم</FieldLabel>
-          <input type="text" value={username} onChange={function (e) { setUsername(e.target.value) }} className={inputCls} dir="ltr" required />
+          <div className="flex gap-2">
+            <input type="text" value={username} onChange={function (e) { setUsername(e.target.value) }} className={inputCls} dir="ltr" required />
+            <button type="button" onClick={function () { setUsername(generateUsername()) }} className="shrink-0 w-12 bg-slate-100 rounded-xl hover:bg-slate-200 text-base" title="توليد اسم مستخدم">🎲</button>
+          </div>
         </div>
         <div>
           <FieldLabel>كلمة المرور</FieldLabel>

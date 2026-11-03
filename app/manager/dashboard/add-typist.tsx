@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { generateUsername } from '@/lib/auth/username'
 
 /**
  * إنشاء حساب الطبّاع.
@@ -120,13 +121,22 @@ export default function AddTypist({ onSuccess }: { onSuccess?: () => void }) {
 
           <div>
             <label className="text-[11px] text-slate-500 block mb-1">اسم المستخدم — لاتيني بلا مسافات</label>
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={inputCls}
-              dir="ltr"
-              placeholder="typist"
-            />
+            <div className="flex gap-2">
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className={inputCls}
+                dir="ltr"
+                placeholder="typist"
+              />
+              <button
+                onClick={() => setUsername(generateUsername())}
+                type="button"
+                className="shrink-0 text-xs font-bold bg-slate-100 text-slate-700 px-4 rounded-xl hover:bg-slate-200 transition"
+              >
+                توليد
+              </button>
+            </div>
           </div>
 
           <div>

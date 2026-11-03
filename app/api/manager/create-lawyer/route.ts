@@ -51,6 +51,24 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+
+  /**
+   * اسم مستخدم مأخوذ: يُردّ برسالة مفهومة قبل إنشاء حساب المصادقة.
+   *
+   * ولولا هذا لفشل الإنشاء برسالة Supabase الإنجليزية، أو — إن تعارض
+   * الاسم في الجدول دون البريد — لبقي حساب مصادقةٍ يتيم بلا صفّ يقابله.
+   * وهو الفحص القائم في create-typist، وكان ساقطاً من هنا.
+   */
+  const { data: taken } = await admin
+    .from('users')
+    .select('id')
+    .eq('username', username.trim().toLowerCase())
+    .maybeSingle()
+
+  if (taken) {
+    return NextResponse.json({ error: 'اسم المستخدم مستعمل بالفعل' }, { status: 400 })
+  }
+
   const syntheticEmail = `${username.trim().toLowerCase()}@staff.lawfirm.internal`
 
   const { data: newAuthUser, error: authError } = await admin.auth.admin.createUser({

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { generateUsername } from '@/lib/auth/username'
 
 function generatePassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#'
@@ -88,14 +89,25 @@ function AddLawyerForm({ onSuccess }: { onSuccess: () => void }) {
           onChange={(e) => setSpecialization(e.target.value)}
           className="px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500"
         />
-        <input
-          type="text"
-          placeholder="اسم المستخدم"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500"
-          required
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="اسم المستخدم"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="flex-1 px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500"
+            dir="ltr"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setUsername(generateUsername())}
+            className="px-3 py-2 bg-slate-100 rounded-xl hover:bg-slate-200 text-sm"
+            title="توليد اسم مستخدم"
+          >
+            🎲
+          </button>
+        </div>
         <div className="flex gap-2">
           <input
             type="text"
