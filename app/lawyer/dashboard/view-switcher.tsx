@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import CalendarView from './calendar-view'
-import { matchesArabic, shortArabicName, dateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
+import { matchesArabic, shortArabicName, dateKey, localDateKey, tomorrowKey, tomorrowWeekday } from '@/lib/text/arabic'
 import PendingSessions from '@/app/components/pending-sessions'
 import { useHashTab } from '@/app/components/use-hash-tab'
 import PrintRequestButton from '@/app/components/print-request-button'
@@ -28,19 +28,18 @@ function statusLabel(status: string) {
   return map[(status || '').toLowerCase()] || status
 }
 
-function dateKey(value: string | null) {
-  if (!value) return ''
-  const d = new Date(value)
-  if (isNaN(d.getTime())) return ''
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return d.getFullYear() + '-' + m + '-' + day
-}
+/**
+ * كانت هنا نسخة محلّية من dateKey بالاسم نفسه المستورد من lib/text/arabic،
+ * فصار الاسم معرّفاً مرّتين وانكسر البناء. والمستوردة هي المقصودة:
+ * تأخذ اليوم من نصّ التاريخ كما هو، فلا ينزلق عبر المناطق الزمنية.
+ */
 
 /** جلسة مرّ موعدها ولم يُسجَّل قرارها بعد، فبقيت مجدولة */
 function isOverdue(value: string | null) {
   if (!value) return false
-  return dateKey(value) < dateKey(new Date().toISOString())
+  // اليوم بتوقيت الجهاز لا بتوقيت غرينتش: toISOString كان يُقدّم التاريخ
+  // يوماً كاملاً بين منتصف الليل والثالثة فجراً بتوقيت عدن.
+  return dateKey(value) < localDateKey(new Date())
 }
 
 function fmtDate(value: string | null) {
