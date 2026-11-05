@@ -51,12 +51,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'لم يتم العثور على القضية' }, { status: 404 })
   }
 
+  /**
+   * الجلسة والإشعار صارا مستقلّين: الجلسة قد تكون مسجّلة سلفاً
+   * ويُرسَل عنها إشعارٌ اليوم، والعكس. فالرسالة تذكر الحالتين معاً
+   * حتى لا يظنّ التقني أن شيئاً لم يحدث.
+   */
+  const message = result.isNew
+    ? (result.notified > 0
+        ? 'تم إنشاء الجلسة وإرسال ' + result.notified + ' إشعاراً'
+        : 'تم إنشاء الجلسة — ولا مستلم للإشعار')
+    : (result.notified > 0
+        ? 'الجلسة مسجّلة مسبقاً — وأُرسل ' + result.notified + ' إشعاراً تذكيرياً'
+        : 'الجلسة مسجّلة مسبقاً وأُشعر الفريق بها اليوم — لم يُكرَّر شيء')
+
   return NextResponse.json({
     success: true,
     isNew: result.isNew,
+    notified: result.notified,
     title: result.title,
-    message: result.isNew
-      ? 'تم إنشاء الجلسة وإرسال الإشعارات'
-      : 'الجلسة مسجّلة مسبقاً في هذا التاريخ — لم تُرسل إشعارات مكررة',
+    message,
   })
 }

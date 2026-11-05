@@ -142,15 +142,15 @@ export async function createSessionAndNotify(
   admin: ReturnType<typeof createAdminClient>,
   caseId: string,
   sessionDate: string
-): Promise<{ ok: boolean; isNew: boolean; title: string; sessionId: string }> {
+): Promise<{ ok: boolean; isNew: boolean; notified: number; title: string; sessionId: string }> {
   const { data: caseRow } = await admin
     .from('cases')
     .select('id, title, case_number, court_name, primary_lawyer_id, client_id, status')
     .eq('id', caseId)
     .maybeSingle()
  
-  if (!caseRow) return { ok: false, isNew: false, title: '', sessionId: '' }
-  if (caseRow.status === 'closed') return { ok: false, isNew: false, title: caseRow.title, sessionId: '' }
+  if (!caseRow) return { ok: false, isNew: false, notified: 0, title: '', sessionId: '' }
+  if (caseRow.status === 'closed') return { ok: false, isNew: false, notified: 0, title: caseRow.title, sessionId: '' }
  
   let clientName = 'غير محدد'
   if (caseRow.client_id) {
@@ -197,9 +197,17 @@ export async function createSessionAndNotify(
     sessionId = newSession ? newSession.id : ''
   }
  
-  if (!isNewSession) {
-    return { ok: true, isNew: false, title: caseRow.title, sessionId }
-  }
+  /**
+   * كان هنا خروجٌ مبكّر: إن كانت الجلسة مسجّلة سلفاً لا يُرسَل إشعار.
+   *
+   * وكان ذلك يعني أن رفع الكشف لا يُنبّه أحداً إن سبق إنشاء الجلسة —
+   * ولو بُنيت قبل أسبوع. والمطلوب أن يُنبّه الرفعُ فريقَ العمل دائماً،
+   * وأن يُمنع التكرار وحده.
+   *
+   * فصار المنع على مستوى الإشعار لا الجلسة: يُتجاهل المستلم الذي
+   * وصله الإشعار نفسه لهذه القضية اليوم. ورفع الكشف مرّتين في يوم
+   * لا يُنتج إلا إشعاراً واحداً، ورفعه غداً يُنبّه من جديد.
+   */
  
   const dayLabel = sessionDayLabel(sessionDate, localDateKey(new Date()))
  
@@ -250,8 +258,34 @@ export async function createSessionAndNotify(
   recipientUserIds.push(...uniqueRecipients)
  
   const caseUrl = '/lawyer/cases/' + caseRow.id
+
+  /**
+   * مفتاح منع التكرار: (المستلم + القضية + النوع + نصّ العنوان) خلال اليوم.
+   *
+   * والعنوان داخلٌ في المفتاح عمداً لأنه يحمل يوم الجلسة
+   * («جلسة السبت 07/11/2026»)، فلو حمل الكشف جلستين لقضيةٍ واحدة
+   * في تاريخين مختلفين وصل إشعارٌ عن كلٍّ منهما، ولم يبتلع أحدهما الآخر.
+   *
+   * وحدّ اليوم يُحسب بتوقيت الخادم. وهو غرينتش ما لم تُضبط TZ.
+   */
+  const dayStart = new Date()
+  dayStart.setHours(0, 0, 0, 0)
+
+  const { data: sentToday } = await admin
+    .from('notifications')
+    .select('recipient_user_id')
+    .eq('case_id', caseRow.id)
+    .eq('type', 'session_today')
+    .eq('title', notificationTitle)
+    .gte('created_at', dayStart.toISOString())
+
+  const alreadyNotified = new Set((sentToday || []).map((n: any) => n.recipient_user_id))
+  let sentCount = 0
  
   for (const recipientId of recipientUserIds) {
+    // وصله الإشعار نفسه اليوم: لا يُكرَّر عليه
+    if (alreadyNotified.has(recipientId)) continue
+
     // نحتاج معرّف الصفّ لنحمله في الدفعة، فيبلّغ الجهاز باستلامه لاحقاً
     const { data: notifRow } = await admin
       .from('notifications')
@@ -273,9 +307,11 @@ export async function createSessionAndNotify(
       caseUrl,
       notifRow?.id || ''
     )
+
+    sentCount++
   }
- 
-  return { ok: true, isNew: true, title: caseRow.title, sessionId }
+
+  return { ok: true, isNew: isNewSession, notified: sentCount, title: caseRow.title, sessionId }
 }
  
 /** حالة تطابق فيها الرقم والمحكمة ولم يتطابق الاسم: تُعرض للمراجعة ولا يُرسل عنها إشعار */
