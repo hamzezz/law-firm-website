@@ -1,7 +1,7 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { parseSessionsReport, deduplicateCases, normalizeArabic, courtKey } from '@/lib/moj-parser/parser'
 import { sendPushToUser } from '@/lib/push/send-push'
-import { shortArabicName, localDateKey } from '@/lib/text/arabic'
+import { shortArabicName, localDateKey, dateKey, dayMonthYear } from '@/lib/text/arabic'
 import { sessionTitleFor } from '@/lib/sessions/title'
  
 const STOP_WORDS = new Set([
@@ -82,6 +82,39 @@ const ARABIC_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأ
 function getArabicDayName(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00')
   return ARABIC_DAYS[date.getDay()]
+}
+
+/**
+ * وصف يوم الجلسة كما يظهر في الإشعار.
+ *
+ * كان العنوان يقول اسم «غدٍ بالنسبة لوقت الرفع» لا يوم الجلسة نفسها:
+ *
+ *   const tomorrowDate = new Date()
+ *   tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+ *   getArabicDayName(tomorrowDate.toISOString().slice(0, 10))
+ *
+ * فلو رُفع كشفُ جلسات السبت يوم الخميس لقال الإشعار «جلسة الجمعة».
+ * ولم يظهر الخطأ لأن الرفع كان يجري مساء اليوم السابق عادةً، فيصادف
+ * أن «غداً» هو يوم الجلسة. وينكشف أوّل كشفٍ يُرفع قبل يومين.
+ *
+ * وكان فيه خطأ ثانٍ: `toISOString()` يحسب بتوقيت غرينتش، فيُخطئ اليوم
+ * بين منتصف الليل والثالثة فجراً بتوقيت عدن.
+ *
+ * والتاريخ يُضاف لما بعد الغد عمداً: «جلسة السبت» وحدها ملتبسة —
+ * أيُّ سبت؟
+ */
+function sessionDayLabel(sessionDate: string, todayKey: string): string {
+  const key = dateKey(sessionDate)
+  if (!key) return 'جلسة'
+
+  if (key === todayKey) return 'جلسة اليوم'
+
+  const t = new Date(todayKey + 'T00:00:00')
+  t.setDate(t.getDate() + 1)
+  const tomorrowKeyLocal = localDateKey(t)
+  if (key === tomorrowKeyLocal) return 'جلسة الغد'
+
+  return 'جلسة ' + getArabicDayName(key) + ' ' + dayMonthYear(key)
 }
 
 /**
@@ -168,16 +201,14 @@ export async function createSessionAndNotify(
     return { ok: true, isNew: false, title: caseRow.title, sessionId }
   }
  
-  const tomorrowDate = new Date()
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
-  const dayName = getArabicDayName(tomorrowDate.toISOString().slice(0, 10))
+  const dayLabel = sessionDayLabel(sessionDate, localDateKey(new Date()))
  
   /**
    * العنوان قصير عمداً: إشعار الهاتف يبتر ما تجاوز نحو أربعين حرفاً،
    * وكان المبتور اسم الموكّل — وهو أنفع ما في العنوان. ويُختصر الاسم
    * بـ shortArabicName لأن الأسماء عندنا رباعية وخماسية فتكسر السطر.
    */
-  const notificationTitle = 'جلسة ' + dayName + ' — ' + shortArabicName(clientName)
+  const notificationTitle = dayLabel + ' — ' + shortArabicName(clientName)
 
   const court = courtLabel(caseRow.court_name)
   const notificationBody =
