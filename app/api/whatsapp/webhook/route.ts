@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { verifySignature, sendText, localPhoneKey } from '@/lib/whatsapp/client'
+import { reply } from '@/lib/whatsapp/flow'
 
 /**
  * نقطة استقبال رسائل واتساب التجاريّ.
@@ -113,13 +115,11 @@ async function handleMessage(message: any, value: any) {
     ' | len=' + text.length
   )
 
-  // ───────── المرحلة الأولى: إثبات أن السلسلة كاملة ─────────
-  // الردّ هنا مؤقّت. منطق المحادثة (التعرّف على الموكّل، قائمة قضاياه،
-  // موعد الجلسة أو قرارها، ومسار الاستشارة المدفوعة) يأتي في المرحلة
-  // التالية، بعد أن نتأكّد أن الرسائل تصل وتخرج.
-  await sendText(
-    from,
-    'أهلاً بك في مكتب وليد الكثيري للمحاماة.\n\n' +
-    'النظام قيد الإعداد، وسيبدأ العمل قريباً بإذن الله.'
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   )
+
+  const out = await reply(admin, from, text)
+  if (out) await sendText(from, out)
 }
