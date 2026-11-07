@@ -47,8 +47,8 @@ export function verifySignature(rawBody: string, header: string | null): boolean
   }
 }
 
-/** إرسال رسالة نصّية إلى رقم. يُرجع true عند النجاح. */
-export async function sendText(to: string, body: string): Promise<boolean> {
+/** إرسال أيّ حمولة إلى Graph. الأساس الذي تقوم عليه الدوال الثلاث. */
+async function send(to: string, payload: Record<string, any>): Promise<boolean> {
   if (!whatsappConfigured()) {
     console.log('[wa] غير مهيّأ — لم تُرسل الرسالة')
     return false
@@ -64,26 +64,87 @@ export async function sendText(to: string, body: string): Promise<boolean> {
         Authorization: 'Bearer ' + token,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to,
-        type: 'text',
-        text: { preview_url: false, body },
-      }),
+      body: JSON.stringify(Object.assign({ messaging_product: 'whatsapp', to }, payload)),
     })
 
     if (res.ok) {
-      console.log('[wa] sent ok | to=' + to)
+      console.log('[wa] sent ok | to=' + to + ' | type=' + payload.type)
       return true
     }
 
     const detail = await res.text().catch(() => '')
-    console.log('[wa] FAILED | to=' + to + ' | status=' + res.status + ' | ' + detail.slice(0, 200))
+    console.log('[wa] FAILED | to=' + to + ' | status=' + res.status + ' | ' + detail.slice(0, 300))
     return false
   } catch (err: any) {
     console.log('[wa] خطأ شبكة | to=' + to + ' | ' + (err && err.message))
     return false
   }
+}
+
+/** قصّ إلى حدّ واتساب بلا بتر الكلمة في منتصفها إن أمكن. */
+export function cut(s: string, max: number): string {
+  const t = String(s || '').replace(/\s+/g, ' ').trim()
+  if (t.length <= max) return t
+  return t.slice(0, max - 1).trimEnd() + '…'
+}
+
+export async function sendText(to: string, body: string): Promise<boolean> {
+  return await send(to, { type: 'text', text: { preview_url: false, body } })
+}
+
+export type Row = { id: string; title: string; description?: string }
+
+/**
+ * قائمة تفاعلية — يضغط العميل فيختار، ولا يكتب رقماً.
+ *
+ * حدود واتساب، وتجاوزُها يُرجع 400 لا رسالةً ناقصة:
+ *   العنوان ٢٤ حرفاً · الوصف ٧٢ · زرّ القائمة ٢٠ · النصّ ١٠٢٤ · الصفوف ١٠
+ * فنقصّ هنا لا في مكان الاستدعاء، حتى لا يُنسى في موضع.
+ */
+export async function sendList(
+  to: string,
+  body: string,
+  buttonLabel: string,
+  rows: Row[],
+  sectionTitle = 'الخدمات'
+): Promise<boolean> {
+  const safeRows = rows.slice(0, 10).map(function (r) {
+    const row: Row = { id: cut(r.id, 200), title: cut(r.title, 24) }
+    if (r.description) row.description = cut(r.description, 72)
+    return row
+  })
+
+  return await send(to, {
+    type: 'interactive',
+    interactive: {
+      type: 'list',
+      body: { text: cut(body, 1024) },
+      action: {
+        button: cut(buttonLabel, 20),
+        sections: [{ title: cut(sectionTitle, 24), rows: safeRows }],
+      },
+    },
+  })
+}
+
+/** أزرار سريعة — ثلاثة على الأكثر، وعنوان كلٍّ منها ٢٠ حرفاً. */
+export async function sendButtons(
+  to: string,
+  body: string,
+  buttons: { id: string; title: string }[]
+): Promise<boolean> {
+  const safe = buttons.slice(0, 3).map(function (b) {
+    return { type: 'reply', reply: { id: cut(b.id, 200), title: cut(b.title, 20) } }
+  })
+
+  return await send(to, {
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: { text: cut(body, 1024) },
+      action: { buttons: safe },
+    },
+  })
 }
 
 /**

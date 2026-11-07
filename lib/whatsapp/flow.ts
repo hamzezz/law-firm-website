@@ -1,6 +1,6 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { SPECIALTIES } from '@/lib/content/specialties'
-import { localPhoneKey } from '@/lib/whatsapp/client'
+import { localPhoneKey, cut, type Row } from '@/lib/whatsapp/client'
 import { dateKey, dayMonthYear } from '@/lib/text/arabic'
 import * as T from '@/lib/whatsapp/content'
 
@@ -9,12 +9,18 @@ type Admin = ReturnType<typeof createAdminClient>
 /**
  * منطق محادثة البوت.
  *
- * آلة حالاتٍ بسيطة، وكلّ خطوة بقائمة أرقام. والحالة تُحفظ في
- * whatsapp_chats لأن واتساب لا يحمل سياقاً بين الرسائل.
+ * آلة حالاتٍ بسيطة، وكلّ خطوة قائمةٌ تفاعلية يضغطها العميل. والحالة
+ * تُحفظ في whatsapp_chats لأن واتساب لا يحمل سياقاً بين الرسائل.
  *
  * ولا يُكشف للموكّل إلا ما طلبه بعينه: موعد جلسةٍ أو قرارها — سطرٌ
  * واحد، لا ملفّ قضية. فمن أمسك الهاتف لا يجد سجلّاً.
  */
+
+/** ما يُرسَل إلى العميل. الطبقة العليا تترجمه إلى حمولة واتساب. */
+export type Reply =
+  | { kind: 'text'; body: string }
+  | { kind: 'list'; body: string; button: string; rows: Row[] }
+  | { kind: 'buttons'; body: string; buttons: { id: string; title: string }[] }
 
 type State = 'main' | 'docs' | 'auth' | 'case' | 'info'
 
@@ -29,6 +35,8 @@ type Chat = {
   updated_at: string
 }
 
+/* ───────────── الحالة ───────────── */
+
 async function loadChat(admin: Admin, phone: string): Promise<Chat> {
   const { data } = await admin
     .from('whatsapp_chats')
@@ -42,7 +50,6 @@ async function loadChat(admin: Admin, phone: string): Promise<Chat> {
 
   const age = Date.now() - new Date(data.updated_at).getTime()
   if (age > IDLE_MINUTES * 60 * 1000) {
-    // خمولٌ طويل: تُمحى الهوية المؤكَّدة ويُبدأ من جديد
     return { phone, state: 'main', client_id: null, case_id: null, updated_at: '' }
   }
 
@@ -68,90 +75,200 @@ async function saveChat(
   )
 }
 
-/** الرقم المرسَل من القائمة، أو null إن لم تكن الرسالة رقماً. */
-function choice(text: string): number | null {
-  const s = text.replace(/[٠-٩]/g, function (d) {
-    return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-  }).trim()
+/* ───────────── مُنشئات الردّ ───────────── */
+
+function menu(): Reply {
+  return { kind: 'list', body: T.MENU_BODY, button: T.MENU_BUTTON, rows: T.MENU_ROWS }
+}
+
+/** نصٌّ يتبعه زرّ العودة، حتى لا يبقى العميل في طريقٍ مسدود. */
+function page(body: string): Reply {
+  return {
+    kind: 'buttons',
+    body,
+    buttons: [{ id: 'back', title: 'القائمة الرئيسية' }],
+  }
+}
+
+/* ───────────── المدخل ───────────── */
+
+/**
+ * `choice` هو معرّف الصفّ أو الزرّ حين يضغط العميل القائمة،
+ * و`text` نصّ ما كتبه حين يكتب. وأحدهما فارغ دائماً.
+ */
+export async function reply(
+  admin: Admin,
+  phone: string,
+  text: string,
+  choice: string | null
+): Promise<Reply | null> {
+  const chat = await loadChat(admin, phone)
+
+  // معرّف من القائمة
+  if (choice) return await onChoice(admin, phone, chat, choice)
+
+  // أو نصّ مكتوب — ويُقبل الرقم احتياطاً لمن لا تظهر عنده القوائم
+  const typed = numeric(text)
+
+  if (typed === 0) {
+    await saveChat(admin, phone, 'main', chat.client_id, null)
+    return menu()
+  }
+
+  if (chat.state === 'auth') return await onAuth(admin, phone, chat, text)
+
+  if (typed !== null) {
+    const id = idForTyped(chat.state, typed)
+    if (id) return await onChoice(admin, phone, chat, id)
+    return withMenu(T.NOT_UNDERSTOOD)
+  }
+
+  /**
+   * نصٌّ حرّ. وأوّل رسالةٍ من إنسانٍ تحيّةٌ لا سؤال — «السلام عليكم» —
+   * فالردّ عليها بعبارة تحويل الاستشارة بدايةٌ منفّرة، وقد كشفت
+   * المحاكاة هذا قبل النشر. فمن لم يرَ القائمة تُعرض عليه، ومن رآها
+   * ثمّ كتب نصّاً حرّاً فالغالب أنه سؤالٌ قانونيّ يُحوَّل ولا يُجاب عنه.
+   */
+  const firstContact = !chat.updated_at
+  await saveChat(admin, phone, 'main', chat.client_id, null)
+  return firstContact ? menu() : withMenu(T.LEGAL_REDIRECT)
+}
+
+function withMenu(body: string): Reply {
+  return { kind: 'list', body, button: T.MENU_BUTTON, rows: T.MENU_ROWS }
+}
+
+function numeric(text: string): number | null {
+  const s = String(text || '')
+    .replace(/[٠-٩]/g, function (d) {
+      return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    })
+    .trim()
 
   if (!/^\d{1,2}$/.test(s)) return null
   return Number(s)
 }
 
-/**
- * الردّ على رسالةٍ واردة.
- * يُرجع النصّ الذي يُرسَل، أو null إن لم يكن هناك ما يُقال.
- */
-export async function reply(
+/** يترجم رقماً مكتوباً إلى المعرّف المقابل في الحالة الحالية. */
+function idForTyped(state: State, n: number): string | null {
+  if (state === 'main') return n >= 1 && n <= 7 ? 'm:' + n : null
+  if (state === 'docs') return n >= 1 && n <= SPECIALTIES.length ? 'd:' + (n - 1) : null
+  if (state === 'case') return 'c:' + n
+  if (state === 'info') return n === 1 ? 'i:next' : n === 2 ? 'i:last' : null
+  return null
+}
+
+/* ───────────── المعالجة ───────────── */
+
+async function onChoice(
   admin: Admin,
   phone: string,
-  text: string
-): Promise<string | null> {
-  const chat = await loadChat(admin, phone)
-  const n = choice(text)
-
-  // 0 تُعيد إلى القائمة من أيّ موضع، وتُسقط القضية المختارة
-  if (n === 0) {
+  chat: Chat,
+  id: string
+): Promise<Reply | null> {
+  if (id === 'back') {
     await saveChat(admin, phone, 'main', chat.client_id, null)
-    return T.MAIN_MENU
+    return menu()
   }
 
-  if (chat.state === 'main') return await onMain(admin, phone, chat, n)
-  if (chat.state === 'docs') return onDocs(admin, phone, chat, n)
-  if (chat.state === 'auth') return await onAuth(admin, phone, chat, text)
-  if (chat.state === 'case') return await onCase(admin, phone, chat, n)
-  if (chat.state === 'info') return await onInfo(admin, phone, chat, n)
+  /* القائمة الرئيسية */
+  if (id.startsWith('m:')) {
+    const n = Number(id.slice(2))
 
-  await saveChat(admin, phone, 'main', null, null)
-  return T.MAIN_MENU
-}
+    if (n === 1) return page('موقع المكتب:\n' + T.OFFICE_ADDRESS)
+    if (n === 2) return page('أوقات الدوام:\n' + T.OFFICE_HOURS)
+    if (n === 3) return page(T.specialtiesText())
 
-async function onMain(admin: Admin, phone: string, chat: Chat, n: number | null) {
-  if (n === null) {
-    /**
-     * أوّل رسالةٍ من إنسانٍ تحيّةٌ لا سؤال — «السلام عليكم»، «مرحباً».
-     * فالردّ عليها بعبارة تحويل الاستشارة بدايةٌ منفّرة، وقد كشفت
-     * المحاكاة هذا قبل النشر.
-     *
-     * فمن لم يرَ القائمة بعد تُعرض عليه، ومن رآها ثم كتب نصّاً حرّاً
-     * فالغالب أنه سؤالٌ قانونيّ يُحوَّل ولا يُجاب عنه.
-     */
-    const firstContact = !chat.updated_at
+    if (n === 4) {
+      await saveChat(admin, phone, 'docs', chat.client_id, null)
+      return { kind: 'list', body: T.DOCS_BODY, button: T.DOCS_BUTTON, rows: T.specialtyRows() }
+    }
 
+    if (n === 5) return page(T.FOLLOW_UP)
+    if (n === 6) return page(T.consultationInfo())
+
+    if (n === 7) {
+      const client = await findClient(admin, phone)
+      if (!client) return page(T.NOT_A_CLIENT)
+
+      await saveChat(admin, phone, 'auth', client.id, null)
+      return { kind: 'text', body: T.askCode(client.full_name || '') }
+    }
+
+    return withMenu(T.NOT_UNDERSTOOD)
+  }
+
+  /* المستندات حسب المجال */
+  if (id.startsWith('d:')) {
+    const i = Number(id.slice(2))
+    const out = T.documentsFor(i)
     await saveChat(admin, phone, 'main', chat.client_id, null)
-    return firstContact ? T.MAIN_MENU : T.LEGAL_REDIRECT
+    return out ? page(out) : withMenu(T.NOT_UNDERSTOOD)
   }
 
-  if (n === 1) return 'موقع المكتب: ' + T.OFFICE_ADDRESS + T.BACK_HINT
-  if (n === 2) return 'أوقات الدوام: ' + T.OFFICE_HOURS + T.BACK_HINT
-  if (n === 3) return T.specialtiesList()
+  /* اختيار قضية */
+  if (id.startsWith('c:')) {
+    const cases = await openCases(admin, chat.client_id)
+    const n = Number(id.slice(2))
+    const picked = cases[n - 1]
+    if (!picked) return withMenu(T.NOT_UNDERSTOOD)
 
-  if (n === 4) {
-    await saveChat(admin, phone, 'docs', chat.client_id, null)
-    return T.specialtiesPrompt()
+    await saveChat(admin, phone, 'info', chat.client_id, picked.id)
+    return { kind: 'buttons', body: T.INFO_BODY, buttons: T.INFO_BUTTONS }
   }
 
-  if (n === 5) return T.FOLLOW_UP
-  if (n === 6) return T.consultationInfo()
+  /* المعلومة المطلوبة */
+  if (id === 'i:next' || id === 'i:last') {
+    if (!chat.case_id) {
+      await saveChat(admin, phone, 'main', chat.client_id, null)
+      return menu()
+    }
+    const body =
+      id === 'i:next'
+        ? await nextSession(admin, chat.case_id)
+        : await lastDecision(admin, chat.case_id)
 
-  if (n === 7) {
-    const client = await findClient(admin, phone)
-    if (!client) return T.NOT_A_CLIENT
-
-    await saveChat(admin, phone, 'auth', client.id, null)
-    return T.askCode(client.full_name || '')
+    return {
+      kind: 'buttons',
+      body,
+      buttons: [
+        { id: 'i:next', title: 'الجلسة القادمة' },
+        { id: 'i:last', title: 'قرار الجلسة السابقة' },
+        { id: 'back', title: 'القائمة الرئيسية' },
+      ],
+    }
   }
 
-  return T.NOT_UNDERSTOOD
+  return withMenu(T.NOT_UNDERSTOOD)
 }
 
-function onDocs(admin: Admin, phone: string, chat: Chat, n: number | null) {
-  if (n === null || n < 1 || n > SPECIALTIES.length) return T.NOT_UNDERSTOOD
+async function onAuth(admin: Admin, phone: string, chat: Chat, text: string): Promise<Reply> {
+  if (localPhoneKey(text) !== localPhoneKey(phone)) {
+    return { kind: 'text', body: T.CODE_WRONG }
+  }
 
-  const out = T.documentsFor(n - 1)
-  saveChat(admin, phone, 'main', chat.client_id, null)
-  return out || T.NOT_UNDERSTOOD
+  const cases = await openCases(admin, chat.client_id)
+  if (cases.length === 0) {
+    await saveChat(admin, phone, 'main', chat.client_id, null)
+    return page(T.NO_CASES)
+  }
+
+  await saveChat(admin, phone, 'case', chat.client_id, null)
+
+  // تسعٌ على الأكثر، ليبقى مكانٌ لصفّ العودة ضمن حدّ العشرة
+  const rows: Row[] = cases.slice(0, 9).map(function (c, i) {
+    return {
+      id: 'c:' + (i + 1),
+      title: cut(c.title || 'قضية', 24),
+      description: cut([c.case_number, c.court_name].filter(Boolean).join(' — '), 72),
+    }
+  })
+  rows.push(T.BACK_ROW)
+
+  return { kind: 'list', body: T.CASES_BODY, button: T.CASES_BUTTON, rows }
 }
+
+/* ───────────── قاعدة البيانات ───────────── */
 
 async function findClient(admin: Admin, phone: string) {
   const key = localPhoneKey(phone)
@@ -163,31 +280,10 @@ async function findClient(admin: Admin, phone: string) {
     .select('id, full_name, phone')
     .not('phone', 'is', null)
 
-  const rows = data || []
-  for (const row of rows) {
+  for (const row of data || []) {
     if (localPhoneKey(row.phone) === key) return row
   }
   return null
-}
-
-async function onAuth(admin: Admin, phone: string, chat: Chat, text: string) {
-  // التأكيد: يكتب رقمه كما هو مسجَّل. ومطابقته بالمفتاح الموحَّد
-  // حتى لا يُردّ عليه لاختلاف الصيغة وحدها.
-  if (localPhoneKey(text) !== localPhoneKey(phone)) return T.CODE_WRONG
-
-  const cases = await openCases(admin, chat.client_id)
-  if (cases.length === 0) {
-    await saveChat(admin, phone, 'main', chat.client_id, null)
-    return T.NO_CASES
-  }
-
-  await saveChat(admin, phone, 'case', chat.client_id, null)
-
-  let out = 'قضاياك:\n\n'
-  cases.forEach(function (c, i) {
-    out += (i + 1) + ' · ' + (c.title || 'قضية') + ' — ' + (c.case_number || '') + '\n'
-  })
-  return out + '\nأرسل رقم القضية.' + T.BACK_HINT
 }
 
 async function openCases(admin: Admin, clientId: string | null) {
@@ -203,27 +299,6 @@ async function openCases(admin: Admin, clientId: string | null) {
   return data || []
 }
 
-async function onCase(admin: Admin, phone: string, chat: Chat, n: number | null) {
-  const cases = await openCases(admin, chat.client_id)
-
-  if (n === null || n < 1 || n > cases.length) return T.NOT_UNDERSTOOD
-
-  await saveChat(admin, phone, 'info', chat.client_id, cases[n - 1].id)
-  return T.INFO_MENU
-}
-
-async function onInfo(admin: Admin, phone: string, chat: Chat, n: number | null) {
-  if (!chat.case_id) {
-    await saveChat(admin, phone, 'main', chat.client_id, null)
-    return T.MAIN_MENU
-  }
-
-  if (n === 1) return await nextSession(admin, chat.case_id)
-  if (n === 2) return await lastDecision(admin, chat.case_id)
-
-  return T.NOT_UNDERSTOOD
-}
-
 async function nextSession(admin: Admin, caseId: string) {
   const today = new Date().toISOString().slice(0, 10)
 
@@ -237,9 +312,9 @@ async function nextSession(admin: Admin, caseId: string) {
     .limit(1)
 
   const row = (data || [])[0]
-  if (!row) return 'لا توجد جلسةٌ قادمة مسجَّلة حتى الآن.' + T.BACK_HINT
+  if (!row) return 'لا توجد جلسةٌ قادمة مسجَّلة حتى الآن.'
 
-  return 'موعد الجلسة القادمة: ' + dayMonthYear(dateKey(row.session_date)) + T.BACK_HINT
+  return 'موعد الجلسة القادمة: ' + dayMonthYear(dateKey(row.session_date))
 }
 
 async function lastDecision(admin: Admin, caseId: string) {
@@ -252,12 +327,11 @@ async function lastDecision(admin: Admin, caseId: string) {
     .limit(1)
 
   const row = (data || [])[0]
-  if (!row) return 'لا توجد جلسةٌ سابقة مسجَّلة.' + T.BACK_HINT
+  if (!row) return 'لا توجد جلسةٌ سابقة مسجَّلة.'
 
   const when = dayMonthYear(dateKey(row.session_date))
   const note = String(row.notes || '').trim()
 
-  if (!note) return 'جلسة ' + when + ': لم يُسجَّل قرارها بعد.' + T.BACK_HINT
-
-  return 'جلسة ' + when + ':\n' + note + T.BACK_HINT
+  if (!note) return 'جلسة ' + when + ': لم يُسجَّل قرارها بعد.'
+  return 'جلسة ' + when + ':\n' + note
 }

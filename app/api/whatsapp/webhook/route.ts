@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { verifySignature, sendText, localPhoneKey } from '@/lib/whatsapp/client'
+import { verifySignature, sendText, sendList, sendButtons, localPhoneKey } from '@/lib/whatsapp/client'
 import { reply } from '@/lib/whatsapp/flow'
 
 /**
@@ -94,14 +94,34 @@ async function handleMessage(message: any, value: any) {
   const from = String(message && message.from || '')
   if (!from) return
 
-  // نقبل النصّ وحده في هذه المرحلة. الصوت والصور والمستندات
-  // تُردّ بعبارةٍ واحدة بدل أن تُهمَل بصمت.
-  if (message.type !== 'text') {
-    await sendText(from, 'أهلاً بك. يستقبل هذا الرقم الرسائل النصّية فقط.')
+  /**
+   * نوعان يعنياننا:
+   *   text        — كتب العميل شيئاً
+   *   interactive — ضغط صفّاً من قائمة أو زرّاً، فيأتي معرّفه
+   *
+   * وما عداهما (صوت، صورة، مستند) يُردّ عليه بعبارةٍ واحدة بدل
+   * أن يُهمَل بصمت فيظنّ العميل أن الرقم معطّل.
+   */
+  let text = ''
+  let choice: string | null = null
+
+  if (message.type === 'text') {
+    text = String(message.text && message.text.body || '').trim()
+  } else if (message.type === 'interactive') {
+    const it = message.interactive || {}
+    choice =
+      (it.list_reply && it.list_reply.id) ||
+      (it.button_reply && it.button_reply.id) ||
+      null
+  } else {
+    await sendText(
+      from,
+      'أهلاً بك. يستقبل هذا الرقم الرسائل النصّية فقط.\n\nاكتب أيّ كلمة لعرض القائمة.'
+    )
     return
   }
 
-  const text = String(message.text && message.text.body || '').trim()
+  if (!text && !choice) return
 
   const profile =
     Array.isArray(value.contacts) && value.contacts[0] && value.contacts[0].profile
@@ -112,7 +132,7 @@ async function handleMessage(message: any, value: any) {
     '[wa] وردت | from=' + from +
     ' | key=' + localPhoneKey(from) +
     ' | name=' + profile +
-    ' | len=' + text.length
+    (choice ? ' | choice=' + choice : ' | len=' + text.length)
   )
 
   const admin = createAdminClient(
@@ -120,6 +140,14 @@ async function handleMessage(message: any, value: any) {
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   )
 
-  const out = await reply(admin, from, text)
-  if (out) await sendText(from, out)
+  const out = await reply(admin, from, text, choice)
+  if (!out) return
+
+  if (out.kind === 'list') {
+    await sendList(from, out.body, out.button, out.rows)
+  } else if (out.kind === 'buttons') {
+    await sendButtons(from, out.body, out.buttons)
+  } else {
+    await sendText(from, out.body)
+  }
 }
