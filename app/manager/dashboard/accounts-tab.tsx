@@ -35,12 +35,68 @@ function AccountRow({
   isTech: boolean
   onDeleted: (id: string) => void
 }) {
-  const [mode, setMode] = useState<'idle' | 'password' | 'delete'>('idle')
+  const [mode, setMode] = useState<'idle' | 'password' | 'delete' | 'profile'>('idle')
   const [newPassword, setNewPassword] = useState('')
   const [confirmName, setConfirmName] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [impact, setImpact] = useState<any>(null)
+
+  /**
+   * الاسم والهاتف في الحالة لا يُقرآن من account مباشرة، ليتحدّث السطر
+   * فور الحفظ بلا إعادة تحميل الصفحة.
+   *
+   * والهاتف ليس تفصيلاً تجميلياً: بوت واتساب يتعرّف على الموكّل به،
+   * فالرقم الناقص يعني موكّلاً لا يعرفه النظام.
+   */
+  const [fullName, setFullName] = useState(account.full_name || '')
+  const [phone, setPhone] = useState(account.phone || '')
+  const [draftName, setDraftName] = useState('')
+  const [draftPhone, setDraftPhone] = useState('')
+
+  async function handleSaveProfile() {
+    const name = draftName.trim()
+
+    if (name.length < 3) {
+      setMessage({ type: 'error', text: 'الاسم ثلاثة أحرف فأكثر' })
+      return
+    }
+
+    setLoading(true)
+    setMessage(null)
+
+    try {
+      const supabase = createClient()
+      const sessionResult = await supabase.auth.getSession()
+      const token = sessionResult.data.session ? sessionResult.data.session.access_token : ''
+
+      const res = await fetch('/api/manager/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({
+          targetUserId: account.id,
+          fullName: name,
+          phone: draftPhone.trim(),
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || 'فشل الحفظ' })
+        setLoading(false)
+        return
+      }
+
+      setFullName(data.fullName)
+      setPhone(data.phone || '')
+      setMessage({ type: 'success', text: 'تمّ حفظ البيانات' })
+      setTimeout(() => { setMode('idle'); setMessage(null) }, 1800)
+    } catch (err) {
+      setMessage({ type: 'error', text: 'حدث خطأ في الاتصال' })
+    }
+    setLoading(false)
+  }
 
   async function loadImpact() {
     const supabase = createClient()
@@ -133,18 +189,31 @@ function AccountRow({
             {account.role === 'lawyer' ? '⚖️' : account.role === 'manager' ? '🏛️' : '👤'}
           </div>
           <div>
-            <p className="font-bold text-slate-800 text-sm">{account.full_name}</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <p className="font-bold text-slate-800 text-sm">{fullName}</p>
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               <span className="text-[10px] text-slate-400">@{account.username}</span>
               <span className={'text-[9px] px-2 py-0.5 rounded-full font-bold ' + roleBadge(account.role)}>
                 {roleLabel(account.role)}
               </span>
+              {phone ? (
+                <span className="text-[10px] text-slate-400 tnum" dir="ltr">{phone}</span>
+              ) : (
+                <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-700">
+                  بلا رقم
+                </span>
+              )}
             </div>
           </div>
         </div>
 
         {mode === 'idle' && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => { setMode('profile'); setMessage(null); setDraftName(fullName); setDraftPhone(phone) }}
+              className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold"
+            >
+              ✏️ الاسم والهاتف
+            </button>
             <button
               onClick={() => { setMode('password'); setMessage(null); setNewPassword('') }}
               className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold"
@@ -163,9 +232,66 @@ function AccountRow({
         )}
       </div>
 
+      {mode === 'profile' && (
+        <div className="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+          <p className="text-xs font-bold text-slate-700">تعديل بيانات {fullName}</p>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">الاسم الكامل</label>
+              <input
+                type="text"
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">رقم الهاتف</label>
+              <input
+                type="tel"
+                dir="ltr"
+                inputMode="numeric"
+                placeholder="771234567"
+                value={draftPhone}
+                onChange={(e) => setDraftPhone(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 text-left tnum"
+              />
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            الهاتف تسعة أرقام تبدأ بـ7، بلا مفتاح الدولة. وبه يتعرّف بوت واتساب على الموكّل،
+            فدقّته تعني وصول الخدمة إليه. واتركه فارغاً إن لم يُعرف.
+          </p>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveProfile}
+              disabled={loading}
+              className="px-4 py-2 rounded-lg bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 transition disabled:opacity-50"
+            >
+              {loading ? '...' : 'حفظ'}
+            </button>
+            <button
+              onClick={() => { setMode('idle'); setMessage(null) }}
+              className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition text-xs"
+            >
+              إلغاء
+            </button>
+          </div>
+
+          {message && (
+            <div className={'text-xs p-2 rounded-lg ' + (message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')}>
+              {message.text}
+            </div>
+          )}
+        </div>
+      )}
+
       {mode === 'password' && (
         <div className="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-          <p className="text-xs font-bold text-slate-700">تغيير كلمة مرور {account.full_name}</p>
+          <p className="text-xs font-bold text-slate-700">تغيير كلمة مرور {fullName}</p>
 
           {message && (
             <div className={'text-[11px] p-2 rounded-lg ' + (message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')}>
