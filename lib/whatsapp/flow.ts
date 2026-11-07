@@ -270,20 +270,45 @@ async function onAuth(admin: Admin, phone: string, chat: Chat, text: string): Pr
 
 /* ───────────── قاعدة البيانات ───────────── */
 
+/**
+ * البحث عن الموكّل برقمه.
+ *
+ * كنتُ أقرأ clients.phone و clients.full_name، وهما غير موجودين:
+ * جدول clients جدولُ ربطٍ لا يحمل إلا user_id، والاسم والهاتف في
+ * users. فكان المسار يرجع فارغاً دائماً ولم ينكشف لأننا لم نجرّبه
+ * برقم موكّلٍ حقيقيّ بعد.
+ *
+ * والمطابقة بالمفتاح الموحَّد لا بالنصّ، لأن الأرقام محفوظةٌ بصيغٍ
+ * مختلفة (محلّية، دولية، بمسافات).
+ *
+ * ونُرجع معرّف صفّ clients لا معرّف المستخدم، لأن cases.client_id
+ * يشير إليه هو.
+ */
 async function findClient(admin: Admin, phone: string) {
   const key = localPhoneKey(phone)
   if (!key) return null
 
-  // الأرقام محفوظةٌ بصيغٍ مختلفة، فنجلب ثم نطابق بالمفتاح الموحَّد.
-  const { data } = await admin
-    .from('clients')
+  const { data: users } = await admin
+    .from('users')
     .select('id, full_name, phone')
+    .eq('role', 'client')
     .not('phone', 'is', null)
 
-  for (const row of data || []) {
-    if (localPhoneKey(row.phone) === key) return row
-  }
-  return null
+  const matched = (users || []).find(function (u: any) {
+    return localPhoneKey(u.phone) === key
+  })
+
+  if (!matched) return null
+
+  const { data: clientRow } = await admin
+    .from('clients')
+    .select('id')
+    .eq('user_id', matched.id)
+    .maybeSingle()
+
+  if (!clientRow) return null
+
+  return { id: clientRow.id, full_name: matched.full_name }
 }
 
 async function openCases(admin: Admin, clientId: string | null) {

@@ -111,7 +111,7 @@ export default async function ManagerDashboardPage() {
     supabase.from('lawyers').select('*', { count: 'exact', head: true }),
     supabase
       .from('users')
-      .select('id, full_name, username, role, is_active')
+      .select('id, full_name, username, role, is_active, phone')
       .in('role', managedRoles)
       .order('role', { ascending: true }),
     admin

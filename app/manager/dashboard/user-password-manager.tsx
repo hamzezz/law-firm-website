@@ -18,12 +18,21 @@ async function authHeaders() {
 }
 
 function ChangeRow({ account }: { account: any }) {
-  /** null = مغلق، 'password' = تغيير كلمة المرور، 'username' = تغيير الاسم */
-  const [mode, setMode] = useState<null | 'password' | 'username'>(null)
+  /** null = مغلق · password = كلمة المرور · username = اسم الدخول · profile = الاسم والهاتف */
+  const [mode, setMode] = useState<null | 'password' | 'username' | 'profile'>(null)
   const [newPassword, setNewPassword] = useState('')
   const [newUsername, setNewUsername] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  /**
+   * الاسم والهاتف يُحفظان في الحالة كذلك ليتحدّث السطر فور الحفظ.
+   * ورقم الهاتف يهمّ أكثر ممّا يبدو: بوت واتساب يتعرّف على الموكّل به.
+   */
+  const [fullName, setFullName] = useState(account.full_name || '')
+  const [phone, setPhone] = useState(account.phone || '')
+  const [draftName, setDraftName] = useState('')
+  const [draftPhone, setDraftPhone] = useState('')
 
   /**
    * الاسم المعروض يُحفظ في الحالة لا يُقرأ من account مباشرة، كي يتحدّث
@@ -120,6 +129,46 @@ function ChangeRow({ account }: { account: any }) {
     setLoading(false)
   }
 
+  async function handleSaveProfile() {
+    const name = draftName.trim()
+
+    if (name.length < 3) {
+      setMessage({ type: 'error', text: 'الاسم ثلاثة أحرف فأكثر' })
+      return
+    }
+
+    setLoading(true)
+    setMessage(null)
+
+    try {
+      const res = await fetch('/api/manager/update-profile', {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          targetUserId: account.id,
+          fullName: name,
+          phone: draftPhone.trim(),
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || 'فشل الحفظ' })
+        setLoading(false)
+        return
+      }
+
+      setFullName(data.fullName)
+      setPhone(data.phone || '')
+      setMessage({ type: 'success', text: 'تمّ حفظ البيانات' })
+      setTimeout(() => { close() }, 2000)
+    } catch (err) {
+      setMessage({ type: 'error', text: 'حدث خطأ في الاتصال' })
+    }
+    setLoading(false)
+  }
+
   async function handleToggleActive() {
     const next = !active
 
@@ -161,18 +210,29 @@ function ChangeRow({ account }: { account: any }) {
     <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0 flex-wrap gap-2">
       <div>
         <p className="font-bold text-slate-800 text-sm">
-          {account.full_name}
+          {fullName}
           {!active && (
             <span className="mr-2 align-middle text-[10px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">
               موقوف
             </span>
           )}
         </p>
-        <p className="text-xs text-slate-400">@{username} - {ROLE_LABEL[account.role] || account.role}</p>
+        <p className="text-xs text-slate-400">
+          @{username} - {ROLE_LABEL[account.role] || account.role}
+          {phone
+            ? <span className="tnum"> · {phone}</span>
+            : <span className="text-amber-600 font-bold"> · بلا رقم</span>}
+        </p>
       </div>
 
       {mode === null && (
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => { setMode('profile'); setDraftName(fullName); setDraftPhone(phone) }}
+            className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold"
+          >
+            تعديل الاسم والهاتف
+          </button>
           <button onClick={() => setMode('password')} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold">
             تغيير كلمة المرور
           </button>
@@ -230,6 +290,37 @@ function ChangeRow({ account }: { account: any }) {
       {mode === 'username' && !message && (
         <p className="w-full text-[11px] text-slate-400">
           الاسم القديم يتوقّف فور الحفظ، فليجرّب صاحب الحساب الدخول بالاسم الجديد قبل أن يغادر.
+        </p>
+      )}
+
+      {mode === 'profile' && (
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+          <input
+            type="text"
+            placeholder="الاسم الكامل"
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            className="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 flex-1 min-w-[140px]"
+          />
+          <input
+            type="tel"
+            dir="ltr"
+            inputMode="numeric"
+            placeholder="771234567"
+            value={draftPhone}
+            onChange={(e) => setDraftPhone(e.target.value)}
+            className="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 text-left w-36 tnum"
+          />
+          <button onClick={handleSaveProfile} disabled={loading} className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition font-bold disabled:opacity-50">
+            {loading ? '...' : 'حفظ'}
+          </button>
+          <button onClick={close} className="text-xs text-slate-400 hover:text-slate-600">إلغاء</button>
+        </div>
+      )}
+
+      {mode === 'profile' && !message && (
+        <p className="w-full text-[11px] text-slate-400">
+          الهاتف تسعة أرقام تبدأ بـ7، بلا مفتاح الدولة. وبه يتعرّف بوت واتساب على الموكّل، فدقّته تعني وصول الخدمة إليه. واتركه فارغاً إن لم يُعرف.
         </p>
       )}
 
