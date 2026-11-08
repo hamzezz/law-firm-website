@@ -147,13 +147,16 @@ async function handleMessage(message: any, value: any) {
    * وحتى في هذه الحال لا يُطبع إلا ما أشبه الرمز: نصٌّ قصير فيه
    * عدد من خمسة إلى ثمانية أرقام. فلا تُكشف رسالة موكّلٍ عادية.
    */
-  if ((process.env.WA_DEBUG_CODE || '').trim() === '1' && text) {
-    const short = text.length <= 160
-    const hasCode = /(?<!\d)\d{5,8}(?!\d)/.test(text)
-
-    if (short && hasCode) {
-      console.log('[wa] نصّ يحتمل رمزاً | from=' + from + ' | ' + text)
-    }
+  if ((process.env.WA_DEBUG_CODE || '').trim() === '1' && text && text.length <= 200) {
+    /**
+     * كان الشرط «خمسة أرقام متّصلة»، فسقط أول رمزٍ حقيقيّ: Meta
+     * تكتبه مفصولاً بشَرطة (123-456)، والأرقام قد تأتي هنديّة
+     * فلا يشملها \d أصلاً.
+     *
+     * فصار الشرط الطول وحده. وهو أوسع، ولذلك يبقى المتغيّر
+     * دقائق معدودة ثمّ يُحذف.
+     */
+    console.log('[wa] نصّ قصير | from=' + from + ' | ' + text)
   }
 
   const admin = createAdminClient(
