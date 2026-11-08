@@ -135,6 +135,27 @@ async function handleMessage(message: any, value: any) {
     (choice ? ' | choice=' + choice : ' | len=' + text.length)
   )
 
+  /**
+   * نصّ الرسالة لا يُسجَّل أبداً — فهي رسائل موكّلين، وسرّ المهنة
+   * لا يُكتب في سجلٍّ يقرأه من يملك لوحة الاستضافة.
+   *
+   * ويُستثنى حالٌ واحدة: حين يحتاج المكتب قراءة رمز تحقّق أرسلته
+   * جهةٌ ما (ربط الرقم بصفحة فيسبوك مثلاً). فالرقم على واجهة
+   * البرمجة ولا تطبيق يقرأ رسائله، ولا سبيل إلى الرمز إلا هذا.
+   *
+   * ويُفتح بمتغيّر بيئة يُضبط يدوياً ثمّ يُحذف فور أخذ الرمز.
+   * وحتى في هذه الحال لا يُطبع إلا ما أشبه الرمز: نصٌّ قصير فيه
+   * عدد من خمسة إلى ثمانية أرقام. فلا تُكشف رسالة موكّلٍ عادية.
+   */
+  if ((process.env.WA_DEBUG_CODE || '').trim() === '1' && text) {
+    const short = text.length <= 160
+    const hasCode = /(?<!\d)\d{5,8}(?!\d)/.test(text)
+
+    if (short && hasCode) {
+      console.log('[wa] نصّ يحتمل رمزاً | from=' + from + ' | ' + text)
+    }
+  }
+
   const admin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
