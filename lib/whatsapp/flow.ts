@@ -38,11 +38,20 @@ type Chat = {
 /* ───────────── الحالة ───────────── */
 
 async function loadChat(admin: Admin, phone: string): Promise<Chat> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from('whatsapp_chats')
     .select('phone, state, client_id, case_id, updated_at')
     .eq('phone', phone)
     .maybeSingle()
+
+  /**
+   * الخطأ هنا كان يُبتلع، فيبدو كأن المحادثة جديدة. وأثره أن البوت
+   * ينسى أنه ينتظر رمز التأكيد ويعود بالعميل إلى القائمة — وهو
+   * بالضبط ما شُوهد. فصار كل فشلٍ يُعلن عن نفسه.
+   */
+  if (error) {
+    console.log('[wa] فشل قراءة الحالة | ' + error.message)
+  }
 
   if (!data) {
     return { phone, state: 'main', client_id: null, case_id: null, updated_at: '' }
@@ -63,7 +72,7 @@ async function saveChat(
   clientId: string | null,
   caseId: string | null
 ) {
-  await admin.from('whatsapp_chats').upsert(
+  const { error } = await admin.from('whatsapp_chats').upsert(
     {
       phone,
       state,
@@ -73,6 +82,12 @@ async function saveChat(
     },
     { onConflict: 'phone' }
   )
+
+  // صمت الفشل هنا هو ما أعمانا: الحالة لا تُحفظ، فتُقرأ فارغةً في
+  // الرسالة التالية، فيبدو كل عميلٍ كأنه يكتب لأول مرّة.
+  if (error) {
+    console.log('[wa] فشل حفظ الحالة | state=' + state + ' | ' + error.message)
+  }
 }
 
 /* ───────────── مُنشئات الردّ ───────────── */
@@ -103,6 +118,15 @@ export async function reply(
   choice: string | null
 ): Promise<Reply | null> {
   const chat = await loadChat(admin, phone)
+
+  // حالة المحادثة في كل رسالة: بها يُقرأ المسار كما جرى، لا كما يُظنّ
+  console.log(
+    '[wa] الحالة | ' + phone +
+    ' | state=' + chat.state +
+    ' | client=' + (chat.client_id ? 'نعم' : 'لا') +
+    ' | case=' + (chat.case_id ? 'نعم' : 'لا') +
+    ' | جديدة=' + (chat.updated_at ? 'لا' : 'نعم')
+  )
 
   // معرّف من القائمة
   if (choice) return await onChoice(admin, phone, chat, choice)
