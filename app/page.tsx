@@ -13,7 +13,7 @@ export default async function HomePage() {
     .order('published_at', { ascending: false })
     .limit(3)
 
-  const whatsappNumber = '967771774502'
+  const whatsappNumber = '967715113113'
   const whatsappMessage = encodeURIComponent('السلام عليكم، أرغب في التواصل مع مكتب وليد الكثيري للمحاماة بخصوص استفسار قانوني.')
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`
 

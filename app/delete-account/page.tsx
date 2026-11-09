@@ -19,7 +19,7 @@ export const metadata = {
 
 const UPDATED = '3 نوفمبر 2026'
 const EMAIL = 'alkathirilawfirm@gmail.com'
-const PHONE = '+967771774502'
+const PHONE = '+967715113113'
 const APP_NAME = 'مكتب وليد الكثيري للمحاماة'
 
 const MAIL_SUBJECT = 'طلب حذف حساب'

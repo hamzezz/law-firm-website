@@ -7,7 +7,7 @@ import MobileNav from '@/app/components/mobile-nav'
 
 const BASE = 'https://kathirilaw.com'
 const WHATSAPP =
-  'https://wa.me/967771774502?text=' +
+  'https://wa.me/967715113113?text=' +
   encodeURIComponent('السلام عليكم، أرغب في التواصل مع مكتب وليد الكثيري للمحاماة بخصوص استفسار قانوني.')
 
 export function generateStaticParams() {

@@ -16,7 +16,7 @@ const legalService = {
   url: BASE,
   logo: `${BASE}/logo.png`,
   image: `${BASE}/og-image.png`,
-  telephone: '+967771774502',
+  telephone: '+967715113113',
   email: 'alkathirilawfirm@gmail.com',
   description:
     'مكتب محاماة واستشارات قانونية في محافظة إب، يمثّل موكليه من الأفراد والشركات أمام مختلف درجات المحاكم والنيابات، ويتابع قضايا المغتربين اليمنيين بموجب وكالات شرعية.',
@@ -66,7 +66,7 @@ const attorney = {
   jobTitle: 'محامٍ ومستشار قانوني',
   worksFor: { '@id': ORGANIZATION_ID },
   url: `${BASE}/about`,
-  telephone: '+967771774502',
+  telephone: '+967715113113',
   email: 'alkathirilawfirm@gmail.com',
   knowsLanguage: 'ar',
   hasCredential: [

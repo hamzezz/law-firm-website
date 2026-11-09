@@ -4,7 +4,7 @@ import { Breadcrumbs, FaqSchema } from '../components/page-schema'
 import MobileNav from '../components/mobile-nav'
 
 const WHATSAPP =
-  'https://wa.me/967771774502?text=' +
+  'https://wa.me/967715113113?text=' +
   encodeURIComponent('السلام عليكم، أنا مغترب وأرغب في متابعة قضية داخل اليمن عبر وكالة شرعية.')
 
 export const metadata = {

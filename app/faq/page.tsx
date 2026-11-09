@@ -4,7 +4,7 @@ import { Breadcrumbs, FaqSchema } from '../components/page-schema'
 import MobileNav from '../components/mobile-nav'
 
 const WHATSAPP =
-  'https://wa.me/967771774502?text=' +
+  'https://wa.me/967715113113?text=' +
   encodeURIComponent('السلام عليكم، أرغب في التواصل مع مكتب وليد الكثيري للمحاماة بخصوص استفسار قانوني.')
 
 export const metadata = {
@@ -53,7 +53,7 @@ const FAQ = [
   },
   {
     q: 'كيف أتواصل مع المكتب؟',
-    a: 'عبر واتساب أو الهاتف على الرقم +967771774502، أو بالبريد الإلكتروني alkathirilawfirm@gmail.com، أو بزيارة المكتب في شارع المحافظة بمدينة إب خلال ساعات العمل.',
+    a: 'عبر واتساب أو الهاتف على الرقم +967715113113، أو بالبريد الإلكتروني alkathirilawfirm@gmail.com، أو بزيارة المكتب في شارع المحافظة بمدينة إب خلال ساعات العمل.',
   },
 ]
 
