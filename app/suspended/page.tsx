@@ -7,7 +7,7 @@ export const metadata = {
 }
 
 const EMAIL = 'alkathirilawfirm@gmail.com'
-const PHONE = '+967715113113'
+const PHONE = '+967771774502'
 
 /**
  * شاشة الحساب الموقوف.
