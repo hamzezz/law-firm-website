@@ -79,7 +79,7 @@ export default async function ManagerDashboardPage() {
   ] = await Promise.all([
     supabase
       .from('cases')
-      .select('id, case_number, title, case_type, status, stage, court_name, opened_at, closed_at, other_party, clients ( id, national_id, users ( full_name ) ), lawyers ( id, users ( full_name ) )')
+      .select('id, case_number, title, case_type, status, stage, court_name, opened_at, closed_at, outcome, other_party, clients ( id, national_id, users ( full_name ) ), lawyers ( id, users ( full_name ) )')
       .order('opened_at', { ascending: false })
       .limit(ROW_LIMIT),
     supabase.from('clients').select('id, users ( full_name )').limit(ROW_LIMIT),
