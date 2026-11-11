@@ -1,17 +1,18 @@
-export default function ReportsPanel({ cases }: { cases: any[] }) {
+import { firstSessionByCase, caseDurationDays } from '@/lib/cases/duration'
+
+export default function ReportsPanel({ cases, sessions }: { cases: any[]; sessions?: any[] }) {
   const closedCases = (cases || []).filter((c: any) => c.status === 'closed')
   const wonCases = closedCases.filter((c: any) => c.outcome === 'لصالحنا')
   const winRate = closedCases.length > 0 ? Math.round((wonCases.length / closedCases.length) * 100) : null
 
+  // من أول جلسة حتى الإغلاق — والقضية المغلقة بلا جلسات لا تدخل المتوسّط
   const avgDurationDays = (() => {
-    const withDuration = closedCases.filter((c: any) => c.opened_at && c.closed_at)
-    if (withDuration.length === 0) return null
-    const totalDays = withDuration.reduce((sum: number, c: any) => {
-      const opened = new Date(c.opened_at).getTime()
-      const closed = new Date(c.closed_at).getTime()
-      return sum + Math.round((closed - opened) / (1000 * 60 * 60 * 24))
-    }, 0)
-    return Math.round(totalDays / withDuration.length)
+    const firstByCase = firstSessionByCase(sessions)
+    const durations = closedCases
+      .map((c: any) => caseDurationDays(c, firstByCase))
+      .filter((d: number | null): d is number => d !== null)
+    if (durations.length === 0) return null
+    return Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length)
   })()
 
   const lawyerStats: Record<string, number> = {}
@@ -36,7 +37,7 @@ export default function ReportsPanel({ cases }: { cases: any[] }) {
         </div>
         <div className="bg-white rounded-2xl shadow p-5 text-center border border-slate-100">
           <p className="text-2xl font-bold text-blue-600">{avgDurationDays !== null ? avgDurationDays : '—'}</p>
-          <p className="text-[10px] text-slate-500 mt-1">متوسط أيام القضية (من الفتح للإغلاق)</p>
+          <p className="text-[10px] text-slate-500 mt-1">متوسط أيام القضية (من أول جلسة حتى الإغلاق)</p>
         </div>
         <div className="bg-white rounded-2xl shadow p-5 text-center border border-slate-100">
           <p className="text-2xl font-bold text-slate-700">{closedCases.length}</p>

@@ -669,7 +669,7 @@ export default function ManagerTabs({
           {/* على الهاتف: أقسام مطوية — وعلى الحاسوب: مفتوحة كما كانت */}
           <div className="md:hidden mt-5">
             <Section id="reports" label="التقارير" open={open.reports} onToggle={toggle}>
-              <ReportsPanel cases={cases} />
+              <ReportsPanel cases={cases} sessions={allSessions} />
             </Section>
             <Section id="predict" label="التحليلات التنبؤية" open={open.predict} onToggle={toggle}>
               <PredictiveAnalytics cases={cases} sessions={allSessions} />
@@ -680,7 +680,7 @@ export default function ManagerTabs({
           </div>
 
           <div className="hidden md:block">
-            <div className="mt-6"><ReportsPanel cases={cases} /></div>
+            <div className="mt-6"><ReportsPanel cases={cases} sessions={allSessions} /></div>
             <div className="mt-6"><PredictiveAnalytics cases={cases} sessions={allSessions} /></div>
             <div className="mt-6"><AuditLog logs={auditLogs} /></div>
           </div>

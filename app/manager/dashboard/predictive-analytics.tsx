@@ -1,4 +1,9 @@
+import { firstSessionByCase, caseDurationDays } from '@/lib/cases/duration'
+
 export default function PredictiveAnalytics({ cases, sessions }: { cases: any[]; sessions: any[] }) {
+  // تاريخ أول جلسة لكل قضية — بداية مدّتها
+  const firstByCase = firstSessionByCase(sessions)
+
   // حساب عدد الجلسات لكل قضية
   const sessionsPerCase: Record<string, number> = {}
   for (const s of sessions || []) {
@@ -19,12 +24,9 @@ export default function PredictiveAnalytics({ cases, sessions }: { cases: any[];
     byType[type].totalSessions += sessionCount
     byType[type].caseCount += 1
 
-    if (c.status === 'closed' && c.opened_at && c.closed_at) {
-      const days = Math.round(
-        (new Date(c.closed_at).getTime() - new Date(c.opened_at).getTime()) / (1000 * 60 * 60 * 24)
-      )
-      byType[type].closedDurations.push(days)
-    }
+    // من أول جلسة حتى الإغلاق — والقضية المغلقة بلا جلسات لا تدخل المتوسّط
+    const days = caseDurationDays(c, firstByCase)
+    if (days !== null) byType[type].closedDurations.push(days)
 
     if (!byCourt[court]) byCourt[court] = { totalSessions: 0, caseCount: 0 }
     byCourt[court].totalSessions += sessionCount
